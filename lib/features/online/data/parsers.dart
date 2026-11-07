@@ -84,6 +84,129 @@ const videoTypePodcast = 'MUSIC_VIDEO_TYPE_PODCAST_EPISODE';
 
 enum CollectionKind { album, playlist, artist }
 
+enum OnlineShelfType {
+  heroSpotlight,
+  multiRowTracks,
+  standardCards,
+  genreGrid,
+  artistCircles,
+}
+
+OnlineShelfType classifyShelf(OnlineShelf shelf) {
+  final title = shelf.title.toLowerCase();
+
+  // 1. Artist shelf: all collections are artists
+  if (shelf.collections.isNotEmpty &&
+      shelf.collections.every((c) => c.kind == CollectionKind.artist)) {
+    return OnlineShelfType.artistCircles;
+  }
+
+  // 2. Quick Picks / Listen Again / Track recommendations
+  if (shelf.songs.isNotEmpty && shelf.collections.isEmpty) {
+    if (title.contains('quick picks') ||
+        title.contains('listen again') ||
+        title.contains('start radio') ||
+        title.contains('based on your library') ||
+        title.contains('songs')) {
+      return OnlineShelfType.multiRowTracks;
+    }
+  }
+
+  // 3. Hero Spotlight: Mixed for you / Supermix / Featured
+  if (title.contains('mixed for you') ||
+      title.contains('supermix') ||
+      title.contains('featured') ||
+      title.contains('daily mix')) {
+    return OnlineShelfType.heroSpotlight;
+  }
+
+  // 4. Moods & Genres
+  if (title.contains('mood') ||
+      title.contains('genre') ||
+      title.contains('activities')) {
+    return OnlineShelfType.genreGrid;
+  }
+
+  // 5. Default
+  return OnlineShelfType.standardCards;
+}
+
+bool isRadioStation(String? browseId, String? title) {
+  final id = browseId ?? '';
+  if (id.startsWith('RDAMVM') ||
+      id.startsWith('RDAMPL') ||
+      id.startsWith('RDCLAK') ||
+      id.startsWith('RDTMAK') ||
+      id.startsWith('VLRDAM') ||
+      id.startsWith('VLRD')) {
+    return true;
+  }
+  final t = (title ?? '').toLowerCase().trim();
+  if (t.startsWith('mix - ') ||
+      t.startsWith('mix: ') ||
+      t.endsWith(' mix') ||
+      t.startsWith('radio: ') ||
+      t.endsWith(' radio') ||
+      t.contains('supermix')) {
+    return true;
+  }
+  return false;
+}
+
+String cleanMixTitle(String raw) {
+  var t = raw.trim();
+  if (t.startsWith('Mix - ')) t = t.substring(6).trim();
+  if (t.startsWith('Mix: ')) t = t.substring(5).trim();
+  if (t.startsWith('Radio: ')) t = t.substring(7).trim();
+  if (t.endsWith(' Mix')) t = t.substring(0, t.length - 4).trim();
+  if (t.endsWith(' Radio')) t = t.substring(0, t.length - 6).trim();
+  return t.isEmpty ? raw.trim() : t;
+}
+
+String? cleanMixSubtitle(
+  String rawTitle,
+  String? rawSubtitle, {
+  String? browseId,
+  List<String> artists = const [],
+}) {
+  final cleanT = cleanMixTitle(rawTitle).toLowerCase();
+  if (rawSubtitle == null || rawSubtitle.trim().isEmpty) {
+    return _synthesizeMixSubtitle(browseId, artists);
+  }
+  var sub = rawSubtitle.trim();
+  if (sub.startsWith('Mix • ')) sub = sub.substring(6).trim();
+  if (sub.startsWith('Mix - ')) sub = sub.substring(6).trim();
+  if (sub.startsWith('Radio • ')) sub = sub.substring(8).trim();
+
+  final cleanS = sub.toLowerCase();
+  if (cleanS == cleanT ||
+      cleanS == 'mix' ||
+      cleanS == 'radio' ||
+      cleanS.isEmpty) {
+    return _synthesizeMixSubtitle(browseId, artists);
+  }
+  return sub;
+}
+
+String _synthesizeMixSubtitle(String? browseId, List<String> artists) {
+  if (artists.isNotEmpty) {
+    return 'Feat. ${artists.take(3).join(', ')}';
+  }
+  final id = browseId ?? '';
+  if (id.startsWith('RDAMVM') ||
+      id.startsWith('RDAMPL') ||
+      id.startsWith('VLRDAM')) {
+    return 'Endless Radio • Based on track';
+  }
+  if (id.startsWith('RDTMAK')) {
+    return 'Artist Station • Complete catalog & similar';
+  }
+  if (id.startsWith('RDCLAK')) {
+    return 'Curated Blend • Dynamic flow';
+  }
+  return 'Endless Radio • Autoplay';
+}
+
 /// An album, playlist or artist card.
 class OnlineCollection {
   const OnlineCollection({
@@ -92,6 +215,7 @@ class OnlineCollection {
     required this.kind,
     this.subtitle,
     this.thumbnail,
+    this.isRadio = false,
   });
 
   final String browseId;
@@ -99,6 +223,7 @@ class OnlineCollection {
   final CollectionKind kind;
   final String? subtitle;
   final String? thumbnail;
+  final bool isRadio;
 
   Map<String, dynamic> toJson() => {
     'b': browseId,
@@ -106,6 +231,7 @@ class OnlineCollection {
     'k': kind.name,
     's': subtitle,
     'th': thumbnail,
+    if (isRadio) 'r': true,
   };
 
   static OnlineCollection? fromJson(Object? j) {
@@ -118,6 +244,7 @@ class OnlineCollection {
       kind: kind.first,
       subtitle: j['s'] as String?,
       thumbnail: j['th'] as String?,
+      isRadio: j['r'] as bool? ?? false,
     );
   }
 }
@@ -130,6 +257,7 @@ class OnlineShelf {
     this.collections = const [],
     this.moreBrowseId,
     this.moreParams,
+    this.shelfType,
   });
   final String title;
   final List<OnlineSong> songs;
@@ -139,6 +267,9 @@ class OnlineShelf {
   /// a library list, or a playlist (`VL...`). Null: the row is the list.
   final String? moreBrowseId;
   final String? moreParams;
+  final OnlineShelfType? shelfType;
+
+  OnlineShelfType get type => shelfType ?? classifyShelf(this);
 
   bool get isEmpty => songs.isEmpty && collections.isEmpty;
 
@@ -148,10 +279,15 @@ class OnlineShelf {
     'c': [for (final c in collections) c.toJson()],
     if (moreBrowseId != null) 'mb': moreBrowseId,
     if (moreParams != null) 'mp': moreParams,
+    if (shelfType != null) 'st': shelfType!.name,
   };
 
   static OnlineShelf? fromJson(Object? j) {
     if (j is! Map || j['t'] is! String) return null;
+    final stName = j['st'] as String?;
+    final st = stName != null
+        ? OnlineShelfType.values.where((e) => e.name == stName).firstOrNull
+        : null;
     return OnlineShelf(
       j['t'] as String,
       songs: [
@@ -163,6 +299,7 @@ class OnlineShelf {
       ],
       moreBrowseId: j['mb'] as String?,
       moreParams: j['mp'] as String?,
+      shelfType: st,
     );
   }
 }
@@ -407,12 +544,26 @@ OnlineCollection? _collection(
   Map<String, dynamic>? endpointHolder,
   String? title,
   String? subtitle,
-  Object? thumbNode,
-) {
+  Object? thumbNode, {
+  List<String> artists = const [],
+}) {
   final browse = _at(endpointHolder, ['navigationEndpoint', 'browseEndpoint']);
-  if (browse is! Map || title == null) return null;
-  final id = browse['browseId'] as String?;
-  if (id == null) return null;
+  var id = browse is Map ? browse['browseId'] as String? : null;
+  if (id == null) {
+    final watchPlaylist =
+        _at(endpointHolder, ['navigationEndpoint', 'watchPlaylistEndpoint']);
+    if (watchPlaylist is Map) {
+      id = watchPlaylist['playlistId'] as String?;
+    }
+  }
+  if (id == null) {
+    final watch = _at(endpointHolder, ['navigationEndpoint', 'watchEndpoint']);
+    if (watch is Map) {
+      id = watch['playlistId'] as String?;
+    }
+  }
+  if (id == null || title == null) return null;
+
   final kind = _kindFor(
     _at(browse, [
           'browseEndpointContextSupportedConfigs',
@@ -421,14 +572,22 @@ OnlineCollection? _collection(
         ])
         as String?,
     id,
-  );
+  ) ?? (id.startsWith('RD') || id.startsWith('VL') ? CollectionKind.playlist : null);
   if (kind == null) return null;
+
+  final isRadio = isRadioStation(id, title);
+  final finalTitle = isRadio ? cleanMixTitle(title) : title;
+  final finalSubtitle = isRadio
+      ? cleanMixSubtitle(title, subtitle, browseId: id, artists: artists)
+      : subtitle;
+
   return OnlineCollection(
     browseId: id,
-    title: title,
+    title: finalTitle,
     kind: kind,
-    subtitle: subtitle,
+    subtitle: finalSubtitle,
     thumbnail: bestThumbnail(thumbNode),
+    isRadio: isRadio,
   );
 }
 
@@ -452,9 +611,21 @@ OnlineCollection? collectionFromListItem(Map<String, dynamic> r) {
   final title = runText(r['title']);
   final subtitleRuns = _runs(r['subtitle']);
   final subtitle = runText(r['subtitle']);
+  final artists = _artistsFrom(subtitleRuns)
+          ?.split(',')
+          .map((e) => e.trim())
+          .where((e) => e.isNotEmpty)
+          .toList() ??
+      const [];
+
   final videoId =
       _at(r, ['navigationEndpoint', 'watchEndpoint', 'videoId']) as String?;
-  if (videoId != null && title != null) {
+  final playlistId =
+      _at(r, ['navigationEndpoint', 'watchEndpoint', 'playlistId']) as String? ??
+      _at(r, ['navigationEndpoint', 'watchPlaylistEndpoint', 'playlistId'])
+          as String?;
+
+  if (videoId != null && playlistId == null && title != null) {
     return (
       OnlineSong(
         videoId: videoId,
@@ -465,7 +636,10 @@ OnlineCollection? collectionFromListItem(Map<String, dynamic> r) {
       null,
     );
   }
-  return (null, _collection(r, title, subtitle, r['thumbnailRenderer']));
+  return (
+    null,
+    _collection(r, title, subtitle, r['thumbnailRenderer'], artists: artists),
+  );
 }
 
 extension on String {
