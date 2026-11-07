@@ -547,6 +547,7 @@ class _ExploreOnlineArtistCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context)!;
     return PremiumSection(
+      useExpanded: false,
       borderRadius: BorderRadius.circular(16),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       onTap: () => _exploreArtistOnline(context, artistName, thumbnail),
