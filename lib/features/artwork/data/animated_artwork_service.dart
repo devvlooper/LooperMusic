@@ -267,42 +267,23 @@ class AnimatedArtworkService {
     final netOk = await isNetworkPermitted();
     if (!netOk) return null;
 
-    final settings = AnimatedArtworkSettingsNotifier.current;
-
-    // Mode B: Self-Hosted m8tec server if configured
-    if (settings.customServerUrl != null &&
-        settings.customServerUrl!.trim().isNotEmpty) {
-      final serverArt = await _queryM8tecServer(
-        serverUrl: settings.customServerUrl!.trim(),
-        artist: artist ?? '',
-        album: album ?? '',
-        title: title,
-        key: key,
-      );
-      if (serverArt != null) {
-        await _saveCache(serverArt);
-        _triggerBackgroundDownload(serverArt);
-        return serverArt;
-      }
-    }
-
-    // Mode A: Direct Apple Music resolver
+    // Direct Apple Music resolver
     final cleanArtist = _cleanMetadata(artist ?? '');
     final cleanAlbum = _cleanMetadata(album ?? '');
     final cleanTitle = _cleanMetadata(title ?? '');
 
-    String? appleMusicUrl = await _searchAppleMusicUrl(
-      artist: cleanArtist,
-      album: cleanAlbum,
-      title: cleanTitle,
-    );
+    String? appleMusicUrl = cleanAlbum.isNotEmpty
+        ? await _searchAppleMusicUrl(
+            artist: cleanArtist,
+            album: cleanAlbum,
+          )
+        : null;
 
     if (appleMusicUrl == null && cleanTitle.isNotEmpty) {
-      // Fallback search with title
+      // Fallback search with artist + track title as single / album
       appleMusicUrl = await _searchAppleMusicUrl(
         artist: cleanArtist,
         album: cleanTitle,
-        title: null,
       );
     }
 
@@ -399,11 +380,8 @@ class AnimatedArtworkService {
   Future<String?> _searchAppleMusicUrl({
     required String artist,
     required String album,
-    String? title,
   }) async {
-    final parts = [artist, album];
-    if (title != null && title.isNotEmpty) parts.add(title);
-    final query = Uri.encodeComponent(parts.where((p) => p.isNotEmpty).join(' '));
+    final query = Uri.encodeComponent('$artist $album'.trim());
 
     final itunesUrl =
         'https://itunes.apple.com/search?term=$query&entity=album&limit=5';
@@ -527,42 +505,6 @@ class AnimatedArtworkService {
     } catch (_) {
       return (null, null);
     }
-  }
-
-  Future<AnimatedArtwork?> _queryM8tecServer({
-    required String serverUrl,
-    required String artist,
-    required String album,
-    String? title,
-    required String key,
-  }) async {
-    try {
-      final base = serverUrl.endsWith('/')
-          ? serverUrl.substring(0, serverUrl.length - 1)
-          : serverUrl;
-      final uri = Uri.parse(
-        '$base/api/v1/artwork/search?artist=${Uri.encodeComponent(artist)}&album=${Uri.encodeComponent(album)}${title != null ? '&title=${Uri.encodeComponent(title)}' : ''}',
-      );
-
-      final res = await http.get(uri).timeout(const Duration(seconds: 5));
-      if (res.statusCode == 200) {
-        final data = json.decode(res.body);
-        final url = data['url'] as String?;
-        final urlTall = data['url_tall'] as String?;
-        if (url != null || urlTall != null) {
-          return AnimatedArtwork(
-            key: key,
-            artist: artist,
-            album: album,
-            urlSquare: url,
-            urlTall: urlTall,
-            fetchedAt: DateTime.now().millisecondsSinceEpoch,
-            hasMotion: true,
-          );
-        }
-      }
-    } catch (_) {}
-    return null;
   }
 
   /// Extracts the direct MP4 URL from an Apple Music master `.m3u8` manifest.

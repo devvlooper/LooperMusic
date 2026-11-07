@@ -339,16 +339,38 @@ class _OnlineCollectionScreenState
                     },
                   ),
                 ),
-                SliverList.builder(
-                  itemCount: songs.length,
-                  itemBuilder: (context, i) => SongTile(
-                    key: ValueKey('online-page-$i-${songs[i].path}'),
-                    song: songs[i],
-                    songs: songs,
-                    l10n: l10n,
-                    collectionIndex: isArtist ? null : i,
+                if (isArtist && p.songs.isNotEmpty)
+                  SliverToBoxAdapter(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        OnlineSectionTitle(l10n.songs),
+                        SizedBox(
+                          height: 186,
+                          child: ListView.builder(
+                            scrollDirection: Axis.horizontal,
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            itemCount: p.songs.length,
+                            itemBuilder: (context, i) => OnlineSongCard(
+                              songs: p.songs,
+                              index: i,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                else if (!isArtist)
+                  SliverList.builder(
+                    itemCount: songs.length,
+                    itemBuilder: (context, i) => SongTile(
+                      key: ValueKey('online-page-$i-${songs[i].path}'),
+                      song: songs[i],
+                      songs: songs,
+                      l10n: l10n,
+                      collectionIndex: i,
+                    ),
                   ),
-                ),
                 if (p.shelves.isNotEmpty)
                   SliverList.builder(
                     itemCount: p.shelves.length,

@@ -65,7 +65,6 @@ List<({String title, List<Widget> tiles})> onlineSettingsSections(
     tiles: const [
       _AnimatedArtworkModeTile(),
       _ImmersiveBackgroundTile(),
-      _CustomArtworkServerTile(),
       _AnimatedArtworkCacheLimitTile(),
       _ClearAnimatedArtworkCacheTile(),
     ],
@@ -602,60 +601,6 @@ class _ImmersiveBackgroundTile extends ConsumerWidget {
         ref
             .read(animatedArtworkSettingsProvider.notifier)
             .update((curr) => curr.copyWith(immersiveBackground: val));
-      },
-    );
-  }
-}
-
-class _CustomArtworkServerTile extends ConsumerWidget {
-  const _CustomArtworkServerTile();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = AppLocalizations.of(context)!;
-    final s = ref.watch(animatedArtworkSettingsProvider);
-    return ListTile(
-      leading: const Icon(LucideIcons.server, color: Colors.white70),
-      title: Text(l10n.customArtworkServer, style: _title()),
-      subtitle: Text(
-        s.customServerUrl != null && s.customServerUrl!.isNotEmpty
-            ? s.customServerUrl!
-            : l10n.customArtworkServerDesc,
-        style: _sub(),
-      ),
-      onTap: () async {
-        final controller = TextEditingController(text: s.customServerUrl ?? '');
-        await showDialog(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            backgroundColor: Theme.of(ctx).colorScheme.surfaceContainer,
-            title: Text(l10n.customArtworkServer),
-            content: TextField(
-              controller: controller,
-              style: const TextStyle(color: Colors.white),
-              decoration: const InputDecoration(
-                hintText: 'http://192.168.1.100:5000',
-                hintStyle: TextStyle(color: Colors.white38),
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: Text(l10n.cancel),
-              ),
-              TextButton(
-                onPressed: () {
-                  final text = controller.text.trim();
-                  ref
-                      .read(animatedArtworkSettingsProvider.notifier)
-                      .update((curr) => curr.copyWith(customServerUrl: text.isEmpty ? null : text));
-                  Navigator.pop(ctx);
-                },
-                child: const Text('Save'),
-              ),
-            ],
-          ),
-        );
       },
     );
   }

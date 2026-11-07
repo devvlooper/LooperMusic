@@ -266,56 +266,14 @@ class _OnlineViewAllScreenState extends ConsumerState<OnlineViewAllScreen> {
                           gridDelegate:
                               const SliverGridDelegateWithFixedCrossAxisCount(
                             crossAxisCount: 3,
-                            mainAxisSpacing: 16,
-                            crossAxisSpacing: 12,
-                            childAspectRatio: 0.8,
+                            mainAxisSpacing: 18,
+                            crossAxisSpacing: 14,
+                            childAspectRatio: 0.74,
                           ),
                           itemCount: _collections.length,
-                          itemBuilder: (context, i) {
-                            final artist = _collections[i];
-                            return InkWell(
-                              borderRadius: BorderRadius.circular(50),
-                              onTap: () => openOnlineCollection(context, artist),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  ClipOval(
-                                    child: SizedBox(
-                                      width: 88,
-                                      height: 88,
-                                      child: OptimizedImage(
-                                        imageUrl: artist.thumbnail,
-                                        fit: BoxFit.cover,
-                                        placeholder: Container(
-                                          color: Colors.white
-                                              .withValues(alpha: 0.05),
-                                          child: const Center(
-                                            child: Icon(
-                                              LucideIcons.user,
-                                              size: 32,
-                                              color: Colors.white38,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    artist.title,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    textAlign: TextAlign.center,
-                                    style: AppFonts.jostStyle(
-                                      color: Colors.white,
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            );
-                          },
+                          itemBuilder: (context, i) => _GridArtistCard(
+                            artist: _collections[i],
+                          ),
                         ),
                       )
                     : SliverPadding(
@@ -324,12 +282,12 @@ class _OnlineViewAllScreenState extends ConsumerState<OnlineViewAllScreen> {
                           gridDelegate:
                               const SliverGridDelegateWithFixedCrossAxisCount(
                             crossAxisCount: 2,
-                            mainAxisSpacing: 12,
-                            crossAxisSpacing: 12,
-                            childAspectRatio: 0.78,
+                            mainAxisSpacing: 18,
+                            crossAxisSpacing: 14,
+                            childAspectRatio: 0.76,
                           ),
                           itemCount: _collections.length,
-                          itemBuilder: (context, i) => OnlineCollectionCard(
+                          itemBuilder: (context, i) => _GridCollectionCard(
                             collection: _collections[i],
                           ),
                         ),
@@ -354,6 +312,131 @@ class _OnlineViewAllScreenState extends ConsumerState<OnlineViewAllScreen> {
             ],
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _GridCollectionCard extends StatelessWidget {
+  const _GridCollectionCard({required this.collection});
+  final OnlineCollection collection;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(14),
+      onTap: () => openOnlineCollection(context, collection),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          AspectRatio(
+            aspectRatio: 1.0,
+            child: OptimizedImage(
+              imageUrl: collection.thumbnail,
+              fit: BoxFit.cover,
+              borderRadius: BorderRadius.circular(14),
+              placeholder: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.05),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Center(
+                  child: Icon(
+                    LucideIcons.disc3,
+                    size: 36,
+                    color: Colors.white38,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            collection.title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppFonts.jostStyle(
+              color: Colors.white,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          if (collection.subtitle != null &&
+              collection.subtitle!.isNotEmpty) ...[
+            const SizedBox(height: 2),
+            Text(
+              collection.subtitle!,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppFonts.jostStyle(
+                color: Colors.white.withValues(alpha: 0.6),
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _GridArtistCard extends StatelessWidget {
+  const _GridArtistCard({required this.artist});
+  final OnlineCollection artist;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(14),
+      onTap: () => openOnlineCollection(context, artist),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          AspectRatio(
+            aspectRatio: 1.0,
+            child: ClipOval(
+              child: OptimizedImage(
+                imageUrl: artist.thumbnail,
+                fit: BoxFit.cover,
+                placeholder: Container(
+                  color: Colors.white.withValues(alpha: 0.05),
+                  child: const Center(
+                    child: Icon(
+                      LucideIcons.user,
+                      size: 32,
+                      color: Colors.white38,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            artist.title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: AppFonts.jostStyle(
+              color: Colors.white,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          if (artist.subtitle != null && artist.subtitle!.isNotEmpty) ...[
+            const SizedBox(height: 2),
+            Text(
+              artist.subtitle!,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: AppFonts.jostStyle(
+                color: Colors.white.withValues(alpha: 0.5),
+                fontSize: 11,
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }

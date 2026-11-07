@@ -29,6 +29,7 @@ import 'package:looper_player/core/utils/l10n.dart';
 import 'package:looper_player/ui/widgets/common/song_playback_overlay.dart';
 import 'package:looper_player/core/services/haptics/app_haptics.dart';
 import 'package:looper_player/features/artwork/data/animated_artwork_service.dart';
+import 'package:looper_player/features/artwork/domain/animated_artwork_models.dart';
 import 'package:looper_player/features/artwork/presentation/widgets/animated_artwork_widget.dart';
 part 'mini_player_content.dart';
 
@@ -248,6 +249,16 @@ class _PremiumMusicBarState extends ConsumerState<PremiumMusicBar>
     final isPlaying = ref.watch(playbackProvider.select((s) => s.isPlaying));
     final settings = ref.watch(settingsProvider);
     final useBlur = settings.enableDynamicTheming;
+    final motionSettings = ref.watch(animatedArtworkSettingsProvider);
+    final motionArt = song != null
+        ? ref.watch(animatedArtworkForSongProvider(song)).asData?.value
+        : null;
+    final hasMotion = motionSettings.immersiveBackground &&
+        motionSettings.mode != AnimatedArtworkMode.never &&
+        motionArt != null &&
+        motionArt.hasMotion &&
+        (motionArt.bestTallMedia != null || motionArt.bestSquareMedia != null);
+    final showArtBackground = (useBlur && song?.artPath != null) || hasMotion;
     ref.listen<int>(playerCollapseTriggerProvider, (prev, next) {
       if (settings.enableSlideGesture) {
         _isDragging = false;
@@ -403,7 +414,7 @@ class _PremiumMusicBarState extends ConsumerState<PremiumMusicBar>
     // the panel's top edge ~500dp up the screen. The clip also limits hit
     // testing to the panel, so the transparent rest of the layer never
     // swallows touches meant for the screen behind it.
-    final bool isBlurActive = useBlur && !settings.disableBlur;
+    final bool isBlurActive = (useBlur || hasMotion) && !settings.disableBlur;
     final Color minimizedBgColor = isBlurActive
         ? Colors.white.withValues(alpha: 0.05)
         : Theme.of(context).colorScheme.surfaceContainer;
@@ -424,9 +435,9 @@ class _PremiumMusicBarState extends ConsumerState<PremiumMusicBar>
           return FadeTransition(opacity: animation, child: child);
         },
         child: () {
-          if (useBlur && song.artPath != null) {
+          if (showArtBackground) {
             return Stack(
-              key: ValueKey(('art', song.artPath)),
+              key: ValueKey(('art', song.id, hasMotion)),
               fit: StackFit.expand,
               children: [
                 BlurredBackgroundArt(song: song),

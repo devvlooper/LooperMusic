@@ -44,6 +44,8 @@ import 'gesture_artwork.dart';
 import 'player_backgrounds.dart';
 import 'sleep_timer_clock.dart';
 import 'favorite_button.dart';
+import 'package:looper_player/features/artwork/data/animated_artwork_service.dart';
+import 'package:looper_player/features/artwork/domain/animated_artwork_models.dart';
 import 'package:looper_player/core/utils/l10n.dart';
 import 'package:looper_player/core/services/haptics/app_haptics.dart';
 export 'position_reporter.dart';
@@ -216,6 +218,15 @@ class _AndroidExpandedPlayerState extends ConsumerState<AndroidExpandedPlayer>
     final musicDarkness = settings.musicDarkness.isNaN
         ? 0.62
         : settings.musicDarkness;
+    final motionSettings = ref.watch(animatedArtworkSettingsProvider);
+    final motionArt =
+        ref.watch(animatedArtworkForSongProvider(song)).asData?.value;
+    final hasMotion = motionSettings.immersiveBackground &&
+        motionSettings.mode != AnimatedArtworkMode.never &&
+        motionArt != null &&
+        motionArt.hasMotion &&
+        (motionArt.bestTallMedia != null || motionArt.bestSquareMedia != null);
+    final showArtBackground = (useBlur && song.artPath != null) || hasMotion;
 
     // In landscape the player is two panes (see PlayerLandscapeLayout); portrait
     // keeps the original single column.
@@ -1188,7 +1199,7 @@ class _AndroidExpandedPlayerState extends ConsumerState<AndroidExpandedPlayer>
             ),
           // Skipped with the gradient on: the panel's background is already
           // opaque then, and this fill would paint over the gradient.
-          if (enableSlide && !useBlur && !settings.enablePlayerGradient)
+          if (enableSlide && !showArtBackground && !settings.enablePlayerGradient)
             Positioned.fill(
               child: fadeWithSlide(
                 ColoredBox(color: Theme.of(context).colorScheme.surface),
@@ -1205,9 +1216,9 @@ class _AndroidExpandedPlayerState extends ConsumerState<AndroidExpandedPlayer>
                 transitionBuilder: (child, animation) {
                   return FadeTransition(opacity: animation, child: child);
                 },
-                child: useBlur && song.artPath != null
+                child: showArtBackground
                     ? SizedBox.expand(
-                        key: ValueKey(('art', song.artPath)),
+                        key: ValueKey(('art', song.id, hasMotion)),
                         child: Stack(
                           fit: StackFit.expand,
                           children: [

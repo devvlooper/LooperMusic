@@ -23,24 +23,26 @@ class BlurredBackgroundArt extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final path = song.artPath;
-    if (path == null) return const SizedBox.shrink();
-
-    final staticArt = RepaintBoundary(
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          if (!constraints.hasBoundedWidth ||
-              !constraints.hasBoundedHeight ||
-              constraints.biggest.isEmpty) {
-            return const SizedBox.shrink();
-          }
-          final Widget art = _BlurredArtImage(
-            path: path,
-            size: constraints.biggest,
-          );
-          return zoom == 1.0 ? art : Transform.scale(scale: zoom, child: art);
-        },
-      ),
-    );
+    final Widget staticArt = (path != null && path.isNotEmpty)
+        ? RepaintBoundary(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                if (!constraints.hasBoundedWidth ||
+                    !constraints.hasBoundedHeight ||
+                    constraints.biggest.isEmpty) {
+                  return const SizedBox.shrink();
+                }
+                final Widget art = _BlurredArtImage(
+                  path: path,
+                  size: constraints.biggest,
+                );
+                return zoom == 1.0
+                    ? art
+                    : Transform.scale(scale: zoom, child: art);
+              },
+            ),
+          )
+        : const SizedBox.shrink();
 
     final motionSettings = ref.watch(animatedArtworkSettingsProvider);
     if (!motionSettings.immersiveBackground ||
