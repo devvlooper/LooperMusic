@@ -64,6 +64,7 @@ List<({String title, List<Widget> tiles})> onlineSettingsSections(
     title: l10n.animatedArtworks,
     tiles: const [
       _AnimatedArtworkModeTile(),
+      _AnimateAlbumCoverTile(),
       _ImmersiveBackgroundTile(),
       _AnimatedArtworkCacheLimitTile(),
       _ClearAnimatedArtworkCacheTile(),
@@ -581,6 +582,26 @@ class _AnimatedArtworkModeTile extends ConsumerWidget {
               .update((curr) => curr.copyWith(mode: m));
         },
       ),
+    );
+  }
+}
+
+class _AnimateAlbumCoverTile extends ConsumerWidget {
+  const _AnimateAlbumCoverTile();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final s = ref.watch(animatedArtworkSettingsProvider);
+    return _Switch(
+      icon: LucideIcons.disc,
+      title: 'Now Playing Artwork Motion',
+      subtitle: 'Animate album cover on now playing screen when available',
+      value: s.animateAlbumCover,
+      onChanged: (val) {
+        ref
+            .read(animatedArtworkSettingsProvider.notifier)
+            .update((curr) => curr.copyWith(animateAlbumCover: val));
+      },
     );
   }
 }

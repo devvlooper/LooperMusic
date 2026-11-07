@@ -69,7 +69,9 @@ class _FavoriteButtonWithGlowState extends State<FavoriteButtonWithGlow>
     // Only animate when the *same* song actually transitions to favorite
     // (a real like toggle). If the song itself changed - e.g. replaying a
     // previously-liked track after another song - don't replay the glow.
-    if (oldWidget.song.id == widget.song.id &&
+    final sameTrack = oldWidget.song.path == widget.song.path ||
+        oldWidget.song.id == widget.song.id;
+    if (sameTrack &&
         !oldWidget.song.isFavorite &&
         widget.song.isFavorite) {
       if (_glowController.status != AnimationStatus.forward) {
@@ -95,7 +97,7 @@ class _FavoriteButtonWithGlowState extends State<FavoriteButtonWithGlow>
           forceNoBlur: true,
           showBorder: false,
           backgroundColor: widget.song.isFavorite
-              ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.05)
+              ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.08)
               : Colors.transparent,
           onTap: () {
             if (widget.song.isFavorite) {
@@ -108,16 +110,14 @@ class _FavoriteButtonWithGlowState extends State<FavoriteButtonWithGlow>
             widget.ref.read(playbackProvider.notifier).toggleFavorite();
           },
           child: Center(
-            child: SvgPicture.asset(
-              widget.song.isFavorite ? AppIcons.like : AppIcons.unlike,
-              colorFilter: ColorFilter.mode(
-                widget.song.isFavorite
-                    ? Theme.of(context).colorScheme.primary
-                    : Colors.white.withOpacity(0.2),
-                BlendMode.srcIn,
-              ),
-              width: AppIcons.sizeLarge.s,
-              height: AppIcons.sizeLarge.s,
+            child: Icon(
+              widget.song.isFavorite
+                  ? Icons.star_rounded
+                  : Icons.star_outline_rounded,
+              size: 28,
+              color: widget.song.isFavorite
+                  ? Theme.of(context).colorScheme.primary
+                  : Colors.white.withValues(alpha: 0.35),
             ),
           ),
         ),

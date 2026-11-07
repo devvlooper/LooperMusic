@@ -1,8 +1,10 @@
 import 'dart:collection';
 import 'dart:io';
 import 'dart:math' as math;
+import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:looper_player/features/artwork/data/animated_artwork_service.dart';
 import 'package:looper_player/features/artwork/domain/animated_artwork_models.dart';
@@ -101,7 +103,21 @@ class _BlurredArtImageState extends State<_BlurredArtImage> {
   @override
   Widget build(BuildContext context) {
     final image = _image;
-    if (image == null) return const SizedBox.expand();
+    if (image == null) {
+      final theme = Theme.of(context);
+      return DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              theme.colorScheme.primary.withValues(alpha: 0.3),
+              theme.colorScheme.surface,
+            ],
+          ),
+        ),
+      );
+    }
     return RawImage(
       image: image,
       fit: BoxFit.fill,
@@ -134,8 +150,15 @@ Future<ui.Image?> _blurredArt(String path, Size size) {
 /// blur-to-size ratio so it upscales without visible steps.
 Future<ui.Image?> _render(String path, int w, int h, double sigma) async {
   try {
+    final Uint8List bytes;
+    if (path.startsWith('http://') || path.startsWith('https://')) {
+      final file = await DefaultCacheManager().getSingleFile(path);
+      bytes = await file.readAsBytes();
+    } else {
+      bytes = await File(path).readAsBytes();
+    }
     final codec = await ui.instantiateImageCodec(
-      await File(path).readAsBytes(),
+      bytes,
       targetWidth: 80,
       targetHeight: 80,
     );

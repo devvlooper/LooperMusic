@@ -473,19 +473,31 @@ class Library extends _$Library {
   }
 
   Future<void> toggleFavorite(Song song) async {
-    await OnlinePlayback.persist([song]); // online songs need a row first
-    await DbService.isar.writeTxn(() async {
-      // Direct ID lookup is safer to ensure we're updating the correct record
-      final dbSong = await DbService.isar.songs.get(song.id);
-      if (dbSong != null) {
-        dbSong.isFavorite = !dbSong.isFavorite;
-        await DbService.isar.songs.put(dbSong);
-      } else {
-        // Fallback for songs not yet in DB (e.g. played from file)
-        song.isFavorite = !song.isFavorite;
-        await DbService.isar.songs.put(song);
+    final newFavorite = !song.isFavorite;
+    song.isFavorite = newFavorite;
+
+    try {
+      if (song.path.startsWith('yt:')) {
+        await OnlinePlayback.persist([song]);
       }
-    });
+      await DbService.isar.writeTxn(() async {
+        final dbSong = await DbService.isar.songs.getByPath(song.path) ??
+            await DbService.isar.songs.get(song.id);
+        if (dbSong != null) {
+          dbSong.isFavorite = newFavorite;
+          await DbService.isar.songs.put(dbSong);
+          song.id = dbSong.id;
+        } else {
+          song.isFavorite = newFavorite;
+          try {
+            song.dateAdded;
+          } catch (_) {
+            song.dateAdded = DateTime.now();
+          }
+          await DbService.isar.songs.put(song);
+        }
+      });
+    } catch (_) {}
   }
 
   /// Sets (rather than toggles) [value] on every song in [songs] in one

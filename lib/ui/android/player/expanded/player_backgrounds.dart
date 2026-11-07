@@ -3,6 +3,7 @@ import 'package:flutter/material.dart' hide RepeatMode;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:looper_player/core/services/storage/db_service.dart';
 import 'package:looper_player/features/artwork/data/animated_artwork_service.dart';
+import 'package:looper_player/features/artwork/domain/animated_artwork_models.dart';
 import 'package:looper_player/features/artwork/presentation/widgets/animated_artwork_widget.dart';
 import 'package:looper_player/features/library/domain/models/models.dart';
 import 'package:looper_player/core/utils/responsive.dart';
@@ -99,6 +100,12 @@ class ForegroundAlbumArt extends ConsumerWidget {
         cacheWidth: (decodeWidth * dpr).toInt(),
       ),
     );
+
+    final motionSettings = ref.watch(animatedArtworkSettingsProvider);
+    if (!motionSettings.animateAlbumCover ||
+        motionSettings.mode == AnimatedArtworkMode.never) {
+      return staticArt;
+    }
 
     final motionAsync = ref.watch(animatedArtworkForSongProvider(song));
     final mediaSource = motionAsync.asData?.value?.bestSquareMedia;

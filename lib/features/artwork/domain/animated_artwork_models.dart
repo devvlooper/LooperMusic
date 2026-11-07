@@ -18,22 +18,26 @@ enum AnimatedArtworkMode {
 class AnimatedArtworkSettings {
   final AnimatedArtworkMode mode;
   final bool immersiveBackground;
+  final bool animateAlbumCover;
   final int cacheLimitMB;
 
   const AnimatedArtworkSettings({
     this.mode = AnimatedArtworkMode.wifiOnly,
     this.immersiveBackground = false,
+    this.animateAlbumCover = true,
     this.cacheLimitMB = 300,
   });
 
   AnimatedArtworkSettings copyWith({
     AnimatedArtworkMode? mode,
     bool? immersiveBackground,
+    bool? animateAlbumCover,
     int? cacheLimitMB,
   }) {
     return AnimatedArtworkSettings(
       mode: mode ?? this.mode,
       immersiveBackground: immersiveBackground ?? this.immersiveBackground,
+      animateAlbumCover: animateAlbumCover ?? this.animateAlbumCover,
       cacheLimitMB: cacheLimitMB ?? this.cacheLimitMB,
     );
   }
@@ -41,6 +45,7 @@ class AnimatedArtworkSettings {
   Map<String, dynamic> toJson() => {
         'mode': mode.name,
         'immersiveBackground': immersiveBackground,
+        'animateAlbumCover': animateAlbumCover,
         'cacheLimitMB': cacheLimitMB,
       };
 
@@ -51,6 +56,7 @@ class AnimatedArtworkSettings {
         orElse: () => AnimatedArtworkMode.wifiOnly,
       ),
       immersiveBackground: json['immersiveBackground'] as bool? ?? false,
+      animateAlbumCover: json['animateAlbumCover'] as bool? ?? true,
       cacheLimitMB: json['cacheLimitMB'] as int? ?? 300,
     );
   }

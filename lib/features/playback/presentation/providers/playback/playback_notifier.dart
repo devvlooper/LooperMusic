@@ -1821,24 +1821,45 @@ class Playback extends _$Playback {
     final song = state.currentSong;
     if (song == null) return;
 
-    // Toggle and persist
     final newFavoriteState = !song.isFavorite;
-    await DbService.isar.writeTxn(() async {
-      song.isFavorite = newFavoriteState;
-      await DbService.isar.songs.put(song);
-    });
 
-    // Read a fresh instance back from DB to guarantee a new object reference
-    // so Riverpod's select((s) => s.currentSong) detects the identity change
-    // and rebuilds widgets (the like button, notification etc.)
-    final freshSong = await DbService.isar.songs.get(song.id) ?? song;
-
-    // Sync the in-memory playlist entry too
-    final idx = _playlist.indexWhere((s) => s.id == freshSong.id);
-    if (idx != -1) _playlist[idx] = freshSong;
-
-    state = state.copyWith(currentSong: freshSong, queue: List.from(_playlist));
+    // Optimistically update in-memory state immediately so UI reacts with 0ms latency
+    song.isFavorite = newFavoriteState;
+    final path = song.path;
+    final idx = _playlist.indexWhere((s) => s.path == path);
+    if (idx != -1) {
+      _playlist[idx].isFavorite = newFavoriteState;
+    }
+    state = state.copyWith(
+      currentSong: song,
+      queue: List.from(_playlist),
+    );
     _updateNotification();
+
+    // Persist to database safely
+    try {
+      if (song.isOnline) {
+        await OnlinePlayback.persist([song]);
+      }
+
+      await DbService.isar.writeTxn(() async {
+        final dbSong = await DbService.isar.songs.getByPath(path) ??
+            await DbService.isar.songs.get(song.id);
+        if (dbSong != null) {
+          dbSong.isFavorite = newFavoriteState;
+          await DbService.isar.songs.put(dbSong);
+          song.id = dbSong.id;
+        } else {
+          song.isFavorite = newFavoriteState;
+          try {
+            song.dateAdded;
+          } catch (_) {
+            song.dateAdded = DateTime.now();
+          }
+          await DbService.isar.songs.put(song);
+        }
+      });
+    } catch (_) {}
   }
 
   double _lastVolume = 1.0;
