@@ -91,6 +91,7 @@ class Settings extends _$Settings {
         final indexedSongs = await DbService.isar.songs.where().findAll();
         final recoveredFolders =
             indexedSongs
+                .where((song) => !song.path.startsWith('yt:'))
                 .map((song) => File(song.path).parent.path)
                 .where((path) => Directory(path).existsSync())
                 .toSet()

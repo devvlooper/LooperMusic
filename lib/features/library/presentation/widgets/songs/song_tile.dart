@@ -10,6 +10,8 @@ import 'package:looper_player/ui/widgets/common/song_favorite_button.dart';
 import 'package:looper_player/ui/widgets/common/playlist_reorderable_listener.dart';
 import 'package:looper_player/ui/widgets/common/song_playback_overlay.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:looper_player/features/online/data/online_cache.dart';
+import 'package:looper_player/features/online/presentation/online_providers.dart';
 import 'package:looper_player/features/playback/presentation/providers/playback/playback_notifier.dart';
 import 'package:looper_player/core/providers/navigation_provider.dart';
 import 'package:looper_player/core/services/storage/db_service.dart';
@@ -91,6 +93,10 @@ class SongTile extends ConsumerWidget {
       showAlbum: (showAlbum || isCollection) && watchShowAlbum(ref),
     );
 
+    final isUncachedOnline = song.isOnline &&
+        !ref.watch(onlineActiveProvider) &&
+        !OnlineCache.instance.isCached(song.videoId ?? '');
+
     // The ListTile subtitle fills its column. Loosen those constraints so the
     // link only covers the smaller text, leaving row taps around it for Play.
     final subtitle = Align(
@@ -100,15 +106,26 @@ class SongTile extends ConsumerWidget {
         onTap: !selectionMode && song.artist?.trim().isNotEmpty == true
             ? () => _openArtist(context, ref)
             : null,
-        child: Text(
-          songSubtitle,
-          style: AppFonts.jostStyle(
-            color: Colors.white.withValues(alpha: 0.5),
-            fontSize: 12,
-            height: 1.15,
-          ),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (isUncachedOnline) ...[
+              const Icon(LucideIcons.cloudOff, size: 12, color: Colors.white54),
+              const SizedBox(width: 4),
+            ],
+            Flexible(
+              child: Text(
+                songSubtitle,
+                style: AppFonts.jostStyle(
+                  color: Colors.white.withValues(alpha: 0.5),
+                  fontSize: 12,
+                  height: 1.15,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -123,13 +140,21 @@ class SongTile extends ConsumerWidget {
       color: selected
           ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.08)
           : null,
-      child: _SongTileBouncyTap(
-        onTap: () {
-          if (selectionMode) {
-            onToggleSelect?.call();
-            return;
-          }
-          onPlay?.call();
+      child: Opacity(
+        opacity: isUncachedOnline ? 0.45 : 1.0,
+        child: _SongTileBouncyTap(
+          onTap: () {
+            if (selectionMode) {
+              onToggleSelect?.call();
+              return;
+            }
+            if (isUncachedOnline) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Online music is turned off')),
+              );
+              return;
+            }
+            onPlay?.call();
           final resolve = resolveQueue;
           if (resolve != null) {
             final notifier = ref.read(playbackProvider.notifier);
@@ -342,7 +367,8 @@ class SongTile extends ConsumerWidget {
           ),
         ),
       ),
-    );
+    ),
+  );
     return reorderIndex == null
         ? tile
         : PlaylistReorderableListener(

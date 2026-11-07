@@ -1,4 +1,6 @@
 import 'package:looper_player/core/motion/looper_scroll_physics.dart';
+import 'package:looper_player/features/online/presentation/online_providers.dart';
+import 'package:looper_player/features/online/presentation/online_widgets.dart';
 import 'package:looper_player/features/library/data/services/artist_catalog.dart';
 import 'package:looper_player/core/providers/collection_navigation.dart';
 import 'dart:io';
@@ -288,6 +290,14 @@ class SearchView extends ConsumerWidget {
     BuildContext context,
   ) {
     final l10n = AppLocalizations.of(context)!;
+    if (results.isEmpty && ref.watch(onlineActiveProvider)) {
+      return CustomScrollView(
+        slivers: [
+          OnlineSearchSliver(query: ref.read(searchQueryProvider)),
+          const SliverToBoxAdapter(child: SizedBox(height: 180)),
+        ],
+      );
+    }
     if (results.isEmpty) {
       return Center(
         child: Padding(
@@ -406,6 +416,7 @@ class SearchView extends ConsumerWidget {
               );
             }, childCount: songListToRender.length),
           ),
+        OnlineSearchSliver(query: ref.read(searchQueryProvider)),
         const SliverToBoxAdapter(child: SizedBox(height: 180)),
       ],
     );

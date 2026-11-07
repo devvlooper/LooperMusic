@@ -129,6 +129,7 @@ class _PremiumMusicBarState extends ConsumerState<PremiumMusicBar>
     double target, {
     double velocity = 0.0,
     bool allowBounce = true,
+    bool fromTap = false,
   }) {
     final double r = _dragController.value;
     final double v = velocity.clamp(-8.0, 8.0).toDouble();
@@ -139,7 +140,7 @@ class _PremiumMusicBarState extends ConsumerState<PremiumMusicBar>
         !bounce
             ? fluidPlayerSpring
             : target == 1.0
-            ? fluidPlayerOpenBounceSpring
+            ? (fromTap ? fluidPlayerTapOpenSpring : fluidPlayerOpenBounceSpring)
             : fluidPlayerCloseBounceSpring,
         r,
         target,
@@ -219,7 +220,7 @@ class _PremiumMusicBarState extends ConsumerState<PremiumMusicBar>
 
   void _pushExpandedPlayer(BuildContext context, dynamic settings) async {
     if (settings.enableSlideGesture) {
-      _settle(1.0);
+      _settle(1.0, fromTap: true);
     } else {
       if (_isPushing) return;
       _isPushing = true;

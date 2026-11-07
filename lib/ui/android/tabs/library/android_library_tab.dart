@@ -13,6 +13,8 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:looper_player/features/playback/presentation/providers/playback/playback_notifier.dart';
 import 'package:looper_player/core/theme/app_fonts.dart';
 import 'package:looper_player/features/library/domain/models/models.dart';
+import 'package:looper_player/features/library/presentation/screens/smart_views.dart';
+import 'package:looper_player/features/online/presentation/online_providers.dart';
 import 'package:looper_player/core/services/haptics/app_haptics.dart';
 
 class AndroidLibraryTab extends ConsumerWidget {
@@ -21,6 +23,7 @@ class AndroidLibraryTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context)!;
+    final showDownloads = ref.watch(hasDownloadsProvider);
 
     return SafeArea(
       child: Column(
@@ -206,6 +209,20 @@ class AndroidLibraryTab extends ConsumerWidget {
                               },
                               isLast: false,
                             ),
+                            if (showDownloads)
+                              _buildCategoryRow(
+                                context: context,
+                                ref: ref,
+                                icon: LucideIcons.download,
+                                title: l10n.downloads,
+                                onTap: () {
+                                  AppHaptics.light();
+                                  ref
+                                      .read(appNavigationProvider.notifier)
+                                      .setItem(NavItem.downloads);
+                                },
+                                isLast: false,
+                              ),
                             _buildCategoryRow(
                               context: context,
                               ref: ref,
@@ -349,6 +366,12 @@ class AndroidLibraryTab extends ConsumerWidget {
     final l10n = AppLocalizations.of(context)!;
     final recentSongs = ref.watch(dashboardRecentlyPlayedProvider).value ?? [];
     if (recentSongs.isEmpty) {
+      final onlineHistory =
+          ref.watch(onlineAccountHistoryProvider).value ?? const [];
+      if (onlineHistory.isNotEmpty) {
+        final onlineRecentSongs = [for (final s in onlineHistory) s.toSong()];
+        return RecentSongPills(songs: onlineRecentSongs, horizontalPadding: 18);
+      }
       return SizedBox(
         height: 100,
         child: Center(

@@ -34,6 +34,11 @@ import 'package:looper_player/core/utils/song_metadata.dart';
 import 'package:looper_player/core/utils/ui_utils.dart';
 import 'package:looper_player/features/library/presentation/providers/library/library_notifier.dart';
 import 'package:looper_player/ui/widgets/sheets/song_options_bottom_sheet.dart';
+import 'package:looper_player/features/online/data/taste_store.dart';
+import 'package:looper_player/features/online/data/online_api.dart';
+import 'package:looper_player/features/online/data/parsers.dart';
+import 'package:looper_player/features/online/presentation/online_providers.dart';
+import 'package:looper_player/features/online/presentation/online_widgets.dart';
 part 'collection_header.dart';
 part 'desktop_collection.dart';
 part 'sort_sheet.dart';
@@ -482,6 +487,17 @@ class CollectionDetailView extends ConsumerWidget {
                         ),
                         delegate: songDelegate,
                       ),
+                  if (_isArtistPage(AppLocalizations.of(context)!) &&
+                      ref.watch(onlineActiveProvider))
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                        child: _ExploreOnlineArtistCard(
+                          artistName: titleToRender,
+                          thumbnail: imageUrlToRender ?? artToRender,
+                        ),
+                      ),
+                    ),
                   const SliverToBoxAdapter(
                     child: SizedBox(
                       height: 200,
@@ -505,6 +521,119 @@ class CollectionDetailView extends ConsumerWidget {
             );
           },
         ),
+      ),
+    );
+  }
+}
+
+class _ExploreOnlineArtistCard extends ConsumerWidget {
+  const _ExploreOnlineArtistCard({
+    required this.artistName,
+    this.thumbnail,
+  });
+
+  final String artistName;
+  final String? thumbnail;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context)!;
+    return PremiumSection(
+      borderRadius: BorderRadius.circular(16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      onTap: () => _exploreArtistOnline(context, artistName, thumbnail),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: Theme.of(context)
+                  .colorScheme
+                  .primary
+                  .withValues(alpha: 0.15),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              LucideIcons.sparkles,
+              size: 20,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${l10n.onlineDiscover} $artistName',
+                  style: AppFonts.jostStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  l10n.onlineEnabledDesc,
+                  style: AppFonts.jostStyle(
+                    fontSize: 12,
+                    color: Colors.white.withValues(alpha: 0.6),
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Icon(
+            LucideIcons.chevronRight,
+            size: 18,
+            color: Colors.white.withValues(alpha: 0.5),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+Future<void> _exploreArtistOnline(
+  BuildContext context,
+  String artistName,
+  String? thumbnail,
+) async {
+  AppHaptics.light();
+  try {
+    final list = await OnlineApi.searchCollections(
+      artistName,
+      CollectionKind.artist,
+    );
+    if (!context.mounted) return;
+    final match = list
+            .where((c) => c.title.toLowerCase() == artistName.toLowerCase())
+            .firstOrNull ??
+        list.firstOrNull;
+    if (match != null) {
+      openOnlineCollection(context, match);
+    } else {
+      final l10n = AppLocalizations.of(context)!;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(l10n.onlineNoResults),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  } catch (_) {
+    if (!context.mounted) return;
+    final l10n = AppLocalizations.of(context)!;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(l10n.onlineLoadFailed),
+        behavior: SnackBarBehavior.floating,
       ),
     );
   }

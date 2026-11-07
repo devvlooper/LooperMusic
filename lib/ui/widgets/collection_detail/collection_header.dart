@@ -84,6 +84,12 @@ extension _CollectionHeader on CollectionDetailView {
     Artist? reactiveArtist,
   }) {
     final l10n = AppLocalizations.of(context)!;
+    final isArtist = reactivePlaylist == null &&
+        reactiveAlbum == null &&
+        (reactiveArtist != null ||
+            subtitleToRender == l10n.artist ||
+            subtitleToRender == l10n.artists ||
+            subtitleToRender?.toLowerCase() == 'artist');
     // Lit only while this collection is the one playing shuffled.
     final key = collectionKey(songsToRender);
     final isShuffle = ref.watch(
@@ -137,141 +143,229 @@ extension _CollectionHeader on CollectionDetailView {
           ],
         ),
         const SizedBox(height: 16),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.start,
-          children: [
-            PremiumSection(
-              borderRadius: BorderRadius.circular(12),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              height: 44,
-              useExpanded: false,
-              onTap: () {
-                AppHaptics.medium();
-                final playback = ref.read(playbackProvider.notifier);
-                playback.playCollection(
-                  songsToRender,
-                  sourcePlaylistId: reactivePlaylist?.id,
-                );
-              },
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(
-                    Icons.play_arrow_rounded,
-                    color: Colors.white,
-                    size: 20,
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    l10n.play,
-                    style: AppFonts.jostStyle(
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          clipBehavior: Clip.none,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.start,
+            children: [
+              PremiumSection(
+                borderRadius: BorderRadius.circular(12),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                height: 44,
+                useExpanded: false,
+                onTap: () {
+                  AppHaptics.medium();
+                  final playback = ref.read(playbackProvider.notifier);
+                  playback.playCollection(
+                    songsToRender,
+                    sourcePlaylistId: reactivePlaylist?.id,
+                  );
+                },
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.play_arrow_rounded,
                       color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 14,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      l10n.play,
+                      style: AppFonts.jostStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              PremiumSection(
+                borderRadius: BorderRadius.circular(12),
+                width: 44,
+                height: 44,
+                useExpanded: false,
+                backgroundColor: isShuffle
+                    ? Colors.white.withValues(alpha: 0.10)
+                    : null,
+                onTap: () {
+                  AppHaptics.light();
+                  ref
+                      .read(playbackProvider.notifier)
+                      .toggleCollectionShuffle(
+                        songsToRender,
+                        sourcePlaylistId: reactivePlaylist?.id,
+                      );
+                },
+                child: Semantics(
+                  label: l10n.shuffleTitle,
+                  toggled: isShuffle,
+                  child: Icon(
+                    LucideIcons.shuffle,
+                    size: 16,
+                    color: isShuffle
+                        ? Colors.white
+                        : Colors.white.withValues(alpha: 0.5),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              PremiumSection(
+                borderRadius: BorderRadius.circular(12),
+                width: 44,
+                height: 44,
+                useExpanded: false,
+                onTap: () {
+                  AppHaptics.light();
+                  _showSortBottomSheet(context, ref);
+                },
+                child: const Icon(
+                  LucideIcons.arrowUpDown,
+                  size: 16,
+                  color: Colors.white,
+                ),
+              ),
+              if (isArtist) ...[
+                const SizedBox(width: 8),
+                _ArtistFollowButton(
+                  artistName: titleToRender,
+                  thumbnail: activeArtworkPath,
+                ),
+                if (ref.watch(onlineActiveProvider)) ...[
+                  const SizedBox(width: 8),
+                  PremiumSection(
+                    borderRadius: BorderRadius.circular(12),
+                    width: 44,
+                    height: 44,
+                    useExpanded: false,
+                    onTap: () => _exploreArtistOnline(
+                      context,
+                      titleToRender,
+                      activeArtworkPath,
+                    ),
+                    child: Semantics(
+                      label: l10n.onlineDiscover,
+                      child: const Icon(
+                        LucideIcons.globe,
+                        size: 18,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
                 ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            PremiumSection(
-              borderRadius: BorderRadius.circular(12),
-              width: 44,
-              height: 44,
-              useExpanded: false,
-              backgroundColor: isShuffle
-                  ? Colors.white.withValues(alpha: 0.10)
-                  : null,
-              onTap: () {
-                AppHaptics.light();
-                ref
-                    .read(playbackProvider.notifier)
-                    .toggleCollectionShuffle(
-                      songsToRender,
-                      sourcePlaylistId: reactivePlaylist?.id,
-                    );
-              },
-              child: Semantics(
-                label: l10n.shuffleTitle,
-                toggled: isShuffle,
-                child: Icon(
-                  LucideIcons.shuffle,
-                  size: 16,
-                  color: isShuffle
-                      ? Colors.white
-                      : Colors.white.withValues(alpha: 0.5),
+              ],
+              if (reactivePlaylist != null) ...[
+                const SizedBox(width: 8),
+                PremiumSection(
+                  borderRadius: BorderRadius.circular(12),
+                  width: 44,
+                  height: 44,
+                  useExpanded: false,
+                  onTap: () =>
+                      _showPlaylistOptions(context, ref, reactivePlaylist),
+                  child: const Icon(
+                    LucideIcons.moreHorizontal,
+                    size: 18,
+                    color: Colors.white,
+                  ),
                 ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            PremiumSection(
-              borderRadius: BorderRadius.circular(12),
-              width: 44,
-              height: 44,
-              useExpanded: false,
-              onTap: () {
-                AppHaptics.light();
-                _showSortBottomSheet(context, ref);
-              },
-              child: const Icon(
-                LucideIcons.arrowUpDown,
-                size: 16,
-                color: Colors.white,
-              ),
-            ),
-            if (reactivePlaylist != null) ...[
-              const SizedBox(width: 8),
-              PremiumSection(
-                borderRadius: BorderRadius.circular(12),
-                width: 44,
-                height: 44,
-                useExpanded: false,
-                onTap: () =>
-                    _showPlaylistOptions(context, ref, reactivePlaylist),
-                child: const Icon(
-                  LucideIcons.moreHorizontal,
-                  size: 18,
-                  color: Colors.white,
+              ] else if (reactiveAlbum != null) ...[
+                const SizedBox(width: 8),
+                PremiumSection(
+                  borderRadius: BorderRadius.circular(12),
+                  width: 44,
+                  height: 44,
+                  useExpanded: false,
+                  onTap: () {
+                    AppHaptics.light();
+                    _showEditAlbumSheet(context, ref, reactiveAlbum);
+                  },
+                  child: const Icon(
+                    LucideIcons.edit2,
+                    size: 18,
+                    color: Colors.white,
+                  ),
                 ),
-              ),
-            ] else if (reactiveAlbum != null) ...[
-              const SizedBox(width: 8),
-              PremiumSection(
-                borderRadius: BorderRadius.circular(12),
-                width: 44,
-                height: 44,
-                useExpanded: false,
-                onTap: () {
-                  AppHaptics.light();
-                  _showEditAlbumSheet(context, ref, reactiveAlbum);
-                },
-                child: const Icon(
-                  LucideIcons.edit2,
-                  size: 18,
-                  color: Colors.white,
+              ] else if (reactiveArtist != null) ...[
+                const SizedBox(width: 8),
+                PremiumSection(
+                  borderRadius: BorderRadius.circular(12),
+                  width: 44,
+                  height: 44,
+                  useExpanded: false,
+                  onTap: () {
+                    AppHaptics.light();
+                    _showEditArtistSheet(context, reactiveArtist);
+                  },
+                  child: const Icon(
+                    LucideIcons.edit2,
+                    size: 18,
+                    color: Colors.white,
+                  ),
                 ),
-              ),
-            ] else if (reactiveArtist != null) ...[
-              const SizedBox(width: 8),
-              PremiumSection(
-                borderRadius: BorderRadius.circular(12),
-                width: 44,
-                height: 44,
-                useExpanded: false,
-                onTap: () {
-                  AppHaptics.light();
-                  _showEditArtistSheet(context, reactiveArtist);
-                },
-                child: const Icon(
-                  LucideIcons.edit2,
-                  size: 18,
-                  color: Colors.white,
-                ),
-              ),
+              ],
             ],
-          ],
+          ),
         ),
       ],
+    );
+  }
+}
+
+class _ArtistFollowButton extends ConsumerWidget {
+  const _ArtistFollowButton({
+    required this.artistName,
+    this.thumbnail,
+  });
+
+  final String artistName;
+  final String? thumbnail;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context)!;
+    final following = ref.watch(
+      tasteProvider.select((t) => t.hasArtist(artistName)),
+    );
+    final theme = Theme.of(context);
+    final primaryColor = theme.colorScheme.primary;
+
+    return PremiumSection(
+      borderRadius: BorderRadius.circular(12),
+      height: 44,
+      useExpanded: false,
+      padding: const EdgeInsets.symmetric(horizontal: 14),
+      backgroundColor: following
+          ? primaryColor.withValues(alpha: 0.22)
+          : Colors.white.withValues(alpha: 0.08),
+      onTap: () {
+        AppHaptics.light();
+        ref.read(tasteProvider.notifier).toggleArtist(
+              TasteArtist(artistName, thumbnail: thumbnail),
+            );
+      },
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            following ? LucideIcons.check : LucideIcons.plus,
+            size: 16,
+            color: following ? primaryColor : Colors.white,
+          ),
+          const SizedBox(width: 6),
+          Text(
+            following ? l10n.onlineFollowing : l10n.onlineFollow,
+            style: AppFonts.jostStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: following ? primaryColor : Colors.white,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

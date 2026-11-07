@@ -617,7 +617,7 @@ class _AndroidLyricsScreenState extends ConsumerState<AndroidLyricsScreen>
                         // the motion.
                         ? AnimatedPlayerGradient(
                             key: const ValueKey('ambient_bg'),
-                            artwork: FileImage(File(song.artPath!)),
+                            artwork: artImage(song.artPath!),
                             darkness: lyricsDarkness,
                             // Still unless Animated Gradient is on.
                             animate: settings.animatePlayerGradient,
@@ -631,7 +631,7 @@ class _AndroidLyricsScreenState extends ConsumerState<AndroidLyricsScreen>
                               );
                               return FluidBackground(
                                 key: ValueKey('fluid_bg_child_${song.path}'),
-                                imageProvider: FileImage(File(song.artPath!)),
+                                imageProvider: artImage(song.artPath!),
                                 animate: isPlaying,
                                 blurSigma: 80,
                                 overlayDarken: lyricsDarkness,
@@ -650,12 +650,14 @@ class _AndroidLyricsScreenState extends ConsumerState<AndroidLyricsScreen>
                                             sigmaX: 25,
                                             sigmaY: 25,
                                           ),
-                                          child: Image.file(
-                                            File(song.artPath!),
+                                          child: Image(
+                                            image: ResizeImage(
+                                              artImage(song.artPath!),
+                                              width: 100,
+                                              height: 100,
+                                            ),
                                             fit: BoxFit.cover,
                                             filterQuality: FilterQuality.low,
-                                            cacheWidth: 100,
-                                            cacheHeight: 100,
                                             gaplessPlayback: true,
                                             errorBuilder: (_, _, _) =>
                                                 const SizedBox.shrink(),
@@ -758,6 +760,12 @@ class _AndroidLyricsScreenState extends ConsumerState<AndroidLyricsScreen>
                                   final isPlaying = ref.watch(
                                     playbackProvider.select((s) => s.isPlaying),
                                   );
+                                  final buffer = ref.watch(
+                                    playbackProvider.select((s) => s.buffer),
+                                  );
+                                  final isStreaming = ref.watch(
+                                    playbackProvider.select((s) => s.isStreaming),
+                                  );
                                   return Hero(
                                     tag: 'player_seek_bar',
                                     child: Material(
@@ -766,6 +774,8 @@ class _AndroidLyricsScreenState extends ConsumerState<AndroidLyricsScreen>
                                         position: currentPosition,
                                         duration: duration,
                                         isPlaying: isPlaying,
+                                        buffer: buffer,
+                                        isStreaming: isStreaming,
                                         onSeek: (pos) {
                                           _resetHideTimer();
                                           ref

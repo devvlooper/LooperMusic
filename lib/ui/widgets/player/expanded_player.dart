@@ -175,6 +175,12 @@ class ExpandedPlayer extends ConsumerWidget {
                     final isPlayingVal = ref.watch(
                       playbackProvider.select((s) => s.isPlaying),
                     );
+                    final buffer = ref.watch(
+                      playbackProvider.select((s) => s.buffer),
+                    );
+                    final isStreaming = ref.watch(
+                      playbackProvider.select((s) => s.isStreaming),
+                    );
 
                     return Column(
                       children: [
@@ -183,6 +189,7 @@ class ExpandedPlayer extends ConsumerWidget {
                             trackHeight: 2,
                             activeTrackColor: colorScheme.primary,
                             inactiveTrackColor: Colors.white10,
+                            secondaryActiveTrackColor: Colors.white.withValues(alpha: 0.2),
                             thumbShape: const RoundSliderThumbShape(
                               enabledThumbRadius: 6,
                             ),
@@ -194,6 +201,12 @@ class ExpandedPlayer extends ConsumerWidget {
                                           duration.inMilliseconds)
                                       .clamp(0.0, 1.0)
                                 : 0.0,
+                            secondaryTrackValue: isStreaming && duration > Duration.zero
+                                ? (buffer.inMilliseconds / duration.inMilliseconds).clamp(0.0, 1.0)
+                                : null,
+                            secondaryActiveColor: Colors.white.withValues(alpha: 0.2),
+                            onChangeStart: (_) => ref.read(playbackProvider.notifier).startScrubbing(),
+                            onChangeEnd: (_) => ref.read(playbackProvider.notifier).stopScrubbing(),
                             onChanged: (val) {
                               ref
                                   .read(playbackProvider.notifier)
@@ -261,29 +274,52 @@ class ExpandedPlayer extends ConsumerWidget {
                       onPressed: () =>
                           ref.read(playbackProvider.notifier).skipPrevious(),
                     ),
-                    GestureDetector(
-                      onTap: () =>
-                          ref.read(playbackProvider.notifier).togglePlay(),
-                      child: Container(
-                        width: 72.s,
-                        height: 72.s,
-                        decoration: BoxDecoration(
-                          color: colorScheme.primary,
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: colorScheme.primary.withValues(alpha: 0.4),
-                              blurRadius: 20,
-                              offset: const Offset(0, 8),
-                            ),
-                          ],
-                        ),
-                        child: Icon(
-                          isPlaying ? Icons.pause : Icons.play_arrow,
-                          color: Colors.white,
-                          size: 40.s,
-                        ),
-                      ),
+                    Consumer(
+                      builder: (context, ref, _) {
+                        final isBuffering = ref.watch(
+                          playbackProvider.select((s) => s.isBuffering),
+                        );
+                        return GestureDetector(
+                          onTap: () =>
+                              ref.read(playbackProvider.notifier).togglePlay(),
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              Container(
+                                width: 72.s,
+                                height: 72.s,
+                                decoration: BoxDecoration(
+                                  color: colorScheme.primary,
+                                  shape: BoxShape.circle,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: colorScheme.primary.withValues(alpha: 0.4),
+                                      blurRadius: 20,
+                                      offset: const Offset(0, 8),
+                                    ),
+                                  ],
+                                ),
+                                child: Icon(
+                                  isPlaying ? Icons.pause : Icons.play_arrow,
+                                  color: Colors.white,
+                                  size: 40.s,
+                                ),
+                              ),
+                              if (isBuffering)
+                                SizedBox(
+                                  width: 78.s,
+                                  height: 78.s,
+                                  child: const CircularProgressIndicator(
+                                    strokeWidth: 2.5,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      Colors.white,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        );
+                      },
                     ),
                     IconButton(
                       icon: Icon(

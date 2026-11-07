@@ -413,21 +413,52 @@ List<LyricsCredit> lyricsCredits(AppLocalizations l10n) => [
   ),
 ];
 
+List<LyricsCredit> onlineCredits(AppLocalizations l10n) => [
+  (
+    name: 'YouTube Music',
+    description: l10n.creditYouTubeMusicDesc,
+    url: AppLinks.youtubeMusicWeb,
+  ),
+  (
+    name: 'Koda (Ivorisnoob)',
+    description: l10n.creditKodaDesc,
+    url: AppLinks.kodaSource,
+  ),
+  (
+    name: 'yt-dlp',
+    description: l10n.creditYtDlpDesc,
+    url: AppLinks.ytDlpSource,
+  ),
+];
+
 class LyricsCreditsSection extends StatelessWidget {
   final Color accentColor;
+  final String? title;
+  final List<LyricsCredit>? credits;
+  final String? footnote;
 
-  const LyricsCreditsSection({super.key, required this.accentColor});
+  const LyricsCreditsSection({
+    super.key,
+    required this.accentColor,
+    this.title,
+    this.credits,
+    this.footnote,
+  });
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    final items = credits ?? lyricsCredits(l10n);
+    final header = title ?? l10n.lyricsSources;
+    final note =
+        footnote ?? (credits == null ? l10n.lyricsCopyrightNote : null);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            l10n.lyricsSources.toUpperCase(),
+            header.toUpperCase(),
             style: AppFonts.jostStyle(
               fontSize: 12,
               fontWeight: FontWeight.bold,
@@ -436,7 +467,7 @@ class LyricsCreditsSection extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 8),
-          for (final credit in lyricsCredits(l10n))
+          for (final credit in items)
             InkWell(
               borderRadius: BorderRadius.circular(12),
               onTap: () async {
@@ -469,17 +500,35 @@ class LyricsCreditsSection extends StatelessWidget {
                 ),
               ),
             ),
-          const SizedBox(height: 8),
-          Text(
-            l10n.lyricsCopyrightNote,
-            style: AppFonts.jostStyle(
-              fontSize: 11,
-              height: 1.5,
-              color: Colors.white.withValues(alpha: 0.35),
+          if (note != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              note,
+              style: AppFonts.jostStyle(
+                fontSize: 11,
+                height: 1.5,
+                color: Colors.white.withValues(alpha: 0.35),
+              ),
             ),
-          ),
+          ],
         ],
       ),
+    );
+  }
+}
+
+class OnlineCreditsSection extends StatelessWidget {
+  final Color accentColor;
+
+  const OnlineCreditsSection({super.key, required this.accentColor});
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    return LyricsCreditsSection(
+      accentColor: accentColor,
+      title: l10n.onlineCreditsTitle,
+      credits: onlineCredits(l10n),
     );
   }
 }

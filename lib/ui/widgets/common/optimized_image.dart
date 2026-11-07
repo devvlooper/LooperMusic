@@ -3,6 +3,17 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:looper_player/ui/widgets/common/cover_resize_image.dart';
 
+/// An image provider for an artwork path: a network URL (online songs keep
+/// their thumbnail URL in `artPath`) or a local file.
+ImageProvider artImage(String path) =>
+    path.startsWith('http://') || path.startsWith('https://')
+    ? CachedNetworkImageProvider(path)
+    : FileImage(File(path));
+
+/// Whether [path] is worth trying to load: a URL, or a file that exists.
+Future<bool> artAvailable(String path) async =>
+    path.startsWith('http') || await File(path).exists();
+
 class OptimizedImage extends StatelessWidget {
   final String? imagePath;
   final String? imageUrl;

@@ -701,6 +701,12 @@ class _AndroidExpandedPlayerState extends ConsumerState<AndroidExpandedPlayer>
               final isPlaying = ref.watch(
                 playbackProvider.select((s) => s.isPlaying),
               );
+              final buffer = ref.watch(
+                playbackProvider.select((s) => s.buffer),
+              );
+              final isStreaming = ref.watch(
+                playbackProvider.select((s) => s.isStreaming),
+              );
               return buildHero(
                 tag: 'player_seek_bar',
                 child: Material(
@@ -709,6 +715,8 @@ class _AndroidExpandedPlayerState extends ConsumerState<AndroidExpandedPlayer>
                     position: position,
                     duration: duration,
                     isPlaying: isPlaying,
+                    buffer: buffer,
+                    isStreaming: isStreaming,
                     onSeek: (pos) =>
                         ref.read(playbackProvider.notifier).seek(pos),
                     onSeekStart: () =>
@@ -775,6 +783,9 @@ class _AndroidExpandedPlayerState extends ConsumerState<AndroidExpandedPlayer>
                 final isPlaying = ref.watch(
                   playbackProvider.select((s) => s.isPlaying),
                 );
+                final isBuffering = ref.watch(
+                  playbackProvider.select((s) => s.isBuffering),
+                );
                 return PremiumSection(
                   heroTag: 'player_play_pause_btn',
                   borderRadius: BorderRadius.circular(12),
@@ -793,19 +804,33 @@ class _AndroidExpandedPlayerState extends ConsumerState<AndroidExpandedPlayer>
                     AppHaptics.medium();
                     ref.read(playbackProvider.notifier).togglePlay();
                   },
-                  // A constant 1.1 (the AnimatedScale this replaced never
-                  // animated - its target never changed).
-                  child: Transform.scale(
-                    scale: 1.1,
-                    child: AnimatedPlayPauseIcon(
-                      isPlaying: isPlaying,
-                      color: isPlaying
-                          ? Colors.white
-                          : HSLColor.fromColor(
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Transform.scale(
+                        scale: 1.1,
+                        child: AnimatedPlayPauseIcon(
+                          isPlaying: isPlaying,
+                          color: isPlaying
+                              ? Colors.white
+                              : HSLColor.fromColor(
+                                  Theme.of(context).colorScheme.primary,
+                                ).withLightness(0.15).toColor(),
+                          size: AppIcons.expandedPlayerPlayPauseIcon.s,
+                        ),
+                      ),
+                      if (isBuffering)
+                        SizedBox(
+                          width: height * 0.7,
+                          height: height * 0.7,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.0,
+                            valueColor: AlwaysStoppedAnimation<Color>(
                               Theme.of(context).colorScheme.primary,
-                            ).withLightness(0.15).toColor(),
-                      size: AppIcons.expandedPlayerPlayPauseIcon.s,
-                    ),
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                 );
               },

@@ -20,6 +20,7 @@ extension _PlaybackListenTracking on Playback {
         ..durationMs = song.duration
         ..playedAt = DateTime.now(),
     );
+    TasteProfileStore.onPlayEventRecorded();
 
     // Keep the log bounded for long-term use: once it grows past ~20k rows,
     // trim the oldest ~500 so it never grows unbounded over years of use.

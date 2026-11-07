@@ -106,6 +106,13 @@ class Sidebar extends ConsumerWidget {
                       isSelected: activeItem == NavItem.favorites,
                       onTap: () => navigateTo(NavItem.favorites),
                     ),
+                    if (ref.watch(hasDownloadsProvider))
+                      _SidebarItem(
+                        icon: LucideIcons.download,
+                        label: l10n.downloads,
+                        isSelected: activeItem == NavItem.downloads,
+                        onTap: () => navigateTo(NavItem.downloads),
+                      ),
                     _SidebarItem(
                       icon: LucideIcons.barChart3,
                       label: l10n.looperAnalyze,

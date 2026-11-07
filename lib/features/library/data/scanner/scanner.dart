@@ -21,6 +21,7 @@ import 'scan_result.dart';
 import '../../domain/artist_names.dart';
 import '../services/artist_catalog.dart';
 import 'linux_tag_reader.dart';
+import 'package:looper_player/features/online/data/online_downloader.dart' show DownloadFolders;
 part 'scan_paths.dart';
 part 'media_sources.dart';
 part 'metadata_extraction.dart';
@@ -402,6 +403,8 @@ class LibraryScanner {
         // hasn't indexed it) shouldn't wipe one already known - e.g. the
         // quick insert's MediaStore genre, or a user edit.
         song.genre ??= existingDbSong.genre;
+        // Same for a cover set before the read (a download's artwork).
+        song.artPath ??= existingDbSong.artPath;
         if ((song.duration ?? 0) <= 0 && (existingDbSong.duration ?? 0) > 0) {
           song.duration = existingDbSong.duration;
         }
@@ -608,12 +611,16 @@ class LibraryScanner {
     required bool includeSystemAndMessagingAudio,
   }) async {
     int removedCount = 0;
+    // Downloads may sit in the app's own folder (Android/data), which the
+    // system-audio rule would otherwise remove.
+    final downloadDirs = await DownloadFolders.all();
     try {
       await DbService.isar.writeTxn(() async {
         final allSongs = await DbService.isar.songs.where().findAll();
         final idsToDelete = <int>[];
 
         for (final song in allSongs) {
+          if (DownloadFolders.contains(song.path, downloadDirs)) continue;
           final isIgnoredPath = isIgnoredScanPath(
             song.path,
             includeSystemAndMessagingAudio: includeSystemAndMessagingAudio,

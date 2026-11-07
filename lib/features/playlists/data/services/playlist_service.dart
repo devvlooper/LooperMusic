@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:looper_player/features/online/data/online_playback.dart';
 import 'package:isar_community/isar.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -8,6 +9,8 @@ import 'package:looper_player/core/services/storage/db_service.dart';
 class PlaylistService {
   static Future<void> addSongToPlaylist(Playlist playlist, Song song) async {
     if (playlist.songPaths.contains(song.path)) return;
+    // A playlist stores paths; an online song needs its row to be shown.
+    await OnlinePlayback.persist([song]);
 
     final updatedPaths = List<String>.from(playlist.songPaths)..add(song.path);
 
@@ -21,6 +24,7 @@ class PlaylistService {
   /// Creates a playlist called [name] already holding [songs], in one
   /// write. Duplicate songs are kept once, in their first position.
   static Future<Playlist> createWithSongs(String name, List<Song> songs) async {
+    await OnlinePlayback.persist(songs);
     final now = DateTime.now();
     final playlist = Playlist()
       ..name = name
@@ -46,6 +50,7 @@ class PlaylistService {
         .where((path) => existing.add(path))
         .toList();
     if (newPaths.isEmpty) return;
+    await OnlinePlayback.persist(songs);
 
     final updatedPaths = List<String>.from(playlist.songPaths)
       ..addAll(newPaths);

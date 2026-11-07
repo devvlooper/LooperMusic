@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:looper_player/ui/widgets/common/optimized_image.dart';
 import 'package:flutter/material.dart';
 import 'package:looper_player/core/utils/motion.dart';
 import 'package:looper_player/core/theme/app_fonts.dart';
@@ -22,11 +23,10 @@ final artworkRawColorProvider = FutureProvider<Color?>((ref) async {
   final artPath = currentSong?.artPath;
   if (artPath == null) return null;
 
-  final file = File(artPath);
-  if (!await file.exists()) return null;
+  if (!await artAvailable(artPath)) return null;
 
   try {
-    final colors = await ArtworkColors.fromProvider(FileImage(file));
+    final colors = await ArtworkColors.fromProvider(artImage(artPath));
     if (colors != null) return colors.primary;
   } catch (e) {}
   return null;

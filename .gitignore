@@ -88,4 +88,6 @@ graphify-out/
 .agents/
 AGENTS.md
 docs/
+.claude/
+brag-output/
 

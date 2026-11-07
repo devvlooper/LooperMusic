@@ -1487,5 +1487,169 @@
   "desktopWelcomeInsightsTitle": "Listening insights",
   "desktopWelcomeInsightsDesc": "See your top songs, artists and listening time in Looper Analyze.",
   "groupByAlbum": "Group by album",
-  "groupByAlbumDesc": "On artist pages, list songs under their albums"
+  "groupByAlbumDesc": "On artist pages, list songs under their albums",
+  "onlineMusic": "Online music",
+  "onlineSettingsDesc": "Streaming, quality, cache and suggestions",
+  "onlineForYou": "For you",
+  "onlineDiscover": "Discover new",
+  "onlineRefresh": "Refresh",
+  "onlineRefreshDesc": "Reset the online connection if songs stop loading",
+  "onlineRefreshed": "Online music refreshed",
+  "onlineLoadFailed": "Couldn't load online music. Tap Refresh to try again.",
+  "onlineNoResults": "No online results",
+  "onlineLoadMore": "Load more",
+  "onlinePersonalizeTitle": "Make it yours",
+  "onlinePersonalizeBody": "Pick genres and artists you like for better suggestions.",
+  "onlineFollow": "Follow",
+  "onlineFollowing": "Following",
+  "artistsForYou": "Artists for you",
+  "tasteGenresTitle": "What do you listen to?",
+  "tasteArtistsTitle": "Pick artists you like",
+  "tasteSearchArtists": "Search artists",
+  "tasteSkip": "Skip",
+  "onlineEnabledDesc": "Search, stream and get suggestions from YouTube Music",
+  "onlineNeedsInternet": "Needs Internet mode (Settings > General)",
+  "onlineYourTaste": "Your taste",
+  "onlineYourTasteDesc": "Genres and artists used for suggestions",
+  "onlinePreferLocal": "Prefer local files",
+  "onlinePreferLocalDesc": "Play your own copy of a song when you have it",
+  "onlineStreaming": "Streaming",
+  "onlineQualityWifi": "Quality on Wi-Fi",
+  "onlineQualityMobile": "Quality on mobile data",
+  "onlineQualityHigh": "High",
+  "onlineQualityNormal": "Normal",
+  "onlineQualityLow": "Low",
+  "onlinePreload": "Preload upcoming songs",
+  "onlinePreloadDesc": "Download the next songs ahead, so skips start at once and they play offline",
+  "onlinePreloadMobile": "Also preload on mobile data",
+  "onlineCache": "Cache",
+  "onlineCachePlayed": "Save played songs",
+  "onlineCachePlayedDesc": "Keep streamed songs so replaying them works offline and needs no refetch",
+  "onlineCachePlayedMobile": "Also save on mobile data",
+  "onlineCachePlayedMobileDesc": "Uses extra mobile data on first play to save the song for offline replays",
+  "onlineCacheLimit": "Cache size limit",
+  "onlineCacheLimitDesc": "Songs played least recently are removed first",
+  "onlineClearCache": "Clear online cache",
+  "onlineClearCacheDesc": "Audio only; lyrics are kept",
+  "onlineCacheUsed": "{size} used",
+  "@onlineCacheUsed": {
+    "placeholders": {
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "onlineSongSkipped": "Skipped {title}: {reason}",
+  "@onlineSongSkipped": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      },
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "onlinePlaybackStopped": "Online playback stopped: {reason}",
+  "@onlinePlaybackStopped": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "onlineDisclaimerTitle": "Turn on online music?",
+  "onlineDisclaimerBody": "Online music streams songs and searches directly from YouTube Music. It uses network data and relies on a third-party service that may change or stop working at any time.",
+  "onlineTurnOn": "Turn on",
+  "onlineNotNow": "Not now",
+  "onlineStatusOn": "Online music: on",
+  "onlineStatusLimited": "Online music: limited",
+  "onlineStatusOffline": "Online music: offline",
+  "notInterested": "Not interested",
+  "notInterestedSongHidden": "Song hidden from recommendations",
+  "blockArtist": "Don't recommend {artist}",
+  "@blockArtist": {
+    "placeholders": {
+      "artist": {
+        "type": "String"
+      }
+    }
+  },
+  "artistBlocked": "Artist blocked from recommendations",
+  "detectedProfiles": "Detected taste mixes",
+  "detectedProfilesDesc": "Mixes automatically created from your library and listening habits",
+  "hiddenProfiles": "Hidden mixes",
+  "hiddenSongs": "Hidden songs",
+  "blockedArtists": "Blocked artists",
+  "noHiddenItems": "No hidden songs or blocked artists",
+  "undo": "Undo",
+  "download": "Download",
+  "downloaded": "Downloaded",
+  "downloadAll": "Download all",
+  "downloadingSong": "Downloading {title}…",
+  "@downloadingSong": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "downloadQueued": "Queued {count} songs for download",
+  "@downloadQueued": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "downloadFolder": "Download folder",
+  "downloadQuality": "Download quality",
+  "onlineDownloads": "Downloads",
+  "onlineCreditsTitle": "Online streaming",
+  "creditYouTubeMusicDesc": "Songs, artwork and suggestions come from YouTube Music. Looper is not affiliated with or endorsed by YouTube or Google.",
+  "creditKodaDesc": "Its documented design and fixes for YouTube Music streaming guided this one (see these docs' README).",
+  "creditYtDlpDesc": "Used on desktop, when installed, as a fallback to load streams. Unlicense.",
+  "wrongLyrics": "Wrong lyrics",
+  "wrongLyricsDesc": "Skip {provider} for this song and find other lyrics",
+  "@wrongLyricsDesc": {
+    "placeholders": {
+      "provider": {
+        "type": "String"
+      }
+    }
+  },
+  "noOtherLyricsFound": "No other lyrics found",
+  "downloads": "Downloads",
+  "accountTitle": "Google account",
+  "accountSignedOutDesc": "Sign in for your YouTube Music library and mixes",
+  "accountSignedInAs": "Signed in as {name}",
+  "@accountSignedInAs": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "accountSignedIn": "Signed in",
+  "accountSignInMicrog": "Sign in with microG",
+  "accountSignInMicrogDesc": "Use the Google account already in GmsCore",
+  "accountSignInWeb": "Sign in with Google",
+  "accountSignInWebDesc": "Google's own sign-in page",
+  "accountPasteCookies": "Paste cookies",
+  "accountPasteCookiesDesc": "Use the session of a browser where you are signed in",
+  "accountPasteHelp": "Open music.youtube.com in a private browser window and sign in. In the developer tools (Network tab), copy the Cookie header of any music.youtube.com request, paste it here, then close that window.",
+  "accountCookieHeader": "Cookie header",
+  "accountNoSapisid": "No SAPISID cookie in this text. Copy it from a signed-in music.youtube.com request.",
+  "accountSignOut": "Sign out",
+  "accountSignOutDesc": "Forget this account on this device",
+  "accountExpired": "Your session expired. Sign in again.",
+  "accountSignInFailed": "Sign-in failed: {error}",
+  "@accountSignInFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "accountRisk": "Signing a third-party app into YouTube breaks YouTube's terms and can get the account challenged. A secondary account is safer. Songs stream without your account either way."
 }

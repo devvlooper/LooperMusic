@@ -28,7 +28,7 @@ extension _DashboardSections on HomeDashboard {
           height: isNarrow ? 176 : 200,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
-            itemCount: recentSongs.length.clamp(0, 10),
+            itemCount: recentSongs.length.clamp(0, 15),
             itemBuilder: (context, index) {
               final song = recentSongs[index];
               return Padding(
@@ -95,53 +95,55 @@ extension _DashboardSections on HomeDashboard {
     bool isDynamic,
     AppLocalizations l10n,
   ) {
-    final topSongsAsync = ref.watch(topSongsProvider);
+    final songs = ref.watch(homeQuickPicksMixedProvider);
+    final suggestedPaths = ref.watch(homeQuickPicksSuggestedPathsProvider);
     // Title only until "Show Album Next to Artist" is on.
     final showArtist = watchShowAlbum(ref);
     final showAlbum = watchShowAlbumInQuickPicks(ref);
 
-    return topSongsAsync.when(
-      data: (songs) {
-        if (songs.isEmpty) return const SizedBox.shrink();
+    if (songs.isEmpty) return const SizedBox.shrink();
 
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildSectionHeader(context, l10n.quickPicks),
-            const SizedBox(height: 12),
-            GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                maxCrossAxisExtent: 340,
-                mainAxisExtent: 70,
-                crossAxisSpacing: 16,
-                mainAxisSpacing: 16,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionHeader(context, l10n.quickPicks),
+        const SizedBox(height: 12),
+        GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+            maxCrossAxisExtent: 340,
+            mainAxisExtent: 70,
+            crossAxisSpacing: 16,
+            mainAxisSpacing: 16,
+          ),
+          itemCount: math.min(18, songs.length),
+          itemBuilder: (context, index) {
+            final song = songs[index];
+            final isSuggested = suggestedPaths.contains(song.path);
+            final isCurrent = ref.watch(
+              playbackProvider.select(
+                (s) => s.currentSong?.path == song.path,
               ),
-              itemCount: songs.length,
-              itemBuilder: (context, index) {
-                final song = songs[index];
-                final isCurrent = ref.watch(
-                  playbackProvider.select(
-                    (s) => s.currentSong?.path == song.path,
-                  ),
-                );
+            );
 
-                return InkWell(
-                  onTap: () => ref.read(playbackProvider.notifier).play(song),
+            return InkWell(
+              onTap: () => ref.read(playbackProvider.notifier).play(song),
+              borderRadius: BorderRadius.circular(8),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: isCurrent
+                      ? Theme.of(
+                          context,
+                        ).colorScheme.primary.withValues(alpha: 0.5)
+                      : Colors.white.withValues(alpha: 0.02),
                   borderRadius: BorderRadius.circular(8),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 300),
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: isCurrent
-                          ? Theme.of(
-                              context,
-                            ).colorScheme.primary.withValues(alpha: 0.5)
-                          : Colors.white.withValues(alpha: 0.02),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
+                ),
+                child: Row(
+                  children: [
+                    Stack(
                       children: [
                         SongArtwork(
                           song: song,
@@ -149,49 +151,64 @@ extension _DashboardSections on HomeDashboard {
                           borderRadius: BorderRadius.circular(4),
                           placeholder: const Icon(LucideIcons.music, size: 20),
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                song.title,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.normal,
-                                  fontSize: 13,
-                                ),
+                        if (isSuggested)
+                          Positioned(
+                            top: 2,
+                            right: 2,
+                            child: Container(
+                              padding: const EdgeInsets.all(2),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withValues(alpha: 0.6),
+                                shape: BoxShape.circle,
                               ),
-                              if (showArtist)
-                                Text(
-                                  artistAlbumLabel(
-                                    song,
-                                    l10n,
-                                    showAlbum: showAlbum,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    color: Colors.grey,
-                                  ),
-                                ),
-                            ],
+                              child: const Icon(
+                                LucideIcons.sparkles,
+                                size: 10,
+                                color: Colors.amberAccent,
+                              ),
+                            ),
                           ),
-                        ),
                       ],
                     ),
-                  ),
-                );
-              },
-            ),
-          ],
-        );
-      },
-      loading: () => const SizedBox.shrink(),
-      error: (_, _) => const SizedBox.shrink(),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            song.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.normal,
+                              fontSize: 13,
+                            ),
+                          ),
+                          if (showArtist)
+                            Text(
+                              artistAlbumLabel(
+                                song,
+                                l10n,
+                                showAlbum: showAlbum,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: Colors.grey,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
+      ],
     );
   }
 
@@ -208,8 +225,8 @@ extension _DashboardSections on HomeDashboard {
       data: (artists) {
         if (artists.isEmpty) return const SizedBox.shrink();
 
-        // Take a slice for featured artists
-        final featuredArtists = artists.take(10).toList();
+        // Take a slice for featured artists (max 15)
+        final featuredArtists = artists.take(15).toList();
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -257,8 +274,8 @@ extension _DashboardSections on HomeDashboard {
       data: (albums) {
         if (albums.isEmpty) return const SizedBox.shrink();
 
-        // Take a slice for featured albums (max 10)
-        final featuredAlbums = albums.take(10).toList();
+        // Take a slice for featured albums (max 15)
+        final featuredAlbums = albums.take(15).toList();
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,

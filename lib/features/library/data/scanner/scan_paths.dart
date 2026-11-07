@@ -18,6 +18,7 @@ bool isIgnoredScanPath(
   String targetPath, {
   bool includeSystemAndMessagingAudio = false,
 }) {
+  if (targetPath.startsWith('yt:')) return false; // online song, no file
   final lower = targetPath.toLowerCase();
   final baseName = p.basename(lower);
   final segments = p

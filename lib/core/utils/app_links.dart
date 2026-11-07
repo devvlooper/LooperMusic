@@ -75,4 +75,9 @@ class AppLinks {
   static const String amLyricsSource = 'https://github.com/binimum/am-lyrics';
   static const String morphePatchesSource =
       'https://github.com/MorpheApp/morphe-patches';
+
+  // Credits: online streaming (see About).
+  static const String youtubeMusicWeb = 'https://music.youtube.com';
+  static const String kodaSource = 'https://github.com/Ivorisnoob/Koda';
+  static const String ytDlpSource = 'https://github.com/yt-dlp/yt-dlp';
 }

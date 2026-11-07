@@ -1,4 +1,6 @@
 import 'dart:io';
+import 'package:looper_player/features/online/presentation/online_providers.dart';
+import 'package:looper_player/features/online/presentation/online_widgets.dart';
 import 'package:looper_player/core/theme/app_fonts.dart';
 import 'package:looper_player/core/utils/ui_utils.dart';
 import 'package:looper_player/core/utils/responsive.dart';
@@ -421,6 +423,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                                     compact: isNarrowLayout,
                                                   ),
                                                 ],
+                                                if (ref.watch(onlineActiveProvider)) ...[
+                                                  const SizedBox(width: 12),
+                                                  const OnlineStatusIndicator(),
+                                                ],
                                               ],
                                             ),
                                           ),
@@ -544,11 +550,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         return const GenresGridView();
       case NavItem.folders:
         return const DesktopFoldersView();
+      case NavItem.downloads:
+        return const DownloadsView();
       case NavItem.analyze:
         return const LooperAnalyzeView();
       case NavItem.home:
       default:
-        return library.songs.isEmpty
+        // With online music on, the dashboard carries the online feed even
+        // when there are no local songs.
+        return library.songs.isEmpty && !ref.watch(onlineActiveProvider)
             ? _buildEmptyState(context, l10n)
             : const HomeDashboard();
     }

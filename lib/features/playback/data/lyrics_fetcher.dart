@@ -1,5 +1,10 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:isar_community/isar.dart';
+import 'package:looper_player/core/services/storage/local_json_store.dart';
+import 'package:looper_player/features/online/data/online_cache.dart';
+import 'package:looper_player/features/online/data/online_playback.dart';
+import 'package:looper_player/features/search/domain/artist_credits.dart';
 import 'package:path/path.dart' as p;
 import 'package:looper_player/core/services/storage/db_service.dart';
 import 'lrc_parser.dart';
@@ -77,6 +82,66 @@ class LyricsFetcher {
   );
   static final RegExp _timingLine = RegExp(r'^\[w:([0-9,;]*)\]$');
   static final RegExp _bgLine = RegExp(r'^\[bg:(.*)\]$');
+
+  static final _decoration = RegExp(
+    r'[\(\[][^\)\]]*\b(official|lyrics?|audio|video|visuali[sz]er|remaster(ed)?|feat\.?|ft\.?|with)\b[^\)\]]*[\)\]]',
+    caseSensitive: false,
+  );
+  static final _trailingFeat = RegExp(
+    r'\s+(feat\.?|ft\.?|featuring)\s.*$',
+    caseSensitive: false,
+  );
+
+  static String cleanTitle(Song song) {
+    if (!song.isOnline) return song.title.trim();
+    return song.title
+        .replaceAll(_decoration, '')
+        .replaceAll(_trailingFeat, '')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+  }
+
+  static String cleanArtist(Song song) {
+    if (!song.isOnline) return (song.artist ?? 'Unknown Artist').trim();
+    final credited = creditedArtists(song);
+    return credited.isNotEmpty
+        ? credited.first.trim()
+        : (song.artist ?? 'Unknown Artist').trim();
+  }
+
+  static bool _missesCleaned = false;
+
+  /// Tests: run the one-time clean-up of online songs' misses again.
+  @visibleForTesting
+  static Future<void> debugCleanOnlineMisses() async {
+    _missesCleaned = false;
+    await LocalJsonStore.write('online_lyrics_misses_cleaned_v1', false);
+    await _checkCleanMissesMigration();
+  }
+  static Future<void> _checkCleanMissesMigration() async {
+    if (_missesCleaned) return;
+    _missesCleaned = true;
+    final done = await LocalJsonStore.read('online_lyrics_misses_cleaned_v1');
+    if (done == true) return;
+    // Online songs only: their misses were saved under the noisy YouTube
+    // title. Local songs keep theirs.
+    try {
+      final online = await DbService.isar.songs
+          .filter()
+          .pathStartsWith('yt:')
+          .findAll();
+      for (final s in online) {
+        await LyricsCache.clearProviderMissesFor(
+          (s.artist ?? 'Unknown Artist').trim(),
+          s.title.trim(),
+        );
+        await LyricsCache.clearProviderMissesFor(cleanArtist(s), cleanTitle(s));
+      }
+      await LocalJsonStore.write('online_lyrics_misses_cleaned_v1', true);
+    } catch (_) {
+      _missesCleaned = false; // try again next time
+    }
+  }
 
   static bool hasWordTiming(String lrc) =>
       lrc.contains('\n[w:') || _enhancedWordTag.hasMatch(lrc);
@@ -196,8 +261,8 @@ class LyricsFetcher {
     if (dbSong != null && dbSong.lyrics != current) return null;
     await store(
       song,
-      (song.artist ?? 'Unknown Artist').trim(),
-      song.title.trim(),
+      cleanArtist(song),
+      cleanTitle(song),
       lrc,
     );
     return lrc;
@@ -208,8 +273,8 @@ class LyricsFetcher {
   /// is filed as their answer, so only the services added since are asked.
   static Future<void> _adoptOldCheck(Song song, String lrc) async {
     if (!lrc.contains(_oldWordSyncChecked)) return;
-    final artist = (song.artist ?? 'Unknown Artist').trim();
-    final title = song.title.trim();
+    final artist = cleanArtist(song);
+    final title = cleanTitle(song);
     for (final provider in const ['LRC.RED', 'LYRICSPLUS']) {
       if (await LyricsCache.getProvider(artist, title, provider) != null) {
         continue;
@@ -240,8 +305,8 @@ class LyricsFetcher {
     if (lrc != null) {
       await store(
         song,
-        (song.artist ?? 'Unknown Artist').trim(),
-        song.title.trim(),
+        cleanArtist(song),
+        cleanTitle(song),
         lrc,
       );
     }
@@ -276,8 +341,8 @@ class LyricsFetcher {
   /// or that it has none) - picking it in the lyrics menu then costs no
   /// download.
   static Future<bool> hasAnswer(Song song, String provider) async {
-    final artist = (song.artist ?? 'Unknown Artist').trim();
-    final title = song.title.trim();
+    final artist = cleanArtist(song);
+    final title = cleanTitle(song);
     final id = provider.toUpperCase();
     return await LyricsCache.getProvider(artist, title, id) != null ||
         await LyricsCache.isProviderMiss(artist, title, id);
@@ -304,8 +369,8 @@ class LyricsFetcher {
     String provider, {
     bool network = true,
   }) async {
-    final artist = (song.artist ?? 'Unknown Artist').trim();
-    final title = song.title.trim();
+    final artist = cleanArtist(song);
+    final title = cleanTitle(song);
     final saved = await LyricsCache.getProvider(artist, title, provider);
     if (saved != null) return (lrc: saved, known: true);
     if (await LyricsCache.isProviderMiss(artist, title, provider)) {
@@ -321,14 +386,26 @@ class LyricsFetcher {
   }
 
   static Future<_Answer> _ask(Song song, String provider, String key) async {
-    final artist = (song.artist ?? 'Unknown Artist').trim();
-    final title = song.title.trim();
+    final artist = cleanArtist(song);
+    final title = cleanTitle(song);
     final report = LyricsLookupReport();
     String? raw;
     try {
       raw = await LyricsHttp.tracked(report, () async {
         final ask = debugAsk;
-        if (ask != null) return ask(song, provider);
+        if (ask != null) {
+          final querySong = song.isOnline
+              ? (Song()
+                ..id = song.id
+                ..path = song.path
+                ..title = title
+                ..artist = artist
+                ..album = song.album
+                ..duration = song.duration
+                ..lyrics = song.lyrics)
+              : song;
+          return ask(querySong, provider);
+        }
         final response = await _askOnline(song, provider);
         return response?.syncedLyrics ?? response?.plainLyrics;
       });
@@ -395,8 +472,14 @@ class LyricsFetcher {
   }
 
   static Future<void> _saveToDb(Song song, String lrc) async {
+    song.lyrics = lrc;
+    if (song.isOnline && song.id == Isar.autoIncrement) {
+      await OnlinePlayback.persist([song]);
+    }
     await DbService.isar.writeTxn(() async {
-      final dbSong = await DbService.isar.songs.get(song.id);
+      final dbSong = song.id != Isar.autoIncrement
+          ? await DbService.isar.songs.get(song.id)
+          : await DbService.isar.songs.filter().pathEqualTo(song.path).findFirst();
       if (dbSong != null) {
         dbSong.lyrics = lrc;
         await DbService.isar.songs.put(dbSong);
@@ -430,12 +513,26 @@ class LyricsFetcher {
       });
 
   static Future<String?> _fetchLyrics(Song song) async {
-    final artist = (song.artist ?? 'Unknown Artist').trim();
-    final title = song.title.trim();
+    await _checkCleanMissesMigration();
+    if (song.isOnline) {
+      final twin = await OnlinePlayback.localTwin(song);
+      if (twin != null &&
+          twin.lyrics != null &&
+          twin.lyrics!.isNotEmpty &&
+          twin.lyrics != notFound) {
+        await _saveToDb(song, twin.lyrics!);
+        return twin.lyrics;
+      }
+    }
+
+    final artist = cleanArtist(song);
+    final title = cleanTitle(song);
 
     // The database copy, not [song.lyrics]: the queue holds Song objects
     // loaded before lyrics were found or the cache was cleared.
-    final dbSong = await DbService.isar.songs.get(song.id);
+    final dbSong = song.id != Isar.autoIncrement
+        ? await DbService.isar.songs.get(song.id)
+        : await DbService.isar.songs.filter().pathEqualTo(song.path).findFirst();
     var saved = dbSong != null ? dbSong.lyrics : song.lyrics;
 
     // 1. Saved lyrics (song.lyrics), then the cache file.
@@ -465,12 +562,15 @@ class LyricsFetcher {
       // untagged, and older editors saved the user's edits untagged. Tag
       // it once - embedded only when it matches the file's tags, else as
       // the user's own, so a rescan never replaces an edit.
-      final embedded = await MetadataService.getEmbeddedLyrics(song.path);
-      final tagged = embedded != null && embedded.trim() == saved.trim()
-          ? '[source:embedded]\n$saved'
-          : userLyrics(saved);
-      await _saveToDb(song, tagged);
-      return tagged;
+      if (!song.isOnline) {
+        final embedded = await MetadataService.getEmbeddedLyrics(song.path);
+        final tagged = embedded != null && embedded.trim() == saved.trim()
+            ? '[source:embedded]\n$saved'
+            : userLyrics(saved);
+        await _saveToDb(song, tagged);
+        return tagged;
+      }
+      return saved;
     }
 
     // 2. Nothing saved, or a saved "not found": walk the chain. Every
@@ -506,6 +606,48 @@ class LyricsFetcher {
   /// replaces the song's current lyrics. Returns it (source-tagged), or null
   /// with the current lyrics left alone. A provider that already answered
   /// for this song - with lyrics or without - isn't asked again.
+  /// Services whose answer can be reported as wrong (not the song's own
+  /// files or the user's lyrics).
+  static bool isReportable(String? source) {
+    final s = source?.toLowerCase();
+    return s != null &&
+        s.isNotEmpty &&
+        !const {'embedded', 'local', 'custom_file', 'not_found', 'user'}
+            .contains(s);
+  }
+
+  /// "Wrong lyrics" in the lyrics menu: [provider]'s answer for [song] is
+  /// forgotten and that provider is skipped for this song from now on;
+  /// the rest of the chain is asked. Returns the new lyrics, or
+  /// [notFound] when no other service has any.
+  static Future<String?> reportWrong(Song song, String provider) async {
+    final artist = cleanArtist(song);
+    final title = cleanTitle(song);
+    final id = provider.toUpperCase();
+    final wrong = song.lyrics;
+    await LyricsCache.forgetProvider(artist, title, id);
+    await LyricsCache.saveProviderMiss(artist, title, id);
+    await LyricsCache.forget(artist, title);
+    // The same wrong text may sit on the downloaded copy: it would be
+    // handed straight back.
+    final twin = song.isOnline ? await OnlinePlayback.localTwin(song) : null;
+    await DbService.isar.writeTxn(() async {
+      for (final s in [song, ?twin]) {
+        final row = s.id != Isar.autoIncrement
+            ? await DbService.isar.songs.get(s.id)
+            : await DbService.isar.songs.filter().pathEqualTo(s.path).findFirst();
+        if (row == null) continue;
+        if (!identical(s, song) && row.lyrics != wrong) continue;
+        row.lyrics = null;
+        await DbService.isar.songs.put(row);
+      }
+    });
+    song.lyrics = null;
+    _fetching.remove(_songKey(song));
+    _upgrading.remove(_songKey(song));
+    return fetchLyrics(song);
+  }
+
   static Future<String?> fetchWithProvider(Song song, String provider) async {
     final settings = await DbService.isar.appSettings.get(0);
     final chosen = provider.toUpperCase();
@@ -527,8 +669,8 @@ class LyricsFetcher {
     if (lrc != null) {
       await store(
         song,
-        (song.artist ?? 'Unknown Artist').trim(),
-        song.title.trim(),
+        cleanArtist(song),
+        cleanTitle(song),
         lrc,
       );
     }
@@ -568,23 +710,33 @@ class LyricsFetcher {
 
   static Future<LyricsResponse?> _askOnline(Song song, String provider) =>
       _service.getLyrics(
-        trackName: song.title.trim(),
-        artistName: (song.artist ?? 'Unknown Artist').trim(),
+        trackName: cleanTitle(song),
+        artistName: cleanArtist(song),
         albumName: (song.album ?? '').trim(),
         durationSeconds: (song.duration ?? 0) ~/ 1000,
         provider: provider,
+        videoId: song.videoId,
       );
 
   /// Embedded tags, then a sidecar .lrc/.txt next to the song - the first
   /// of them with timestamps, else the first with any lyrics.
   static Future<String?> _readLocal(Song song) async {
+    String? localPath = song.path;
+    if (song.isOnline) {
+      final cached = await OnlineCache.instance.cachedPath(song.videoId ?? '');
+      if (cached == null) return null;
+      localPath = cached;
+    }
+
     String? untimed;
-    final embedded = await MetadataService.getEmbeddedLyrics(song.path);
+    final embedded = await MetadataService.getEmbeddedLyrics(localPath);
     if (embedded != null && embedded.isNotEmpty) {
       final tagged = '[source:embedded]\n$embedded';
       if (hasTiming(tagged)) return tagged;
       untimed = tagged;
     }
+
+    if (song.isOnline) return untimed;
 
     final songDir = File(song.path).parent.path;
     final baseName = p.basenameWithoutExtension(song.path);

@@ -1,4 +1,8 @@
 import 'package:looper_player/core/utils/desktop_paths.dart';
+import 'package:looper_player/features/online/data/online_downloader.dart';
+import 'package:looper_player/features/online/data/online_playback.dart';
+import 'package:looper_player/features/online/data/taste_profile_store.dart';
+import 'package:looper_player/features/online/presentation/online_providers.dart';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -469,6 +473,7 @@ class Library extends _$Library {
   }
 
   Future<void> toggleFavorite(Song song) async {
+    await OnlinePlayback.persist([song]); // online songs need a row first
     await DbService.isar.writeTxn(() async {
       // Direct ID lookup is safer to ensure we're updating the correct record
       final dbSong = await DbService.isar.songs.get(song.id);
@@ -490,6 +495,7 @@ class Library extends _$Library {
   /// favorite states.
   Future<void> setFavorite(List<Song> songs, bool value) async {
     if (songs.isEmpty) return;
+    await OnlinePlayback.persist(songs);
     await DbService.isar.writeTxn(() async {
       final ids = songs.map((s) => s.id).toList();
       final dbSongs = await DbService.isar.songs.getAll(ids);
@@ -507,6 +513,7 @@ class Library extends _$Library {
   }
 
   Future<void> syncSongsWithFolders(List<String> activeFolders) async {
+    final downloadDirs = await DownloadFolders.all();
     await DbService.isar.writeTxn(() async {
       // Find all songs in the DB
       final allSongs = await DbService.isar.songs.where().findAll();
@@ -517,6 +524,11 @@ class Library extends _$Library {
       // "/Music" would also match "/MusicVideos/x.mp3" (over-matching,
       // not under-matching, but still wrong).
       final songsToDelete = allSongs.where((song) {
+        // Online songs have no folder; deleting them would lose favorites
+        // and playlist entries.
+        if (song.path.startsWith('yt:')) return false;
+        // Downloads stay even when their folder is not a library folder.
+        if (DownloadFolders.contains(song.path, downloadDirs)) return false;
         return !activeFolders.any((folder) {
           final prefix = folder.endsWith('/') ? folder : '$folder/';
           return song.path == folder || song.path.startsWith(prefix);
@@ -955,6 +967,7 @@ class Library extends _$Library {
       }
     } finally {
       _isScanRunning = false;
+      TasteProfileStore.invalidate();
     }
     // Pass 2 (see LibraryScanner.enrichPendingSongs) - deliberately not
     // awaited: pass 1's quick-inserted songs are already visible and
@@ -966,48 +979,52 @@ class Library extends _$Library {
     unawaited(_enrichPendingSongs());
   }
 
+  /// Device songs only: online rows (`yt:`) live in favorites, playlists
+  /// and history, not in the library lists.
+  QueryBuilder<Song, Song, QAfterFilterCondition> _localSongs() =>
+      DbService.isar.songs.filter().not().pathStartsWith('yt:');
+
   QueryBuilder<Song, Song, QAfterSortBy> _buildSongsQuery() {
     final isAsc = state.isAscending;
     switch (state.sortStrategy) {
       case SongSortStrategy.title:
         return isAsc
-            ? DbService.isar.songs.where().sortByTitle()
-            : DbService.isar.songs.where().sortByTitleDesc();
+            ? _localSongs().sortByTitle()
+            : _localSongs().sortByTitleDesc();
       case SongSortStrategy.artist:
         return isAsc
-            ? DbService.isar.songs.where().sortByArtist().thenByTitle()
-            : DbService.isar.songs.where().sortByArtistDesc().thenByTitle();
+            ? _localSongs().sortByArtist().thenByTitle()
+            : _localSongs().sortByArtistDesc().thenByTitle();
       case SongSortStrategy.album:
         return isAsc
-            ? DbService.isar.songs.where().sortByAlbum().thenByTrackNumber()
-            : DbService.isar.songs
-                  .where()
+            ? _localSongs().sortByAlbum().thenByTrackNumber()
+            : _localSongs()
                   .sortByAlbumDesc()
                   .thenByTrackNumber();
       case SongSortStrategy.duration:
         return isAsc
-            ? DbService.isar.songs.where().sortByDuration()
-            : DbService.isar.songs.where().sortByDurationDesc();
+            ? _localSongs().sortByDuration()
+            : _localSongs().sortByDurationDesc();
       case SongSortStrategy.year:
         return isAsc
-            ? DbService.isar.songs.where().sortByYear()
-            : DbService.isar.songs.where().sortByYearDesc();
+            ? _localSongs().sortByYear()
+            : _localSongs().sortByYearDesc();
       case SongSortStrategy.playCount:
         return isAsc
-            ? DbService.isar.songs.where().sortByPlayCount()
-            : DbService.isar.songs.where().sortByPlayCountDesc();
+            ? _localSongs().sortByPlayCount()
+            : _localSongs().sortByPlayCountDesc();
       case SongSortStrategy.lastPlayed:
         return isAsc
-            ? DbService.isar.songs.where().sortByLastPlayed()
-            : DbService.isar.songs.where().sortByLastPlayedDesc();
+            ? _localSongs().sortByLastPlayed()
+            : _localSongs().sortByLastPlayedDesc();
       case SongSortStrategy.fullPlays:
         // A computed value Isar can't sort by; _watchSongs orders the result.
-        return DbService.isar.songs.where().sortByPlayCountDesc();
+        return _localSongs().sortByPlayCountDesc();
       case SongSortStrategy.dateAdded:
       default:
         return isAsc
-            ? DbService.isar.songs.where().sortByDateAdded()
-            : DbService.isar.songs.where().sortByDateAddedDesc();
+            ? _localSongs().sortByDateAdded()
+            : _localSongs().sortByDateAddedDesc();
     }
   }
 
@@ -1055,7 +1072,7 @@ class Library extends _$Library {
     bool stale() => gen != _songsLoadGen || state.isInitialized;
     try {
       final Isar isar = DbService.isar;
-      final int total = await isar.songs.count();
+      final int total = await _localSongs().count();
       if (stale()) return;
       if (total == 0) {
         _applySongs(const []);
@@ -1066,14 +1083,18 @@ class Library extends _$Library {
       // order matches homeQuickPicks / homeRecentlyAdded, so nothing jumps
       // when the full list replaces them.
       final quickPicks = await isar.songs
-          .where()
+          .filter()
+          .not()
+          .pathStartsWith('yt:')
           .sortByPlayCountDesc()
           .thenByDateAddedDesc()
           .thenByPath()
           .limit(18)
           .findAll();
       final recentlyAdded = await isar.songs
-          .where()
+          .filter()
+          .not()
+          .pathStartsWith('yt:')
           .sortByDateAddedDesc()
           .thenByPath()
           .limit(10)
@@ -1248,6 +1269,84 @@ List<Song> homeQuickPicks(Ref ref) {
     });
   return sorted.take(18).toList();
 }
+
+class QuickPicksMixed {
+  const QuickPicksMixed(this.songs, this.suggestedPaths);
+  final List<Song> songs;
+  final Set<String> suggestedPaths;
+}
+
+final homeQuickPicksMixedDataProvider = Provider<QuickPicksMixed>((ref) {
+  if (!ref.watch(onlineActiveProvider)) {
+    final own = ref.watch(homeQuickPicksProvider);
+    return QuickPicksMixed(own, const {});
+  }
+
+  final own = ref.watch(homeQuickPicksProvider);
+  final forYouOnline = ref.watch(onlineHomeProvider.select((s) => s.forYou));
+
+  final ownTitlesAndArtists = <String>{};
+  final ownPaths = <String>{};
+  for (final s in own) {
+    ownPaths.add(s.path);
+    final norm = OnlinePlayback.normalizeTitle(s.title);
+    final artist = s.artist?.trim().toLowerCase() ?? '';
+    ownTitlesAndArtists.add('$norm|$artist');
+  }
+
+  final deduplicatedSuggestions = <Song>[];
+  for (final o in forYouOnline) {
+    final s = o.toSong();
+    if (ownPaths.contains(s.path)) continue;
+    final norm = OnlinePlayback.normalizeTitle(s.title);
+    final artist = s.artist?.trim().toLowerCase() ?? '';
+    if (ownTitlesAndArtists.contains('$norm|$artist')) continue;
+    deduplicatedSuggestions.add(s);
+  }
+
+  if (own.isEmpty) {
+    final list = deduplicatedSuggestions.take(18).toList();
+    final paths = {for (final s in list) s.path};
+    return QuickPicksMixed(list, paths);
+  }
+
+  final mixed = <Song>[];
+  final suggestedPaths = <String>{};
+  var ownIdx = 0;
+  var sugIdx = 0;
+
+  for (var page = 0; page < 3; page++) {
+    final pageSongs = <Song>[];
+    for (var i = 0; i < 4 && ownIdx < own.length; i++) {
+      pageSongs.add(own[ownIdx++]);
+    }
+    for (var i = 0; i < 2 && sugIdx < deduplicatedSuggestions.length; i++) {
+      final s = deduplicatedSuggestions[sugIdx++];
+      pageSongs.add(s);
+      suggestedPaths.add(s.path);
+    }
+    while (pageSongs.length < 6 && ownIdx < own.length) {
+      pageSongs.add(own[ownIdx++]);
+    }
+    while (pageSongs.length < 6 && sugIdx < deduplicatedSuggestions.length) {
+      final s = deduplicatedSuggestions[sugIdx++];
+      pageSongs.add(s);
+      suggestedPaths.add(s.path);
+    }
+    mixed.addAll(pageSongs);
+    if (ownIdx >= own.length && sugIdx >= deduplicatedSuggestions.length) break;
+  }
+
+  return QuickPicksMixed(mixed, suggestedPaths);
+});
+
+final homeQuickPicksMixedProvider = Provider<List<Song>>((ref) {
+  return ref.watch(homeQuickPicksMixedDataProvider).songs;
+});
+
+final homeQuickPicksSuggestedPathsProvider = Provider<Set<String>>((ref) {
+  return ref.watch(homeQuickPicksMixedDataProvider).suggestedPaths;
+});
 
 /// Home tab's "Recently Added" section - same comparator (date added,
 /// newest first) as before. Kept as the full sorted list, not just the

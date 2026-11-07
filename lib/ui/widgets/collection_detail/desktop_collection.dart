@@ -23,6 +23,12 @@ extension _DesktopCollection on CollectionDetailView {
     List<Object>? groupedItems,
   }) {
     final l10n = AppLocalizations.of(context)!;
+    final isArtist = reactivePlaylist == null &&
+        reactiveAlbum == null &&
+        (reactiveArtist != null ||
+            subtitle == l10n.artist ||
+            subtitle == l10n.artists ||
+            subtitle?.toLowerCase() == 'artist');
     // Lit only while this collection is the one playing shuffled.
     final key = collectionKey(songs);
     final isShuffle = ref.watch(
@@ -180,6 +186,25 @@ extension _DesktopCollection on CollectionDetailView {
                                           );
                                     },
                                   ),
+                                  if (isArtist) ...[
+                                    const SizedBox(width: 10),
+                                    _DesktopArtistFollowButton(
+                                      artistName: title,
+                                      thumbnail: imageUrl ?? art,
+                                    ),
+                                    if (ref.watch(onlineActiveProvider)) ...[
+                                      const SizedBox(width: 10),
+                                      _DesktopPill.icon(
+                                        icon: LucideIcons.globe,
+                                        tooltip: l10n.onlineDiscover,
+                                        onTap: () => _exploreArtistOnline(
+                                          context,
+                                          title,
+                                          imageUrl ?? art,
+                                        ),
+                                      ),
+                                    ],
+                                  ],
                                   if (reactivePlaylist != null) ...[
                                     const SizedBox(width: 10),
                                     _DesktopPill.icon(
@@ -299,10 +324,12 @@ class _DesktopPill extends StatelessWidget {
   final bool circle;
   final Color? backgroundColor;
 
-  const _DesktopPill({required this.child, this.onTap})
-    : tooltip = null,
-      circle = false,
-      backgroundColor = null;
+  const _DesktopPill({
+    required this.child,
+    this.onTap,
+    this.backgroundColor,
+  })  : tooltip = null,
+        circle = false;
 
   _DesktopPill.icon({
     required IconData icon,
@@ -533,6 +560,55 @@ class _DesktopSongRowState extends ConsumerState<_DesktopSongRow> {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _DesktopArtistFollowButton extends ConsumerWidget {
+  const _DesktopArtistFollowButton({
+    required this.artistName,
+    this.thumbnail,
+  });
+
+  final String artistName;
+  final String? thumbnail;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context)!;
+    final following = ref.watch(
+      tasteProvider.select((t) => t.hasArtist(artistName)),
+    );
+    final theme = Theme.of(context);
+    final primaryColor = theme.colorScheme.primary;
+
+    return _DesktopPill(
+      backgroundColor: following ? primaryColor.withValues(alpha: 0.22) : null,
+      onTap: () {
+        AppHaptics.light();
+        ref.read(tasteProvider.notifier).toggleArtist(
+              TasteArtist(artistName, thumbnail: thumbnail),
+            );
+      },
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            following ? LucideIcons.check : LucideIcons.plus,
+            size: 16,
+            color: following ? primaryColor : Colors.white,
+          ),
+          const SizedBox(width: 6),
+          Text(
+            following ? l10n.onlineFollowing : l10n.onlineFollow,
+            style: AppFonts.jostStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              color: following ? primaryColor : Colors.white,
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -1,4 +1,7 @@
+import 'dart:math' as math;
 import 'package:looper_player/features/library/data/services/artist_catalog.dart';
+import 'package:looper_player/features/online/presentation/online_providers.dart';
+import 'package:looper_player/features/online/presentation/online_widgets.dart';
 import 'package:looper_player/core/utils/song_metadata.dart';
 import 'package:looper_player/core/providers/collection_navigation.dart';
 import 'package:flutter/material.dart';
@@ -49,6 +52,12 @@ class HomeDashboard extends ConsumerWidget {
         final bool showLogo = MediaQuery.of(context).size.width < 800;
 
         final orderedChildren = <Widget>[];
+        // Online feed (a sliver) inside this plain list.
+        final onlineFeed = CustomScrollView(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          slivers: const [OnlineHomeSliver()],
+        );
 
         if (showLogo) {
           orderedChildren.add(
@@ -84,12 +93,13 @@ class HomeDashboard extends ConsumerWidget {
         )) {
           switch (section) {
             case DesktopHomeSection.quickPicks:
-              if ((ref.watch(topSongsProvider).value ?? const []).isEmpty) {
-                continue;
+              if (ref.watch(homeQuickPicksMixedProvider).isNotEmpty) {
+                orderedChildren.add(
+                  _buildQuickPicks(context, ref, isNarrow, isDynamic, l10n),
+                );
+                orderedChildren.add(gap);
               }
-              orderedChildren.add(
-                _buildQuickPicks(context, ref, isNarrow, isDynamic, l10n),
-              );
+              orderedChildren.add(onlineFeed);
             case DesktopHomeSection.playlists:
               if (playlists.isEmpty) continue;
               orderedChildren.add(
@@ -173,6 +183,11 @@ class HomeDashboard extends ConsumerWidget {
                 ),
               );
           }
+          orderedChildren.add(gap);
+        }
+
+        if (!ref.watch(onlineActiveProvider)) {
+          orderedChildren.add(const OnlineDisabledHomeFooter());
           orderedChildren.add(gap);
         }
 

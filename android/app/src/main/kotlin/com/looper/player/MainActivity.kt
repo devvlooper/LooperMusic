@@ -43,6 +43,8 @@ class MainActivity : FlutterActivity() {
     private var navBarHidden = false
     // Play In-App Updates in the play flavor, the APK installer in the github one.
     private var inAppUpdater: InAppUpdater? = null
+    // Google sign-in for online music (real in github, stub in play).
+    private var microgAuth: MicrogAuth? = null
     // Pending result for an in-flight pickSafFolder() call, bridged across
     // the async gap to the system folder-picker Activity in onActivityResult.
     private var pendingSafResult: MethodChannel.Result? = null
@@ -466,10 +468,24 @@ class MainActivity : FlutterActivity() {
                 } catch (e: Exception) {
                     result.error("AUDIO_INFO_ERROR", e.message, null)
                 }
+            } else if (call.method == "isNetworkMetered") {
+                // Online streaming picks quality per network. Without the
+                // permission (Play build) this throws, and Dart reads false.
+                try {
+                    val cm = getSystemService(android.content.Context.CONNECTIVITY_SERVICE)
+                        as android.net.ConnectivityManager
+                    result.success(cm.isActiveNetworkMetered)
+                } catch (e: Exception) {
+                    result.success(false)
+                }
             } else {
                 result.notImplemented()
             }
         }
+
+        val auth = MicrogAuth(this).also { microgAuth = it }
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, MicrogAuth.CHANNEL)
+            .setMethodCallHandler(auth::onMethodCall)
 
         val updateChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, UPDATE_CHANNEL)
         inAppUpdater?.onDestroy() // configureFlutterEngine can run again for the same activity
@@ -530,6 +546,7 @@ class MainActivity : FlutterActivity() {
         super.onActivityResult(requestCode, resultCode, data)
 
         if (inAppUpdater?.onActivityResult(requestCode, resultCode) == true) return
+        if (microgAuth?.onActivityResult(requestCode, resultCode, data) == true) return
 
         if (requestCode == MEDIA_WRITE_REQUEST_CODE) {
             val pending = pendingMediaWriteResult

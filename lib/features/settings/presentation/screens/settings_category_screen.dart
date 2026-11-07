@@ -1,4 +1,6 @@
 import 'package:looper_player/core/motion/looper_scroll_physics.dart';
+import 'package:looper_player/features/online/data/innertube.dart';
+import 'package:looper_player/features/online/presentation/online_settings_tiles.dart';
 import 'dart:io';
 import 'package:looper_player/core/utils/ui_utils.dart';
 import 'package:looper_player/core/utils/motion.dart';
@@ -271,6 +273,8 @@ class SettingsCategoryScreen extends ConsumerWidget {
         ),
         (title: l10n.themeGroupProfile, tiles: const [SelectAvatarsTile()]),
       ];
+    } else if (categoryId == 'online') {
+      sections = onlineSettingsSections(l10n);
     } else if (categoryId == 'backups_logs') {
       children = [
         const ExportBackupTile(),
@@ -331,6 +335,10 @@ class SettingsCategoryScreen extends ConsumerWidget {
         ),
         const Divider(height: 1, indent: 72, color: Colors.white10), //4
         LyricsCreditsSection(accentColor: settings.accent), //5
+        if (onlineAvailable) ...[
+          const Divider(height: 1, indent: 72, color: Colors.white10),
+          OnlineCreditsSection(accentColor: settings.accent),
+        ],
       ];
     }
 

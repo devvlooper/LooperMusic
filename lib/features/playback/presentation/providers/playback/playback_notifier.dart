@@ -32,11 +32,19 @@ import 'package:path/path.dart' as p;
 import 'package:share_plus/share_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:looper_player/core/utils/l10n.dart';
+import 'package:looper_player/features/online/data/innertube.dart';
+import 'package:looper_player/features/online/data/taste_profile_store.dart';
+import 'package:looper_player/features/online/data/online_cache.dart';
+import 'package:looper_player/features/online/data/online_settings.dart';
+import 'package:looper_player/features/online/data/online_playback.dart';
+import 'package:looper_player/features/online/data/recommendation_engine.dart';
+import 'package:looper_player/features/online/data/stream_resolver.dart';
 
 part 'playback_notifier.g.dart';
 part 'playback_state.dart';
 part 'listen_tracking.dart';
 part 'maintenance.dart';
+part 'online_hooks.dart';
 
 @Riverpod(keepAlive: true)
 class Playback extends _$Playback {
@@ -46,6 +54,21 @@ class Playback extends _$Playback {
   int _currentIndex = -1;
   bool _isTransitioning = false;
   int _activeCrossfadeId = 0;
+
+  // Online streaming state (online_hooks.dart).
+  bool _onlineStreamed = false;
+  String? _onlineRecoveryPath;
+  int _onlineRecoveries = 0;
+  int _onlineFailStreak = 0;
+  bool _extendingOnline = false;
+  Duration? _pendingSeek;
+  Timer? _bufferingDebounceTimer;
+  Timer? _bufferingStallTimer;
+  bool _rawBuffering = false;
+  bool _eofCached = false;
+
+  void _publishQueue() => state = state.copyWith(queue: List.from(_playlist));
+  bool get _internetAllowed => ref.read(settingsProvider).enableInternet;
   Timer? _silenceTimer;
   Timer? _songCompletionTimer;
   int _lastWidgetPositionUpdate = 0;
@@ -86,6 +109,8 @@ class Playback extends _$Playback {
   int? _activePlayEventId;
   String? _activeListenSongPath;
   DateTime _lastListenCheckpoint = DateTime.fromMillisecondsSinceEpoch(0);
+
+  PlaybackState get playbackState => state;
 
   @override
   PlaybackState build() {
@@ -217,15 +242,13 @@ class Playback extends _$Playback {
         if (DateTime.now().difference(_lastSeekTime).inMilliseconds < 400) {
           return;
         }
-        // While a track switch is in flight, the native player briefly
-        // reports `playing: false` as it stops the old track and loads the
-        // new one, before `_playDirect` explicitly sets isPlaying back to
-        // true. Letting that transient `false` through made the play/pause
-        // button's background (bound directly to isPlaying) flash on every
-        // song change. `_isTransitioning` already tracks this window, so
-        // just ignore spurious pauses inside it - a real `true` still comes
-        // through once the new track actually starts.
-        if (_isTransitioning && !playing) {
+        // While a track switch or buffering is in flight, the native player
+        // briefly reports `playing: false`. While buffering, ignore `false`
+        // so isPlaying preserves user intent (button stays Pause, notification
+        // stays playing).
+        if ((_isTransitioning || state.isBuffering) && !playing) {
+          _pauseListenSegment();
+          unawaited(_flushListenedTime());
           return;
         }
 
@@ -318,9 +341,49 @@ class Playback extends _$Playback {
     );
 
     _subscriptions.add(
+      player.stream.buffering.listen((_) => _updateBuffering()),
+    );
+
+    _subscriptions.add(
+      player.stream.seeking.listen((_) => _updateBuffering()),
+    );
+
+    _subscriptions.add(
+      player.stream.demuxerCacheState.listen((cacheState) {
+        if (!state.isStreaming) return;
+        if (cacheState.eofCached && !_eofCached) {
+          _eofCached = true;
+          if (state.duration > Duration.zero && state.buffer != state.duration) {
+            state = state.copyWith(buffer: state.duration);
+          }
+        }
+      }),
+    );
+
+    _subscriptions.add(
+      player.stream.buffer.listen((buf) {
+        if (!state.isStreaming || _eofCached) return;
+        final dur = state.duration;
+        if (dur <= Duration.zero) return;
+        final stepMs =
+            (dur.inMilliseconds / 100).clamp(1, double.infinity).toInt();
+        final roundedMs = (buf.inMilliseconds ~/ stepMs) * stepMs;
+        final rounded = Duration(
+          milliseconds: roundedMs.clamp(0, dur.inMilliseconds),
+        );
+        if (rounded != state.buffer) {
+          state = state.copyWith(buffer: rounded);
+        }
+      }),
+    );
+
+    _subscriptions.add(
       player.stream.duration.listen((duration) {
         if (duration != Duration.zero) {
-          state = state.copyWith(duration: duration);
+          state = state.copyWith(
+            duration: duration,
+            buffer: _eofCached && state.isStreaming ? duration : state.buffer,
+          );
         }
       }),
     );
@@ -345,6 +408,7 @@ class Playback extends _$Playback {
           if (_completedResetSinceLoad) _pendingCompletion = true;
           return;
         }
+        if (_tryRecoverOnline(state.currentSong)) return;
         _onTrackCompleted();
       }),
     );
@@ -461,6 +525,42 @@ class Playback extends _$Playback {
       _manualQueueCount = (index < endOfManual) ? endOfManual - index : 0;
       _currentIndex = index;
       await play(_playlist[_currentIndex]);
+    }
+  }
+
+  void _updateBuffering() {
+    final raw =
+        player.state.buffering || (state.isStreaming && player.state.seeking);
+    if (raw == _rawBuffering) return;
+    _rawBuffering = raw;
+
+    _bufferingDebounceTimer?.cancel();
+    if (raw) {
+      _bufferingDebounceTimer = Timer(const Duration(milliseconds: 300), () {
+        if (_rawBuffering) {
+          state = state.copyWith(isBuffering: true);
+        }
+      });
+      _bufferingStallTimer?.cancel();
+      _bufferingStallTimer = Timer(const Duration(seconds: 15), () {
+        if (_rawBuffering && state.isStreaming) {
+          _bufferingDebounceTimer?.cancel();
+          state = state.copyWith(isBuffering: false);
+          if (!_tryRecoverOnline(state.currentSong) && state.currentSong != null) {
+            unawaited(
+              _onOnlineFailure(
+                state.currentSong!,
+                TimeoutException('buffering timed out'),
+              ),
+            );
+          }
+        }
+      });
+    } else {
+      _bufferingStallTimer?.cancel();
+      if (state.isBuffering) {
+        state = state.copyWith(isBuffering: false);
+      }
     }
   }
 
@@ -671,7 +771,7 @@ class Playback extends _$Playback {
 
     final isUrl =
         song.path.startsWith('http://') || song.path.startsWith('https://');
-    if (!isUrl) {
+    if (!isUrl && !song.isOnline) {
       await _requestStoragePermissions();
       final file = File(song.path);
       if (!await file.exists()) {
@@ -697,6 +797,13 @@ class Playback extends _$Playback {
         sourcePlaylistId: sourcePlaylistId,
       );
     } catch (e) {
+      if (song.isOnline) {
+        // Resolution already retried inside its budget; skip with a message.
+        if (crossfadeId == _activeCrossfadeId) {
+          unawaited(Future.microtask(() => _onOnlineFailure(song, e)));
+        }
+        return;
+      }
       if (crossfadeId == _activeCrossfadeId) {
         try {
           await _playDirect(
@@ -770,6 +877,9 @@ class Playback extends _$Playback {
       position: initialPosition ?? Duration.zero,
       isRestoredSession: initialPosition != null,
     );
+    if (song.isOnline) {
+      await OnlinePlayback.persist([song]);
+    }
     ref.read(lyricsProvider.notifier).fetchForSong(song);
     ref.read(equalizerProvider.notifier).onSongChanged(song);
 
@@ -793,17 +903,34 @@ class Playback extends _$Playback {
     _resumePositionAfterStop = null;
     _fader.set(shouldFade ? 0.0 : 1.0);
 
+    // Online songs resolve to a local twin, a cached file or a stream URL.
+    final source = await _sourceFor(song);
+    if (crossfadeId != _activeCrossfadeId) return;
+
+    _eofCached = false;
+    _pendingSeek = null;
+    _rawBuffering = false;
+    _bufferingDebounceTimer?.cancel();
+    _bufferingStallTimer?.cancel();
+    state = state.copyWith(
+      isStreaming: source.streamed,
+      isBuffering: false,
+      buffer: Duration.zero,
+    );
+
     await ref
         .read(audioServiceProvider)
         .play(
-          song.path,
+          source.path,
           metadata: metadata,
           play: targetPlay,
           equalizerGains: gains,
           equalizerEnabled: settings.equalizerEnabled,
           customFilter: customFilter,
           interruptionPolicy: _getInterruptionPolicy(),
+          userAgent: source.userAgent,
         );
+    if (song.isOnline) _onlineFailStreak = 0;
 
     if (targetPlay) {
       state = state.copyWith(isPlaying: true);
@@ -907,6 +1034,7 @@ class Playback extends _$Playback {
     _updateNotification();
     await _ensureDynamicQueue();
     await _saveQueueState();
+    _prefetchOnline();
 
     // Explicit initialPosition (e.g. the "Persist Last Queue" app-restart
     // resume) always wins; otherwise fall back to this song's own saved
@@ -1182,8 +1310,11 @@ class Playback extends _$Playback {
   Future<void> _pauseFromUser() async {
     _silenceTimer?.cancel();
     _songCompletionTimer?.cancel();
+    _bufferingDebounceTimer?.cancel();
+    _bufferingStallTimer?.cancel();
+    _rawBuffering = false;
     _pausedForRouteChange = false;
-    state = state.copyWith(isPlaying: false);
+    state = state.copyWith(isPlaying: false, isBuffering: false);
     _updateNotification();
 
     final settings = ref.read(settingsProvider);
@@ -1543,6 +1674,12 @@ class Playback extends _$Playback {
     _songCompletionTimer?.cancel();
     _lastSeekTime = DateTime.now();
 
+    if (state.isScrubbing && state.isStreaming) {
+      _pendingSeek = position;
+      state = state.copyWith(position: position);
+      return;
+    }
+
     try {
       await player.seek(position);
       state = state.copyWith(position: position);
@@ -1555,19 +1692,32 @@ class Playback extends _$Playback {
     } catch (e) {
       debugPrint('Seek failed: $e');
       state = state.copyWith(position: position);
+      // Scrubbing muted the player; a failed seek must not leave it silent.
+      if (!state.isScrubbing) _applyVolume();
     }
   }
 
   void startScrubbing() {
     _lastSeekTime = DateTime.now();
+    _pendingSeek = null;
     state = state.copyWith(isScrubbing: true);
     _applyVolume();
   }
 
-  void stopScrubbing() {
+  Future<void> stopScrubbing() async {
     _lastSeekTime = DateTime.now();
-    state = state.copyWith(isScrubbing: false, position: player.state.position);
-    _applyVolume();
+    final target = _pendingSeek;
+    _pendingSeek = null;
+    if (target != null) {
+      state = state.copyWith(isScrubbing: false, position: target);
+      await seek(target);
+    } else {
+      state = state.copyWith(
+        isScrubbing: false,
+        position: player.state.position,
+      );
+      _applyVolume();
+    }
   }
 
   Future<void> reorderQueue(
@@ -2022,6 +2172,19 @@ class Playback extends _$Playback {
   /// of "turn songs into an XFile share" instead of two.
   Future<void> shareSongs(List<Song> songs) async {
     if (songs.isEmpty) return;
+    // Online songs have no file: share their YouTube Music links.
+    if (songs.every((s) => s.isOnline)) {
+      await SharePlus.instance.share(
+        ShareParams(
+          text: [
+            for (final s in songs)
+              '${s.title} - https://music.youtube.com/watch?v=${s.videoId}',
+          ].join('\n'),
+        ),
+      );
+      return;
+    }
+    songs = songs.where((s) => !s.isOnline).toList();
     final text = songs.length == 1
         ? currentL10n().shareSongText(songs.first.title)
         : currentL10n().shareSongsText(songs.length);
@@ -2240,6 +2403,8 @@ class Playback extends _$Playback {
       sub.cancel();
     }
     _subscriptions.clear();
+    _bufferingDebounceTimer?.cancel();
+    _bufferingStallTimer?.cancel();
     _silenceTimer?.cancel();
     _sleepTimer?.cancel();
     _fader.cancel();
@@ -2419,6 +2584,7 @@ class Playback extends _$Playback {
   Future<void> _saveQueueState() async {
     final settings = ref.read(settingsProvider);
     if (!settings.persistQueue) return;
+    await OnlinePlayback.persist(_playlist);
     final songIds = _playlist.map((s) => s.id).toList();
     await ref
         .read(settingsProvider.notifier)
@@ -2435,6 +2601,11 @@ class Playback extends _$Playback {
     // Loading the whole library on every skip was the main skip-spam cost.
     if (_playlist.isNotEmpty &&
         _playlist.length - 1 - _currentIndex >= bufferSize) {
+      return;
+    }
+    final current = state.currentSong;
+    if (current != null && current.isOnline) {
+      _extendOnlineQueue(current);
       return;
     }
     final allSongs = await DbService.isar.songs.where().findAll();

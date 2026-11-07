@@ -158,6 +158,16 @@ final SpringDescription fluidPlayerOpenBounceSpring =
       ratio: 0.65,
     );
 
+/// Tap on the mini bar to open: barely underdamped, so the sheet lands with
+/// only a hint of carry past the top (~0.6 % of the travel) instead of the
+/// full drag/flick bounce.
+final SpringDescription fluidPlayerTapOpenSpring =
+    SpringDescription.withDampingRatio(
+      mass: 1.0,
+      stiffness: 380.0,
+      ratio: 0.85,
+    );
+
 /// Firmer bounce for minimizing: the mini bar dips ~14 dp under its resting
 /// spot and comes back, so it lands like the sheet it was.
 final SpringDescription fluidPlayerCloseBounceSpring =

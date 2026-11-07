@@ -453,6 +453,15 @@ class _AndroidMainScreenState extends ConsumerState<AndroidMainScreen>
             ),
           ),
         );
+      } else if (isForward && next.activeItem == NavItem.downloads) {
+        navigatorKey.currentState?.push(
+          _createPremiumRoute(
+            const CategoryDetailWrapper(
+              title: 'Downloads',
+              child: DownloadsView(),
+            ),
+          ),
+        );
       } else if (isForward && next.activeItem == NavItem.analyze) {
         navigatorKey.currentState?.push(
           _createPremiumRoute(const LooperAnalyzeView()),

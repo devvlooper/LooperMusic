@@ -15,6 +15,17 @@
          Play build updates through Play and must never declare this. -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
+    <!-- Online streaming (github only): pick stream quality per network. -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <!-- Google sign-in (MicrogAuth.kt): Android 11+ hides other packages, so
+         name the GmsCore builds we look for. -->
+    <queries>
+        <package android:name="app.revanced.android.gms" />
+        <package android:name="com.google.android.gms" />
+        <package android:name="com.mgoogle.android.gms" />
+    </queries>
+
     <!-- Android 10 (API 29) has no All Files Access; legacy storage lets
          READ_EXTERNAL_STORAGE walk the whole storage root there instead. -->
     <application android:requestLegacyExternalStorage="true" />

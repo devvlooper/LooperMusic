@@ -49,4 +49,15 @@ class LocalJsonStore {
       // custom EQ preset isn't worth surfacing an error to the user for.
     }
   }
+
+  /// Deletes the file stored under [key].
+  static Future<void> delete(String key) async {
+    try {
+      final dir = await _getDir();
+      final file = File(p.join(dir.path, '$key.json'));
+      if (await file.exists()) {
+        await file.delete();
+      }
+    } catch (_) {}
+  }
 }

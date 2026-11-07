@@ -585,6 +585,13 @@ extension _SettingsSearch on _SettingsViewState {
         category: l10n.aboutAndMaintainers,
         widget: LyricsCreditsSection(accentColor: settings.accent),
       ),
+      if (onlineAvailable)
+        SettingsSearchItem(
+          title: l10n.onlineCreditsTitle,
+          subtitle: onlineCredits(l10n).map((c) => c.name).join(' · '),
+          category: l10n.aboutAndMaintainers,
+          widget: OnlineCreditsSection(accentColor: settings.accent),
+        ),
     ];
   }
 }

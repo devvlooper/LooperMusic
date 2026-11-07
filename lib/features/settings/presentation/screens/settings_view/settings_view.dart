@@ -1,4 +1,5 @@
 import 'package:looper_player/core/motion/pause_when_offscreen.dart';
+import 'package:looper_player/features/online/data/innertube.dart';
 import 'package:looper_player/core/motion/looper_scroll_physics.dart';
 import 'dart:io';
 import 'package:flutter/material.dart';
@@ -331,6 +332,18 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                                   useBlur: useBlur,
                                   settings: settings,
                                 ),
+
+                                if (onlineAvailable)
+                                  _buildCategoryGroup(
+                                    context: context,
+                                    id: 'online',
+                                    title: l10n.onlineMusic,
+                                    subtitle: l10n.onlineSettingsDesc,
+                                    icon: LucideIcons.cloud,
+                                    colorScheme: Theme.of(context).colorScheme,
+                                    useBlur: useBlur,
+                                    settings: settings,
+                                  ),
 
                                 _buildCategoryGroup(
                                   context: context,

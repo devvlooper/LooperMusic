@@ -1,0 +1,652 @@
+import 'dart:async';
+
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:looper_player/core/services/storage/db_service.dart';
+import 'package:looper_player/core/services/storage/local_json_store.dart';
+import 'package:looper_player/core/utils/logger_helper.dart';
+import 'package:looper_player/features/microg/domain/auth_state.dart';
+import 'package:looper_player/features/microg/presentation/providers/auth_provider.dart';
+import 'package:looper_player/features/online/data/account_data_sync.dart';
+import 'package:looper_player/features/online/data/innertube.dart';
+import 'package:looper_player/features/online/data/online_api.dart';
+import 'package:looper_player/features/online/data/online_settings.dart';
+import 'package:looper_player/features/online/data/parsers.dart';
+import 'package:looper_player/features/online/data/recommendation_engine.dart';
+import 'package:looper_player/features/online/data/stream_resolver.dart';
+import 'package:looper_player/features/online/data/taste_store.dart';
+import 'package:looper_player/features/online/data/taste_profile_store.dart';
+import 'package:looper_player/features/settings/presentation/providers/settings_notifier.dart';
+import 'package:isar_community/isar.dart';
+
+/// Online surfaces show only on the GitHub/desktop build, with online
+/// music switched on and the app's Internet mode allowed.
+final onlineActiveProvider = Provider<bool>(
+  (ref) =>
+      onlineAvailable &&
+      ref.watch(onlineSettingsProvider.select((s) => s.enabled)) &&
+      ref.watch(settingsProvider.select((s) => s.enableInternet)),
+);
+
+class OnlineStatusNotifier extends Notifier<OnlineStatus> {
+  @override
+  OnlineStatus build() {
+    final notifier = StreamResolver.instance.statusNotifier;
+    void listener() => state = notifier.value;
+    notifier.addListener(listener);
+    ref.onDispose(() => notifier.removeListener(listener));
+    return notifier.value;
+  }
+}
+
+final onlineStatusProvider =
+    NotifierProvider<OnlineStatusNotifier, OnlineStatus>(
+      OnlineStatusNotifier.new,
+    );
+
+/// Shelf titles that are ours, not YouTube's, localized at display.
+const discoverShelf = '@discover';
+
+class OnlineHomeState {
+  const OnlineHomeState({
+    this.shelves = const [],
+    this.forYou = const [],
+    this.moods = const [],
+    this.activeMood,
+    this.loading = false,
+    this.error,
+  });
+  final List<OnlineShelf> shelves;
+  final List<OnlineSong> forYou;
+  final List<OnlineMood> moods;
+  final OnlineMood? activeMood;
+  final bool loading;
+  final Object? error;
+
+  OnlineHomeState copyWith({
+    List<OnlineShelf>? shelves,
+    List<OnlineSong>? forYou,
+    List<OnlineMood>? moods,
+    OnlineMood? activeMood,
+    bool? loading,
+    Object? error,
+  }) =>
+      OnlineHomeState(
+        shelves: shelves ?? this.shelves,
+        forYou: forYou ?? this.forYou,
+        moods: moods ?? this.moods,
+        activeMood: activeMood ?? this.activeMood,
+        loading: loading ?? this.loading,
+        error: error,
+      );
+}
+
+/// Helper to sort shelves in descending personal/mood relevance:
+/// 1. Speed dial
+/// 2. For you / Discover / Quick picks / Listen again
+/// 3. Trending songs for you
+/// 4. Active mood shelves
+/// 5. Mixes / My Supermix
+/// 6. Forgotten favourites
+/// 7. Trending community playlists
+/// 8. Albums for you
+/// 9. Remaining shelves
+int _shelfRelevanceRank(OnlineShelf s, bool hasActiveMood) {
+  final t = s.title.toLowerCase().trim();
+  if (t.contains('speed dial')) return 0;
+  if (s.title == discoverShelf ||
+      t.contains('for you') ||
+      t.contains('quick picks') ||
+      t.contains('listen again')) {
+    return 1;
+  }
+  if (t.contains('trending song') ||
+      (t.contains('trending') && t.contains('for you'))) {
+    return 2;
+  }
+  if (hasActiveMood &&
+      !t.contains('community') &&
+      !t.contains('album') &&
+      !t.contains('forgotten')) {
+    return 3;
+  }
+  if (t.contains('supermix') || t.contains('mixes') || t.contains('mix')) {
+    return 4;
+  }
+  if (t.contains('forgotten')) {
+    return 5;
+  }
+  if (t.contains('community playlist') || t.contains('community')) {
+    return 6;
+  }
+  if (t.contains('album')) {
+    return 7;
+  }
+  return 8;
+}
+
+/// Online home: "For you" (for Quick picks) and "Discover" from the suggestion
+/// analyser, then YouTube Music's own home shelves. Shown from a disk cache at
+/// once; a revisit within 10 minutes does not refetch (Koda: repeated home reloads
+/// preceded YouTube's bot check).
+class OnlineHomeNotifier extends Notifier<OnlineHomeState> {
+  static const _cacheKey = 'online_home_cache';
+  static const _fresh = Duration(minutes: 10);
+  DateTime? _loadedAt;
+  Future<void>? _running;
+
+  @override
+  OnlineHomeState build() {
+    ref.listen(tasteProvider, (previous, next) {
+      if (previous != null && !identical(previous, next)) {
+        TasteProfileStore.invalidate();
+        LocalJsonStore.delete('online_artists_for_you_v1');
+        ref.invalidate(onlineArtistsForYouProvider);
+        if (ref.read(onlineActiveProvider)) {
+          unawaited(load(force: true));
+        }
+      }
+    });
+    unawaited(_boot());
+    return const OnlineHomeState(loading: true);
+  }
+
+  Future<void> _boot() async {
+    final raw = await LocalJsonStore.read(_cacheKey);
+    if (raw is List && state.shelves.isEmpty) {
+      final cached = [for (final s in raw) ?OnlineShelf.fromJson(s)];
+      if (cached.isNotEmpty) {
+        state = OnlineHomeState(shelves: cached, loading: true);
+      }
+    } else if (raw is Map && state.shelves.isEmpty) {
+      final cachedShelves = [
+        for (final s in (raw['shelves'] as List? ?? const []))
+          if (s is Map) ?OnlineShelf.fromJson(s),
+      ];
+      final cachedForYou = [
+        for (final s in (raw['forYou'] as List? ?? const []))
+          if (s is Map) ?OnlineSong.fromJson(s),
+      ];
+      final cachedMoods = [
+        for (final m in (raw['moods'] as List? ?? const []))
+          if (m is Map) ?OnlineMood.fromJson(m),
+      ];
+      if (cachedShelves.isNotEmpty ||
+          cachedForYou.isNotEmpty ||
+          cachedMoods.isNotEmpty) {
+        state = OnlineHomeState(
+          shelves: cachedShelves,
+          forYou: cachedForYou,
+          moods: cachedMoods,
+          loading: true,
+        );
+      }
+    }
+    await load();
+  }
+
+  Future<void> selectMood(OnlineMood? mood) async {
+    final newMood = state.activeMood == mood ? null : mood;
+    state = state.copyWith(activeMood: newMood, loading: true);
+    await _load(true, mood: newMood);
+  }
+
+  Future<void> load({bool force = false}) {
+    final at = _loadedAt;
+    if (!force && at != null && DateTime.now().difference(at) < _fresh) {
+      return Future.value();
+    }
+    return _running ??= _load(force, mood: state.activeMood)
+        .whenComplete(() => _running = null);
+  }
+
+  Future<void> _load(bool force, {OnlineMood? mood}) async {
+    state = state.copyWith(loading: true, activeMood: mood);
+    try {
+      final profile = await RecommendationEngine.buildProfile(force: force);
+      final results = await Future.wait([
+        RecommendationEngine.forYou(profile),
+        RecommendationEngine.discover(profile),
+        RecommendationEngine.buildMixShelves(profile.profiles),
+      ]);
+      List<OnlineShelf> youtubeShelves = const [];
+      List<OnlineMood> youtubeMoods = const [];
+      try {
+        final yt = await OnlineApi.home(
+          params: mood?.params,
+          pages: 3,
+          automatic: !force,
+        );
+        youtubeShelves = yt.$1;
+        youtubeMoods = yt.$2;
+      } catch (e) {
+        LoggerHelper.write('Online home: YouTube shelves failed', e);
+      }
+      final forYouSongs = results[0] as List<OnlineSong>;
+      final discoverSongs = results[1] as List<OnlineSong>;
+      final mixShelves = results[2] as List<OnlineShelf>;
+
+      final rawShelves = [
+        if (discoverSongs.isNotEmpty)
+          OnlineShelf(discoverShelf, songs: discoverSongs),
+        ...mixShelves,
+        ...youtubeShelves,
+      ];
+
+      // Sort shelves in descending order of personal relevance and mood relation
+      final hasActiveMood = mood != null;
+      final indexed = [
+        for (var i = 0; i < rawShelves.length; i++) (i, rawShelves[i]),
+      ];
+      indexed.sort((a, b) {
+        final rankA = _shelfRelevanceRank(a.$2, hasActiveMood);
+        final rankB = _shelfRelevanceRank(b.$2, hasActiveMood);
+        if (rankA != rankB) return rankA.compareTo(rankB);
+        return a.$1.compareTo(b.$1);
+      });
+      final shelves = [for (final entry in indexed) entry.$2];
+
+      final nextMoods = youtubeMoods.isNotEmpty
+          ? youtubeMoods
+          : state.moods;
+
+      if (shelves.isEmpty && forYouSongs.isEmpty) {
+        // Keep what is on screen; an empty answer never replaces it.
+        state = state.copyWith(
+          loading: false,
+          error: StreamUnavailableException('nothing loaded'),
+        );
+        return;
+      }
+      _loadedAt = DateTime.now();
+      state = OnlineHomeState(
+        shelves: shelves,
+        forYou: forYouSongs,
+        moods: nextMoods,
+        activeMood: mood,
+        loading: false,
+      );
+      await LocalJsonStore.write(_cacheKey, {
+        'shelves': [for (final s in shelves) s.toJson()],
+        'forYou': [for (final s in forYouSongs) s.toJson()],
+        'moods': [for (final m in nextMoods) m.toJson()],
+      });
+    } catch (e) {
+      LoggerHelper.write('Online home failed', e);
+      state = state.copyWith(
+        loading: false,
+        error: e,
+      );
+    }
+  }
+
+  /// The Refresh button: when online music stops working, start over with
+  /// a fresh identity, no cached URLs and no throttle hold, then reload.
+  Future<void> refresh() async {
+    await StreamResolver.instance.reset();
+    await load(force: true);
+  }
+}
+
+final onlineHomeProvider =
+    NotifierProvider<OnlineHomeNotifier, OnlineHomeState>(
+      OnlineHomeNotifier.new,
+    );
+
+class OnlineSearchState {
+  const OnlineSearchState({
+    this.query = '',
+    this.songs = const [],
+    this.artists = const [],
+    this.albums = const [],
+    this.playlists = const [],
+    this.loading = false,
+    this.loadingMore = false,
+    this.error,
+    this.continuation,
+  });
+  final String query;
+  final List<OnlineSong> songs;
+  final List<OnlineCollection> artists;
+  final List<OnlineCollection> albums;
+  final List<OnlineCollection> playlists;
+  final bool loading;
+  final bool loadingMore;
+  final Object? error;
+  final String? continuation;
+
+  bool get isEmpty =>
+      songs.isEmpty && artists.isEmpty && albums.isEmpty && playlists.isEmpty;
+
+  OnlineSearchState copyWith({
+    List<OnlineSong>? songs,
+    bool? loadingMore,
+    Object? error,
+    String? continuation,
+  }) => OnlineSearchState(
+    query: query,
+    songs: songs ?? this.songs,
+    artists: artists,
+    albums: albums,
+    playlists: playlists,
+    loading: loading,
+    loadingMore: loadingMore ?? this.loadingMore,
+    error: error,
+    continuation: continuation,
+  );
+}
+
+/// Online search, debounced 400 ms. A late answer for an old query is
+/// dropped. Results are kept 5 minutes per query.
+class OnlineSearchNotifier extends Notifier<OnlineSearchState> {
+  Timer? _debounce;
+  final _cache = <String, (DateTime, OnlineSearchState)>{};
+
+  @override
+  OnlineSearchState build() {
+    ref.onDispose(() => _debounce?.cancel());
+    return const OnlineSearchState();
+  }
+
+  void search(String raw) {
+    final query = raw.trim();
+    if (query == state.query) return;
+    _debounce?.cancel();
+    if (query.length < 2) {
+      state = OnlineSearchState(query: query);
+      return;
+    }
+    final hit = _cache[query];
+    if (hit != null &&
+        DateTime.now().difference(hit.$1) < const Duration(minutes: 5)) {
+      state = hit.$2;
+      return;
+    }
+    state = OnlineSearchState(query: query, loading: true);
+    _debounce = Timer(
+      const Duration(milliseconds: 400),
+      () => unawaited(_run(query)),
+    );
+  }
+
+  /// Same query again (Retry).
+  Future<void> retry() => _run(state.query);
+
+  Future<void> _run(String query) async {
+    state = OnlineSearchState(query: query, loading: true);
+    Future<List<OnlineCollection>> cards(CollectionKind k) async {
+      try {
+        return await OnlineApi.searchCollections(query, k);
+      } catch (_) {
+        return const [];
+      }
+    }
+
+    try {
+      final songsF = OnlineApi.searchSongs(query);
+      final artistsF = cards(CollectionKind.artist);
+      final albumsF = cards(CollectionKind.album);
+      final playlistsF = cards(CollectionKind.playlist);
+      final (songs, token) = await songsF;
+      final next = OnlineSearchState(
+        query: query,
+        songs: songs,
+        artists: await artistsF,
+        albums: await albumsF,
+        playlists: await playlistsF,
+        continuation: token,
+      );
+      if (state.query != query) return;
+      state = next;
+      _cache[query] = (DateTime.now(), next);
+      if (_cache.length > 30) _cache.remove(_cache.keys.first);
+    } catch (e) {
+      if (state.query != query) return;
+      state = OnlineSearchState(query: query, error: e);
+    }
+  }
+
+  /// Next page of songs; the cursor belongs to this query only.
+  Future<void> loadMore() async {
+    final token = state.continuation;
+    if (token == null || state.loadingMore) return;
+    final query = state.query;
+    state = state.copyWith(loadingMore: true, continuation: token);
+    try {
+      final (more, next) = await OnlineApi.searchSongs(
+        query,
+        continuation: token,
+      );
+      if (state.query != query) return;
+      final seen = {for (final s in state.songs) s.videoId};
+      state = state.copyWith(
+        songs: [...state.songs, ...more.where((s) => seen.add(s.videoId))],
+        loadingMore: false,
+        continuation: next,
+      );
+    } catch (e) {
+      if (state.query != query) return;
+      // Keep the cursor so the user can try again.
+      state = state.copyWith(loadingMore: false, continuation: token);
+    }
+  }
+}
+
+final onlineSearchProvider =
+    NotifierProvider<OnlineSearchNotifier, OnlineSearchState>(
+      OnlineSearchNotifier.new,
+    );
+
+/// An album, playlist or artist page.
+final onlinePageProvider = FutureProvider.autoDispose
+    .family<OnlinePage, String>((ref, browseId) => OnlineApi.page(browseId));
+
+class OnlineArtistForYou {
+  const OnlineArtistForYou({
+    required this.name,
+    required this.browseId,
+    this.thumbnail,
+  });
+
+  final String name;
+  final String browseId;
+  final String? thumbnail;
+
+  Map<String, dynamic> toJson() => {
+        'name': name,
+        'browseId': browseId,
+        'thumbnail': thumbnail,
+      };
+
+  factory OnlineArtistForYou.fromJson(Map j) => OnlineArtistForYou(
+        name: j['name'] as String? ?? '',
+        browseId: j['browseId'] as String? ?? '',
+        thumbnail: j['thumbnail'] as String?,
+      );
+}
+
+final onlineArtistsForYouProvider =
+    FutureProvider<List<OnlineArtistForYou>>((ref) async {
+  if (!ref.watch(onlineActiveProvider)) return const [];
+  final taste = ref.watch(tasteProvider);
+  const cacheKey = 'online_artists_for_you_v1';
+  final raw = await LocalJsonStore.read(cacheKey);
+  if (raw is Map) {
+    final savedAt = raw['savedAt'] as int? ?? 0;
+    if (DateTime.now().millisecondsSinceEpoch - savedAt <
+        7 * 86400 * 1000) {
+      final list = raw['artists'] as List? ?? const [];
+      final cached = [
+        for (final a in list)
+          if (a is Map) OnlineArtistForYou.fromJson(a),
+      ];
+      final cachedNames = cached.map((c) => c.name.toLowerCase()).toSet();
+      final tasteNames = taste.artists.map((a) => a.name.toLowerCase()).toSet();
+      if (cached.isNotEmpty && tasteNames.every(cachedNames.contains)) {
+        return cached;
+      }
+    }
+  }
+
+  final profile = await RecommendationEngine.buildProfile();
+  // Include subscribed account artists first, then top profile artists up to 20
+  final tasteByName = {
+    for (final a in taste.artists)
+      if (a.browseId != null) a.name.toLowerCase(): a,
+  };
+
+  final candidateNames = <String>[];
+  for (final a in taste.artists) {
+    if (a.browseId != null && !candidateNames.contains(a.name)) {
+      candidateNames.add(a.name);
+    }
+  }
+  for (final name in profile.topArtists) {
+    if (!candidateNames.any((c) => c.toLowerCase() == name.toLowerCase())) {
+      candidateNames.add(name);
+    }
+  }
+  final topArtists = candidateNames.take(20).toList();
+  if (topArtists.isEmpty) return const [];
+
+  final resolved = <OnlineArtistForYou>[];
+  for (final name in topArtists) {
+    final lower = name.toLowerCase();
+    final fromTaste = tasteByName[lower];
+    if (fromTaste != null) {
+      resolved.add(
+        OnlineArtistForYou(
+          name: fromTaste.name,
+          browseId: fromTaste.browseId!,
+          thumbnail: fromTaste.thumbnail,
+        ),
+      );
+      continue;
+    }
+
+    try {
+      final collections = await OnlineApi.searchCollections(
+        name,
+        CollectionKind.artist,
+      );
+      final match = collections.where(
+        (c) => c.title.toLowerCase() == lower,
+      ).firstOrNull;
+      if (match != null) {
+        resolved.add(
+          OnlineArtistForYou(
+            name: match.title,
+            browseId: match.browseId,
+            thumbnail: match.thumbnail,
+          ),
+        );
+      }
+    } catch (_) {}
+  }
+
+  if (resolved.isNotEmpty) {
+    await LocalJsonStore.write(cacheKey, {
+      'savedAt': DateTime.now().millisecondsSinceEpoch,
+      'artists': [for (final a in resolved) a.toJson()],
+    });
+  }
+
+  return resolved;
+});
+
+final onlineGenresProvider = FutureProvider<List<String>>((ref) async {
+  if (!ref.watch(onlineActiveProvider)) return const [];
+  final taste = ref.watch(tasteProvider);
+  final profile = await RecommendationEngine.buildProfile();
+
+  final picked = taste.genres;
+  final localTags = <String>[];
+  try {
+    final isar = DbService.isar;
+    final tags = await isar.songs
+        .where()
+        .filter()
+        .genreIsNotNull()
+        .genreProperty()
+        .findAll();
+    for (final t in tags) {
+      if (t != null && t.trim().isNotEmpty) localTags.add(t.trim());
+    }
+  } catch (_) {}
+
+  final seen = <String>{};
+  final result = <String>[];
+  for (final g in [...picked, ...profile.genres, ...localTags]) {
+    final lower = g.trim().toLowerCase();
+    if (lower.isEmpty || seen.contains(lower)) continue;
+    seen.add(lower);
+    result.add(g.trim());
+    if (result.length >= 10) break;
+  }
+  return result;
+});
+
+final onlineGenrePageProvider =
+    FutureProvider.family<OnlinePage, String>((ref, genre) async {
+  final results = await Future.wait([
+    OnlineApi.searchSongs('$genre songs'),
+    OnlineApi.searchCollections(genre, CollectionKind.playlist),
+  ]);
+  final songs = results[0] as List<OnlineSong>;
+  final playlists = results[1] as List<OnlineCollection>;
+  return OnlinePage(
+    title: genre,
+    songs: songs,
+    shelves: [
+      if (playlists.isNotEmpty)
+        OnlineShelf(genre, collections: playlists),
+    ],
+  );
+});
+
+/// Personalized search autocompletions & query suggestions from YouTube Music.
+final onlineSuggestionsProvider = FutureProvider.autoDispose
+    .family<List<String>, String>((ref, input) async {
+  if (!ref.watch(onlineActiveProvider) || input.trim().isEmpty) return const [];
+  try {
+    return await OnlineApi.suggestions(input.trim());
+  } catch (_) {
+    return const [];
+  }
+});
+
+/// True only when online features are enabled AND the user has a signed-in Google account.
+final isOnlineConnectedProvider = Provider<bool>((ref) {
+  final active = ref.watch(onlineActiveProvider);
+  final auth = ref.watch(authProvider);
+  return active && auth.status == AuthStatus.signedIn;
+});
+
+final onlineAccountPlaylistsProvider =
+    FutureProvider<List<OnlineCollection>>((ref) async {
+  if (!ref.watch(isOnlineConnectedProvider)) return const [];
+  return AccountDataSync.getAccountPlaylists();
+});
+
+final onlineAccountArtistsProvider =
+    FutureProvider<List<OnlineCollection>>((ref) async {
+  if (!ref.watch(isOnlineConnectedProvider)) return const [];
+  return AccountDataSync.getAccountArtists();
+});
+
+final onlineAccountAlbumsProvider =
+    FutureProvider<List<OnlineCollection>>((ref) async {
+  if (!ref.watch(isOnlineConnectedProvider)) return const [];
+  return AccountDataSync.getAccountAlbums();
+});
+
+final onlineAccountFavoritesProvider =
+    FutureProvider<List<OnlineSong>>((ref) async {
+  if (!ref.watch(isOnlineConnectedProvider)) return const [];
+  return AccountDataSync.getAccountFavorites();
+});
+
+final onlineAccountHistoryProvider =
+    FutureProvider<List<OnlineSong>>((ref) async {
+  if (!ref.watch(isOnlineConnectedProvider)) return const [];
+  return AccountDataSync.getAccountHistory();
+});

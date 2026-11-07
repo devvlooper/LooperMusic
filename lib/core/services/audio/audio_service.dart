@@ -511,9 +511,16 @@ class AudioService {
     bool? equalizerEnabled,
     String? customFilter,
     InterruptionPolicy interruptionPolicy = InterruptionPolicy.pauseAndResume,
+    String? userAgent,
   }) async {
+    if (userAgent != null) {
+      // Online streams: googlevideo expects the issuing client's agent.
+      try {
+        await player.setRawProperty('user-agent', userAgent);
+      } catch (_) {}
+    }
     LoggerHelper.write(
-      'AudioService: play() requested for path: $path, title: ${metadata?['title']}, play: $play',
+      'AudioService: play() requested for path: ${path.split('?').first}, title: ${metadata?['title']}, play: $play',
     );
     if (equalizerGains != null) {
       _lastEqualizerGains = equalizerGains;

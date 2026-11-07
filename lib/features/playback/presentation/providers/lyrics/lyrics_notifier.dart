@@ -2,7 +2,10 @@ import 'package:looper_player/core/utils/ui_utils.dart';
 
 import 'package:window_manager/window_manager.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:isar_community/isar.dart';
 import 'package:looper_player/core/services/storage/db_service.dart';
+import 'package:looper_player/features/online/data/online_cache.dart';
+import 'package:looper_player/features/online/data/online_playback.dart';
 import 'package:looper_player/features/settings/presentation/providers/settings_notifier.dart';
 import 'package:looper_player/features/playback/presentation/providers/playback/playback_notifier.dart';
 import '../../../data/lyrics_fetcher.dart';
@@ -14,6 +17,7 @@ class LyricsState {
   final String? rawLrc;
   final bool isLoading;
   final int? songId;
+  final String? songPath;
   final List<LyricLine> parsedLines;
   final String? source;
 
@@ -29,6 +33,7 @@ class LyricsState {
     this.rawLrc,
     this.isLoading = false,
     this.songId,
+    this.songPath,
     this.parsedLines = const [],
     this.source,
     this.isSynced = true,
@@ -39,6 +44,7 @@ class LyricsState {
     String? rawLrc,
     bool? isLoading,
     int? songId,
+    String? songPath,
     List<LyricLine>? parsedLines,
     String? source,
   }) {
@@ -46,6 +52,7 @@ class LyricsState {
       rawLrc: rawLrc ?? this.rawLrc,
       isLoading: isLoading ?? this.isLoading,
       songId: songId ?? this.songId,
+      songPath: songPath ?? this.songPath,
       parsedLines: parsedLines ?? this.parsedLines,
       source: source ?? this.source,
       isSynced: isSynced,
@@ -69,11 +76,15 @@ class Lyrics extends _$Lyrics {
   }
 
   Future<void> _fetchLyrics(Song song, {bool force = false}) async {
-    if (!force && state.songId == song.id && state.rawLrc != null) return;
+    if (song.isOnline && song.id == Isar.autoIncrement) {
+      await OnlinePlayback.persist([song]);
+    }
+    if (!force && _isCurrent(song) && state.rawLrc != null) return;
 
     state = LyricsState(
       isLoading: true,
       songId: song.id,
+      songPath: song.path,
       rawLrc: null,
       parsedLines: [],
       source: null,
@@ -81,7 +92,7 @@ class Lyrics extends _$Lyrics {
 
     final lrc = await LyricsFetcher.fetchLyrics(song);
 
-    if (state.songId == song.id) {
+    if (_isCurrent(song)) {
       _applyLrcToState(song, lrc);
     }
 
@@ -91,11 +102,19 @@ class Lyrics extends _$Lyrics {
     // that this reads its saved answers and costs no request.
     if (lrc != null && LyricsFetcher.canUpgrade(lrc)) {
       final upgraded = await LyricsFetcher.upgrade(song, lrc);
-      if (upgraded != null && state.songId == song.id) {
+      // Checked again: the user may have moved on during the upgrade.
+      if (upgraded != null && _isCurrent(song)) {
         _applyLrcToState(song, upgraded);
       }
     }
   }
+
+  /// Whether the lyrics state still belongs to [song].
+  /// The path decides when known: an unsaved online song's id changes once
+  /// it gets a database row, its path never does.
+  bool _isCurrent(Song song) => state.songPath != null
+      ? state.songPath == song.path
+      : state.songId != null && state.songId == song.id;
 
   /// "Find word-synced lyrics" in the lyrics menu: the best word-timed
   /// lyrics the switched-on services have. Keeps the current lyrics (and
@@ -138,6 +157,20 @@ class Lyrics extends _$Lyrics {
     }
     _applyLrcToState(song, lrc);
     return state.source;
+  }
+
+  /// "Wrong lyrics": skips the current service for [song] from now on and
+  /// shows what the next one has. Returns the new source, or null when no
+  /// other service had lyrics (the empty state is shown then).
+  Future<String?> reportWrong(Song song) async {
+    final provider = state.source;
+    if (!LyricsFetcher.isReportable(provider)) return null;
+    state = state.copyWith(isLoading: true);
+    final lrc = await LyricsFetcher.reportWrong(song, provider!);
+    if (!_isCurrent(song)) return null;
+    final found = lrc != null && lrc != LyricsFetcher.notFound;
+    _applyLrcToState(song, found ? lrc : null);
+    return found ? state.source : null;
   }
 
   Future<void> applyCustomLyrics(Song song, String rawContent) async {
@@ -216,6 +249,7 @@ class Lyrics extends _$Lyrics {
       source: source,
       isSynced: cleanLrc == null || LrcParser.isTimed(cleanLrc),
       songId: song.id,
+      songPath: song.path,
       songOffsetMs: lyricsShiftMs(song.lyricsOffsetMs),
     );
   }

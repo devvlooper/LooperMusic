@@ -265,7 +265,7 @@ class _GestureArtworkWithFeedbackState
               alignment: Alignment.center,
               children: <Widget>[
                 ...previousChildren,
-                if (currentChild != null) currentChild,
+                ?currentChild,
               ],
             );
           },
@@ -330,10 +330,11 @@ class _GestureArtworkWithFeedbackState
     if (nextSong?.artPath != null &&
         nextSong!.artPath != _precachedNextArtPath) {
       _precachedNextArtPath = nextSong.artPath;
-      if (File(nextSong.artPath!).existsSync()) {
+      if (nextSong.artPath!.startsWith('http') ||
+          File(nextSong.artPath!).existsSync()) {
         precacheImage(
           ResizeImage(
-            FileImage(File(nextSong.artPath!)),
+            artImage(nextSong.artPath!),
             width: computedCacheWidth,
           ),
           context,
@@ -343,10 +344,11 @@ class _GestureArtworkWithFeedbackState
     if (prevSong?.artPath != null &&
         prevSong!.artPath != _precachedPrevArtPath) {
       _precachedPrevArtPath = prevSong.artPath;
-      if (File(prevSong.artPath!).existsSync()) {
+      if (prevSong.artPath!.startsWith('http') ||
+          File(prevSong.artPath!).existsSync()) {
         precacheImage(
           ResizeImage(
-            FileImage(File(prevSong.artPath!)),
+            artImage(prevSong.artPath!),
             width: computedCacheWidth,
           ),
           context,

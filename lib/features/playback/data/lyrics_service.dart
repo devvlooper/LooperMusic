@@ -1,7 +1,9 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:looper_player/core/utils/logger_helper.dart';
+import 'package:looper_player/features/playback/domain/lyric_models.dart';
 
+import 'lyrics_providers/ytmusic_client.dart';
 import 'lyrics_providers/amll_client.dart';
 import 'lyrics_providers/kugou_client.dart';
 import 'lyrics_providers/lrc_red_client.dart';
@@ -36,6 +38,41 @@ class LyricsResponse {
 
 class LyricsService {
   static const String lrclibBaseUrl = 'https://lrclib.net/api';
+
+  /// Seconds a recording may differ from the song and keep its timings.
+  static const lengthTolerance = 3;
+
+  /// LRCLIB search results for a song of [durationSeconds]: a result of
+  /// the same length, else only untimed text. A recording of another
+  /// length (an edit, an intro, a slowed upload) drifts against timings.
+  static LyricsResponse? pickLrcLibResult(List results, int durationSeconds) {
+    final rows = results.whereType<Map>().map((r) => r.cast<String, dynamic>());
+    bool synced(Map<String, dynamic> r) =>
+        (r['syncedLyrics']?.toString() ?? '').isNotEmpty;
+    if (rows.isEmpty) return null;
+    if (durationSeconds <= 0) {
+      return LyricsResponse.fromJson(rows.firstWhere(synced, orElse: () => rows.first));
+    }
+    final sameLength = rows.where((r) {
+      final d = (r['duration'] as num?)?.toDouble();
+      return d != null && (d - durationSeconds).abs() <= lengthTolerance;
+    });
+    if (sameLength.isNotEmpty) {
+      return LyricsResponse.fromJson(
+        sameLength.firstWhere(synced, orElse: () => sameLength.first),
+      );
+    }
+    for (final r in rows) {
+      final plain = r['plainLyrics']?.toString() ?? '';
+      final text = plain.isNotEmpty
+          ? plain
+          : synced(r)
+          ? LrcParser.plainText(r['syncedLyrics'].toString())
+          : '';
+      if (text.isNotEmpty) return LyricsResponse(plainLyrics: text);
+    }
+    return null;
+  }
 
   static const Map<String, String> _browserHeaders = {
     'User-Agent':
@@ -161,6 +198,7 @@ class LyricsService {
     required String albumName,
     required int durationSeconds,
     String provider = 'LRCLIB',
+    String? videoId,
   }) async {
     LoggerHelper.write(
       'LyricsService: Fetching lyrics using provider: $provider for $artistName - $trackName',
@@ -189,6 +227,14 @@ class LyricsService {
     }
 
     switch (provider.toUpperCase()) {
+      case 'YTMUSIC':
+        final text = await YtMusicLyricsClient.fetch(
+          title: trackName,
+          artist: artistName,
+          durationSeconds: durationSeconds,
+          videoId: videoId,
+        );
+        return text == null ? null : LyricsResponse(plainLyrics: text);
       case 'GENIUS':
         return _fetchGeniusLyrics(trackName, artistName);
       case 'AZLYRICS':
@@ -244,23 +290,7 @@ class LyricsService {
 
       if (LyricsHttp.ok(response.statusCode)) {
         final List results = jsonDecode(response.body);
-        if (results.isNotEmpty) {
-          if (durationSeconds > 0) {
-            for (var result in results) {
-              final resultDuration = (result['duration'] as num?)?.toInt() ?? 0;
-              if ((resultDuration - durationSeconds).abs() < 10) {
-                return LyricsResponse.fromJson(result);
-              }
-            }
-          }
-          final syncedResult = results.firstWhere(
-            (r) =>
-                r['syncedLyrics'] != null &&
-                r['syncedLyrics'].toString().isNotEmpty,
-            orElse: () => results.first,
-          );
-          return LyricsResponse.fromJson(syncedResult);
-        }
+        return pickLrcLibResult(results, durationSeconds);
       }
     } catch (_) {
       LyricsHttp.failed();

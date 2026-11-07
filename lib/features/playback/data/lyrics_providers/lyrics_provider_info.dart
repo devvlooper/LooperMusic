@@ -84,6 +84,12 @@ class LyricsProviderInfo {
       letterCapable: true,
     ),
     LyricsProviderInfo('LRCLIB', 'LRCLIB', AppLinks.lrclibWeb),
+    LyricsProviderInfo(
+      'YTMUSIC',
+      'YouTube Music',
+      AppLinks.youtubeMusicWeb,
+      plainOnly: true,
+    ),
     LyricsProviderInfo('GENIUS', 'Genius', AppLinks.geniusWeb, plainOnly: true),
     LyricsProviderInfo(
       'AZLYRICS',

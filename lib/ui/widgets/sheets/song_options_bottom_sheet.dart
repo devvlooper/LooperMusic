@@ -1,4 +1,9 @@
 import 'package:looper_player/core/motion/app_routes.dart';
+import 'package:looper_player/features/online/data/not_interested_store.dart';
+import 'package:looper_player/features/online/data/online_cache.dart';
+import 'package:looper_player/features/online/data/online_downloader.dart';
+import 'package:looper_player/features/online/data/online_playback.dart';
+import 'package:looper_player/features/online/presentation/online_providers.dart';
 import 'package:looper_player/core/motion/looper_scroll_physics.dart';
 import 'dart:ui';
 
@@ -406,7 +411,7 @@ class _SongOptionsSheetContent extends ConsumerWidget {
                             }
                           },
                         ),
-                      if (showRenameOption)
+                      if (showRenameOption && !song.isOnline)
                         MenuOptionTile(
                           label: l10n.editSongInfo,
                           icon: LucideIcons.edit3,
@@ -452,7 +457,8 @@ class _SongOptionsSheetContent extends ConsumerWidget {
                           );
                         },
                       ),
-                      if (showEqualizerAndTechnicalInfoOptions)
+                      if (showEqualizerAndTechnicalInfoOptions &&
+                          !song.isOnline)
                         MenuOptionTile(
                           label: l10n.technicalInfoFrequency,
                           icon: LucideIcons.activity,
@@ -476,7 +482,87 @@ class _SongOptionsSheetContent extends ConsumerWidget {
                           Navigator.pop(context);
                         },
                       ),
-                      if (showDeleteOption)
+                      if (song.isOnline && song.videoId != null)
+                        FutureBuilder<Song?>(
+                          future: OnlinePlayback.localTwin(song),
+                          builder: (context, snapshot) {
+                            final isDownloaded = snapshot.data != null;
+                            return MenuOptionTile(
+                              label: isDownloaded ? l10n.downloaded : l10n.download,
+                              icon: isDownloaded ? LucideIcons.check : LucideIcons.download,
+                              iconColor: isDownloaded ? Colors.white38 : accentColor,
+                              onTap: isDownloaded
+                                  ? () {}
+                                  : () {
+                                      AppHaptics.light();
+                                      final onlineSong = song.toOnlineSong();
+                                      ref.read(downloadsProvider.notifier).enqueue(onlineSong);
+                                      Navigator.pop(context);
+                                      ScaffoldMessenger.of(parentContext).showSnackBar(
+                                        SnackBar(
+                                          content: Text(l10n.downloadingSong(song.title)),
+                                          behavior: SnackBarBehavior.floating,
+                                        ),
+                                      );
+                                    },
+                            );
+                          },
+                        ),
+                      if (song.isOnline && song.videoId != null)
+                        MenuOptionTile(
+                          label: l10n.notInterested,
+                          icon: LucideIcons.thumbsDown,
+                          iconColor: Colors.white70,
+                          onTap: () async {
+                            AppHaptics.light();
+                            final videoId = song.videoId!;
+                            await NotInterestedStore.hideSong(videoId);
+                            ref.invalidate(onlineHomeProvider);
+                            if (context.mounted) Navigator.pop(context);
+                            ScaffoldMessenger.of(parentContext).showSnackBar(
+                              SnackBar(
+                                content: Text(l10n.notInterestedSongHidden),
+                                behavior: SnackBarBehavior.floating,
+                                action: SnackBarAction(
+                                  label: l10n.undo,
+                                  onPressed: () async {
+                                    await NotInterestedStore.unhideSong(videoId);
+                                    ref.invalidate(onlineHomeProvider);
+                                  },
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      if (song.isOnline &&
+                          song.artist != null &&
+                          song.artist!.trim().isNotEmpty)
+                        MenuOptionTile(
+                          label: l10n.blockArtist(song.artist!),
+                          icon: LucideIcons.userX,
+                          iconColor: Colors.white70,
+                          onTap: () async {
+                            AppHaptics.light();
+                            final artist = song.artist!.trim();
+                            await NotInterestedStore.blockArtist(artist);
+                            ref.invalidate(onlineHomeProvider);
+                            if (context.mounted) Navigator.pop(context);
+                            ScaffoldMessenger.of(parentContext).showSnackBar(
+                              SnackBar(
+                                content: Text(l10n.artistBlocked),
+                                behavior: SnackBarBehavior.floating,
+                                action: SnackBarAction(
+                                  label: l10n.undo,
+                                  onPressed: () async {
+                                    await NotInterestedStore.unblockArtist(artist);
+                                    ref.invalidate(onlineHomeProvider);
+                                  },
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      if (showDeleteOption && !song.isOnline)
                         MenuOptionTile(
                           label: l10n.deleteFile,
                           icon: LucideIcons.trash2,

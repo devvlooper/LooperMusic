@@ -63,6 +63,17 @@ class SongsList extends ConsumerStatefulWidget {
   /// is the arrival animation, so the rows don't wave in on top of it.
   final bool wave;
 
+  /// Called when the user scrolls within 20 rows of the end (for paging).
+  final VoidCallback? onEndReached;
+
+  /// Custom refresh callback (e.g. for re-querying smart views without
+  /// a full folder disk scan). Defaults to [LibraryNotifier.refreshLibrary].
+  final Future<void> Function()? onRefresh;
+
+  /// Callback to resolve the complete queue for playback when a song is tapped,
+  /// instead of only the currently loaded page.
+  final Future<List<Song>> Function()? resolveQueue;
+
   const SongsList({
     super.key,
     required this.songs,
@@ -75,6 +86,9 @@ class SongsList extends ConsumerStatefulWidget {
     this.loading = false,
     this.totalCount,
     this.wave = true,
+    this.onEndReached,
+    this.onRefresh,
+    this.resolveQueue,
   });
 
   @override
@@ -95,7 +109,23 @@ class _SongsListState extends ConsumerState<SongsList> {
       widget.controller ?? (_ownController ??= MomentumScrollController());
 
   @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_checkEndReached);
+  }
+
+  void _checkEndReached() {
+    if (widget.onEndReached == null) return;
+    if (!_scrollController.hasClients) return;
+    final pos = _scrollController.position;
+    if (pos.extentAfter < 1280) {
+      widget.onEndReached!();
+    }
+  }
+
+  @override
   void dispose() {
+    _scrollController.removeListener(_checkEndReached);
     _ownController?.dispose();
     super.dispose();
   }
@@ -388,6 +418,11 @@ class _SongsListState extends ConsumerState<SongsList> {
   );
 
   Widget _buildRow(int index, AppLocalizations l10n) {
+    if (widget.onEndReached != null && index >= widget.songs.length - 20) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) widget.onEndReached?.call();
+      });
+    }
     if (index >= widget.songs.length) {
       return AppSkeleton(child: SongRowSkeleton(index: index));
     }
@@ -405,9 +440,10 @@ class _SongsListState extends ConsumerState<SongsList> {
         selected: _selectedPaths.contains(song.path),
         onToggleSelect: () => _toggleSelected(song),
         onEnterSelection: widget.loading ? null : () => _enterSelection(song),
-        resolveQueue: widget.loading
-            ? ref.read(libraryProvider.notifier).loadedSongs
-            : null,
+        resolveQueue: widget.resolveQueue ??
+            (widget.loading
+                ? ref.read(libraryProvider.notifier).loadedSongs
+                : null),
       ),
     );
     return _RowReveal(
@@ -458,9 +494,10 @@ class _SongsListState extends ConsumerState<SongsList> {
         else
           Expanded(
             child: AppRefreshIndicator(
-              onRefresh: () => ref
-                  .read(libraryProvider.notifier)
-                  .refreshLibrary(showVisualIndicator: false),
+              onRefresh: widget.onRefresh ??
+                  () => ref
+                      .read(libraryProvider.notifier)
+                      .refreshLibrary(showVisualIndicator: false),
               child: UiUtils.isDesktop
                   ? LayoutBuilder(
                       builder: (context, constraints) =>

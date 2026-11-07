@@ -10,9 +10,15 @@ import 'package:looper_player/features/playback/presentation/providers/playback/
 import 'package:looper_player/core/providers/navigation_provider.dart';
 import 'package:looper_player/core/services/storage/db_service.dart';
 import 'package:isar_community/isar.dart';
+import 'package:looper_player/core/services/haptics/app_haptics.dart';
 import 'package:looper_player/core/theme/app_fonts.dart';
-import 'package:looper_player/l10n/app_localizations.dart';
 import 'package:looper_player/core/utils/l10n.dart';
+import 'package:looper_player/l10n/app_localizations.dart';
+import 'package:looper_player/features/online/data/parsers.dart';
+import 'package:looper_player/features/online/presentation/online_providers.dart';
+import 'package:looper_player/features/online/presentation/online_widgets.dart';
+import 'package:looper_player/features/settings/presentation/providers/settings_notifier.dart';
+import 'package:looper_player/ui/widgets/common/optimized_image.dart';
 
 part 'playlist_view.g.dart';
 
@@ -94,25 +100,48 @@ Stream<List<Song>> playlistSongs(Ref ref, int playlistId) async* {
       });
 }
 
-class PlaylistView extends ConsumerWidget {
+enum _PlaylistSourceFilter { all, onDevice, youtube }
+
+class PlaylistView extends ConsumerStatefulWidget {
   const PlaylistView({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<PlaylistView> createState() => _PlaylistViewState();
+}
+
+class _PlaylistViewState extends ConsumerState<PlaylistView> {
+  _PlaylistSourceFilter _filter = _PlaylistSourceFilter.all;
+
+  @override
+  Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final playlists = ref.watch(playlistProvider);
+    final onlinePlaylistsAsync = ref.watch(onlineAccountPlaylistsProvider);
+    final onlinePlaylists = onlinePlaylistsAsync.value ?? const <OnlineCollection>[];
     final hasActiveSong = ref.watch(
       playbackProvider.select((s) => s.currentSong != null),
     );
+    final accent = ref.watch(settingsProvider).accent;
+
+    final showOnline = onlinePlaylists.isNotEmpty;
+    final totalCount = playlists.length + (showOnline ? onlinePlaylists.length : 0);
+
+    // Filter items based on active chip
+    final showLocal = _filter == _PlaylistSourceFilter.all ||
+        _filter == _PlaylistSourceFilter.onDevice;
+    final showCloud = showOnline &&
+        (_filter == _PlaylistSourceFilter.all ||
+            _filter == _PlaylistSourceFilter.youtube);
+
+    final displayLocal = showLocal ? playlists : const <Playlist>[];
+    final displayOnline = showCloud ? onlinePlaylists : const <OnlineCollection>[];
+    final totalDisplayCount = displayLocal.length + displayOnline.length;
 
     return Scaffold(
-      // Not Colors.transparent - see the comment on CategoryDetailWrapper's
-      // Scaffold in library_categories_views.dart for why. The desktop shell
-      // paints its own background behind every page, so there it stays clear.
       backgroundColor: UiUtils.isDesktop
           ? Colors.transparent
           : Theme.of(context).colorScheme.surface,
-      body: playlists.isEmpty
+      body: totalCount == 0
           ? Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -138,20 +167,76 @@ class PlaylistView extends ConsumerWidget {
                 ],
               ),
             )
-          : ListWave(
-              child: GridView.builder(
-                padding: const EdgeInsets.fromLTRB(24, 24, 24, 180),
-                gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                  maxCrossAxisExtent: 200,
-                  childAspectRatio: 0.85,
-                  crossAxisSpacing: 20,
-                  mainAxisSpacing: 20,
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (showOnline)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          _buildFilterChip(
+                            label: 'All (${playlists.length + onlinePlaylists.length})',
+                            isSelected: _filter == _PlaylistSourceFilter.all,
+                            accent: accent,
+                            onTap: () => setState(() => _filter = _PlaylistSourceFilter.all),
+                          ),
+                          const SizedBox(width: 8),
+                          _buildFilterChip(
+                            label: 'On Device (${playlists.length})',
+                            isSelected: _filter == _PlaylistSourceFilter.onDevice,
+                            accent: accent,
+                            onTap: () => setState(() => _filter = _PlaylistSourceFilter.onDevice),
+                          ),
+                          const SizedBox(width: 8),
+                          _buildFilterChip(
+                            label: 'YouTube Music (${onlinePlaylists.length})',
+                            isSelected: _filter == _PlaylistSourceFilter.youtube,
+                            accent: accent,
+                            onTap: () => setState(() => _filter = _PlaylistSourceFilter.youtube),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                Expanded(
+                  child: totalDisplayCount == 0
+                      ? Center(
+                          child: Text(
+                            l10n.noPlaylistsYet,
+                            style: AppFonts.jostStyle(color: Colors.grey),
+                          ),
+                        )
+                      : ListWave(
+                          child: GridView.builder(
+                            padding: const EdgeInsets.fromLTRB(24, 20, 24, 180),
+                            gridDelegate:
+                                const SliverGridDelegateWithMaxCrossAxisExtent(
+                              maxCrossAxisExtent: 200,
+                              childAspectRatio: 0.85,
+                              crossAxisSpacing: 20,
+                              mainAxisSpacing: 20,
+                            ),
+                            itemCount: totalDisplayCount,
+                            itemBuilder: waveItems(
+                              (context, index) {
+                                if (index < displayLocal.length) {
+                                  return PlaylistCard(
+                                    playlist: displayLocal[index],
+                                  );
+                                }
+                                final onlineIndex = index - displayLocal.length;
+                                return _OnlinePlaylistCard(
+                                  collection: displayOnline[onlineIndex],
+                                );
+                              },
+                            ),
+                          ),
+                        ),
                 ),
-                itemCount: playlists.length,
-                itemBuilder: waveItems(
-                  (context, index) => PlaylistCard(playlist: playlists[index]),
-                ),
-              ),
+              ],
             ),
       floatingActionButton: AnimatedPadding(
         duration: const Duration(milliseconds: 250),
@@ -160,6 +245,43 @@ class PlaylistView extends ConsumerWidget {
         child: FloatingActionButton(
           onPressed: () => _showCreateDialog(context, ref),
           child: const Icon(LucideIcons.plus),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFilterChip({
+    required String label,
+    required bool isSelected,
+    required Color accent,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(20),
+      onTap: () {
+        AppHaptics.selection();
+        onTap();
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? accent.withValues(alpha: 0.22)
+              : Colors.white.withValues(alpha: 0.05),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? accent : Colors.white12,
+            width: 1,
+          ),
+        ),
+        child: Text(
+          label,
+          style: AppFonts.jostStyle(
+            color: isSelected ? Colors.white : Colors.white70,
+            fontSize: 13,
+            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+          ),
         ),
       ),
     );
@@ -247,6 +369,89 @@ class PlaylistCard extends ConsumerWidget {
           Text(
             context.l10n.songsCount(playlist.songPaths.length),
             style: AppFonts.jostStyle(color: Colors.grey, fontSize: 12),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _OnlinePlaylistCard extends StatelessWidget {
+  final OnlineCollection collection;
+  const _OnlinePlaylistCard({required this.collection});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: () => openOnlineCollection(context, collection),
+      borderRadius: BorderRadius.circular(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  OptimizedImage(
+                    imageUrl: collection.thumbnail,
+                    fit: BoxFit.cover,
+                    placeholder: Container(
+                      color: Colors.white.withValues(alpha: 0.05),
+                      child: const Center(
+                        child: Icon(
+                          LucideIcons.listMusic,
+                          size: 36,
+                          color: Colors.white38,
+                        ),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    top: 6,
+                    right: 6,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.6),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        LucideIcons.cloud,
+                        size: 13,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            collection.title,
+            style: AppFonts.jostStyle(fontWeight: FontWeight.normal),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          Row(
+            children: [
+              const Icon(
+                LucideIcons.cloud,
+                size: 11,
+                color: Colors.white38,
+              ),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  collection.subtitle ?? 'YouTube Music',
+                  style: AppFonts.jostStyle(color: Colors.grey, fontSize: 12),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
           ),
         ],
       ),

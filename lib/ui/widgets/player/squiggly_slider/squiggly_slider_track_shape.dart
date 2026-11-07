@@ -227,29 +227,37 @@ class SquigglySliderTrackShape extends SliderTrackShape
       final Paint secondaryTrackPaint = Paint()
         ..color = secondaryTrackColorTween.evaluate(enableAnimation)!;
       if (textDirection == TextDirection.ltr) {
-        context.canvas.drawRRect(
-          RRect.fromLTRBAndCorners(
-            thumbCenter.dx,
-            trackRect.top,
-            secondaryOffset.dx,
-            trackRect.bottom,
-            topRight: trackRadius,
-            bottomRight: trackRadius,
-          ),
-          secondaryTrackPaint,
-        );
+        final startX = min(trackRect.right, thumbCenter.dx + thumbGap);
+        final endX = min(trackRect.right, secondaryOffset.dx);
+        if (endX > startX) {
+          context.canvas.drawRRect(
+            RRect.fromLTRBAndCorners(
+              startX,
+              trackRect.top,
+              endX,
+              trackRect.bottom,
+              topRight: trackRadius,
+              bottomRight: trackRadius,
+            ),
+            secondaryTrackPaint,
+          );
+        }
       } else {
-        context.canvas.drawRRect(
-          RRect.fromLTRBAndCorners(
-            secondaryOffset.dx,
-            trackRect.top,
-            thumbCenter.dx,
-            trackRect.bottom,
-            topLeft: trackRadius,
-            bottomLeft: trackRadius,
-          ),
-          secondaryTrackPaint,
-        );
+        final startX = max(trackRect.left, secondaryOffset.dx);
+        final endX = max(trackRect.left, thumbCenter.dx - thumbGap);
+        if (endX > startX) {
+          context.canvas.drawRRect(
+            RRect.fromLTRBAndCorners(
+              startX,
+              trackRect.top,
+              endX,
+              trackRect.bottom,
+              topLeft: trackRadius,
+              bottomLeft: trackRadius,
+            ),
+            secondaryTrackPaint,
+          );
+        }
       }
     }
   }

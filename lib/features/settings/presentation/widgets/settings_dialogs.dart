@@ -116,7 +116,6 @@ void showReorderBottomSheet(
           final currentOrder = List<String>.from(
             currentSettings.homeSectionOrder.isEmpty
                 ? [
-                    'quick_picks',
                     'playlists',
                     'songs',
                     'albums',
@@ -124,7 +123,8 @@ void showReorderBottomSheet(
                     'genres',
                     'recent',
                   ]
-                : currentSettings.homeSectionOrder,
+                : currentSettings.homeSectionOrder
+                    .where((s) => s != 'quick_picks'),
           );
 
           final itemMeta = {

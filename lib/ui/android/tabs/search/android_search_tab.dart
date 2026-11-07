@@ -1,4 +1,6 @@
 import 'package:looper_player/core/motion/looper_scroll_physics.dart';
+import 'package:looper_player/features/online/presentation/online_widgets.dart';
+import 'package:looper_player/features/online/presentation/online_providers.dart';
 import 'package:looper_player/features/library/data/services/artist_catalog.dart';
 import 'package:looper_player/core/providers/collection_navigation.dart';
 import 'dart:async';
@@ -164,6 +166,15 @@ class _AndroidSearchTabState extends ConsumerState<AndroidSearchTab> {
       body = resultsAsync.hasError
           ? Center(child: Text(l10n.errorWithDetails('${resultsAsync.error}')))
           : const AppLoadingIndicator();
+    } else if (results.isEmpty && ref.watch(onlineActiveProvider)) {
+      // Nothing on the device: online results take the whole page.
+      body = CustomScrollView(
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        slivers: [
+          OnlineSearchSliver(query: query),
+          const SliverToBoxAdapter(child: SizedBox(height: 180)),
+        ],
+      );
     } else if (results.isEmpty) {
       body = _NoResults(query: query);
     } else {

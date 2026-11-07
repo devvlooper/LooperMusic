@@ -1,4 +1,5 @@
 import 'package:looper_player/core/motion/looper_scroll_physics.dart';
+import 'package:looper_player/ui/widgets/common/optimized_image.dart';
 import 'dart:io';
 import 'package:looper_player/core/utils/ui_utils.dart';
 import 'dart:ui';
@@ -277,14 +278,12 @@ class _BlurredBackgroundArt extends StatelessWidget {
     return RepaintBoundary(
       child: ImageFiltered(
         imageFilter: ImageFilter.blur(sigmaX: sigma, sigmaY: sigma),
-        child: Image.file(
-          File(artPath),
+        child: Image(
+          image: ResizeImage(artImage(artPath), width: 80, height: 80),
           fit: BoxFit.cover,
           width: double.infinity,
           height: double.infinity,
           filterQuality: desktop ? FilterQuality.medium : FilterQuality.low,
-          cacheWidth: 80,
-          cacheHeight: 80,
           gaplessPlayback: true,
           errorBuilder: (_, _, _) => const SizedBox.shrink(),
         ),
