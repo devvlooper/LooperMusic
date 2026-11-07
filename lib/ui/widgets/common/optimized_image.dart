@@ -51,7 +51,7 @@ class OptimizedImage extends StatelessWidget {
             child: Icon(
               Icons.music_note_rounded,
               color: Colors.white.withValues(alpha: 0.3),
-              size: width != null ? (width! * 0.5).clamp(16, 48) : 32,
+              size: (width != null && width!.isFinite) ? (width! * 0.5).clamp(16, 48) : 32,
             ),
           ),
         );
@@ -70,9 +70,11 @@ class OptimizedImage extends StatelessWidget {
     Widget imageWidget;
 
     final double dpr = MediaQuery.maybeDevicePixelRatioOf(context) ?? 2.0;
-    final int computedCacheWidth =
-        cacheWidth ?? (width != null ? (width! * dpr).toInt() : 400);
-    final int? computedCacheHeight = cacheHeight;
+    final double? finiteW = _finite(width ?? 0) ?? MediaQuery.maybeSizeOf(context)?.width;
+    final int computedCacheWidth = cacheWidth ??
+        (finiteW != null && finiteW.isFinite ? (finiteW * dpr).round() : 400);
+    final int? computedCacheHeight = cacheHeight ??
+        ((height != null && height!.isFinite) ? (height! * dpr).round() : null);
 
     if (resolvedImagePath != null &&
         resolvedImagePath.isNotEmpty &&
@@ -94,12 +96,12 @@ class OptimizedImage extends StatelessWidget {
       );
       // Measure only when the size wasn't given (a LayoutBuilder can't
       // answer intrinsic-size queries).
-      imageWidget = width != null && height != null
+      imageWidget = (width != null && width!.isFinite) && (height != null && height!.isFinite)
           ? sized(width!, height!)
           : LayoutBuilder(
               builder: (context, constraints) {
-                double? boxWidth = width ?? _finite(constraints.maxWidth);
-                double? boxHeight = height ?? _finite(constraints.maxHeight);
+                double? boxWidth = _finite(width ?? 0) ?? _finite(constraints.maxWidth);
+                double? boxHeight = _finite(height ?? 0) ?? _finite(constraints.maxHeight);
                 boxWidth ??= boxHeight ?? 200;
                 boxHeight ??= boxWidth;
                 return sized(boxWidth, boxHeight);
@@ -148,6 +150,7 @@ class OptimizedImage extends StatelessWidget {
   /// animates (hero flights, the player expanding) decodes a handful of
   /// times instead of once per frame, and the image cache can reuse them.
   static int _bucket(double pixels) {
+    if (!pixels.isFinite || pixels <= 0) return 400;
     const steps = [96, 160, 256, 384, 512, 768, 1024, 1536, 2048];
     for (final step in steps) {
       if (pixels <= step) return step;
