@@ -91,10 +91,19 @@ class AnimatedArtworkService {
         .trim();
   }
 
-  String _albumKey(String? artist, String? album) {
+  static final Map<String, AnimatedArtwork> _memoryCache = {};
+
+  String _albumKey(String? artist, String? album) =>
+      _trackOrAlbumKey(artist, album, null);
+
+  String _trackOrAlbumKey(String? artist, String? album, String? title) {
     final a = (artist ?? '').trim().toLowerCase();
     final al = (album ?? '').trim().toLowerCase();
-    return 'album:$a:$al';
+    final t = (title ?? '').trim().toLowerCase();
+    if (al.isNotEmpty && al != 'unknown album') {
+      return 'album:$a:$al';
+    }
+    return 'track:$a:$t';
   }
 
   String _artistKey(String? artist) {
@@ -103,12 +112,16 @@ class AnimatedArtworkService {
   }
 
   Future<AnimatedArtwork?> getCached(String key) async {
+    final inMem = _memoryCache[key];
+    if (inMem != null && !inMem.isExpired) return inMem;
+
     final index = await LocalJsonStore.read(_indexKey);
     if (index is Map && index.containsKey(key)) {
       final entry = AnimatedArtwork.fromJson(
         Map<String, dynamic>.from(index[key] as Map),
       );
       if (!entry.isExpired) {
+        _memoryCache[key] = entry;
         return entry;
       }
     }
@@ -116,6 +129,7 @@ class AnimatedArtworkService {
   }
 
   Future<void> _saveCache(AnimatedArtwork artwork) async {
+    _memoryCache[artwork.key] = artwork;
     final raw = await LocalJsonStore.read(_indexKey);
     final map = raw is Map ? Map<String, dynamic>.from(raw) : <String, dynamic>{};
     map[artwork.key] = artwork.toJson();
@@ -154,7 +168,7 @@ class AnimatedArtworkService {
       return null;
     }
 
-    final key = _albumKey(artist, album);
+    final key = _trackOrAlbumKey(artist, album, title);
 
     // 1. Check local index
     final cached = await getCached(key);
@@ -287,6 +301,14 @@ class AnimatedArtworkService {
       );
     }
 
+    if (appleMusicUrl == null && cleanTitle.isNotEmpty) {
+      // Fallback 2: Direct song search to locate parent album on Apple Music
+      appleMusicUrl = await _searchAppleMusicSongUrl(
+        artist: cleanArtist,
+        title: cleanTitle,
+      );
+    }
+
     if (appleMusicUrl == null) {
       // Negative cache
       final negative = AnimatedArtwork(
@@ -407,6 +429,35 @@ class AnimatedArtworkService {
           }
           final fallbackUrl = results.first['collectionViewUrl'] as String?;
           if (fallbackUrl != null) return fallbackUrl;
+        }
+      }
+    } catch (_) {}
+
+    return null;
+  }
+
+  Future<String?> _searchAppleMusicSongUrl({
+    required String artist,
+    required String title,
+  }) async {
+    final query = Uri.encodeComponent('$artist $title'.trim());
+    final itunesUrl =
+        'https://itunes.apple.com/search?term=$query&entity=song&limit=5';
+
+    try {
+      final res = await http.get(
+        Uri.parse(itunesUrl),
+        headers: {'User-Agent': _userAgent},
+      ).timeout(const Duration(seconds: 8));
+
+      if (res.statusCode == 200) {
+        final data = json.decode(res.body);
+        final results = data['results'] as List?;
+        if (results != null && results.isNotEmpty) {
+          final first = results.first as Map;
+          final viewUrl = first['collectionViewUrl'] as String? ??
+              first['trackViewUrl'] as String?;
+          if (viewUrl != null) return viewUrl;
         }
       }
     } catch (_) {}

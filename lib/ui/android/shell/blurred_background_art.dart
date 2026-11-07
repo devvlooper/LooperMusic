@@ -53,7 +53,8 @@ class BlurredBackgroundArt extends ConsumerWidget {
     }
 
     final motionAsync = ref.watch(animatedArtworkForSongProvider(song));
-    final mediaSource = motionAsync.asData?.value?.bestTallMedia;
+    final mediaSource = motionAsync.asData?.value?.bestTallMedia ??
+        motionAsync.asData?.value?.bestSquareMedia;
     if (mediaSource == null) return staticArt;
 
     return AnimatedArtworkWidget(

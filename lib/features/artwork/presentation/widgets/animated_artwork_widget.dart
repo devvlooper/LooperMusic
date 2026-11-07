@@ -144,6 +144,9 @@ class _AnimatedArtworkWidgetState extends ConsumerState<AnimatedArtworkWidget>
       if (mounted) {
         setState(() {
           _isInitialized = true;
+          if (isLocal) {
+            _hasFirstFrame = true;
+          }
         });
       }
     } catch (_) {
@@ -153,9 +156,7 @@ class _AnimatedArtworkWidgetState extends ConsumerState<AnimatedArtworkWidget>
 
   void _videoListener() {
     if (_controller == null || !mounted) return;
-    if (!_hasFirstFrame &&
-        _controller!.value.isInitialized &&
-        _controller!.value.position > Duration.zero) {
+    if (!_hasFirstFrame && _controller!.value.isInitialized) {
       setState(() {
         _hasFirstFrame = true;
       });

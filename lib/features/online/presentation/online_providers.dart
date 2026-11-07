@@ -7,6 +7,7 @@ import 'package:looper_player/core/utils/logger_helper.dart';
 import 'package:looper_player/features/microg/domain/auth_state.dart';
 import 'package:looper_player/features/microg/presentation/providers/auth_provider.dart';
 import 'package:looper_player/features/online/data/account_data_sync.dart';
+import 'package:looper_player/features/online/data/guest_feed_service.dart';
 import 'package:looper_player/features/online/data/innertube.dart';
 import 'package:looper_player/features/online/data/online_api.dart';
 import 'package:looper_player/features/online/data/online_settings.dart';
@@ -15,6 +16,7 @@ import 'package:looper_player/features/online/data/recommendation_engine.dart';
 import 'package:looper_player/features/online/data/stream_resolver.dart';
 import 'package:looper_player/features/online/data/taste_store.dart';
 import 'package:looper_player/features/online/data/taste_profile_store.dart';
+import 'package:looper_player/features/online/presentation/providers/guest_recommendation_provider.dart';
 import 'package:looper_player/features/settings/presentation/providers/settings_notifier.dart';
 import 'package:isar_community/isar.dart';
 
@@ -99,7 +101,8 @@ int _shelfRelevanceRank(OnlineShelf s, bool hasActiveMood) {
       t.contains('listen again')) {
     return 1;
   }
-  if (t.contains('trending song') ||
+  if (t.contains('radio: inspired') ||
+      t.contains('trending song') ||
       (t.contains('trending') && t.contains('for you'))) {
     return 2;
   }
@@ -109,19 +112,25 @@ int _shelfRelevanceRank(OnlineShelf s, bool hasActiveMood) {
       !t.contains('forgotten')) {
     return 3;
   }
-  if (t.contains('supermix') || t.contains('mixes') || t.contains('mix')) {
+  if (t.contains('because you listen') ||
+      t.contains('supermix') ||
+      t.contains('mixes') ||
+      t.contains('mix')) {
     return 4;
   }
-  if (t.contains('forgotten')) {
+  if (t.contains('similar to')) {
     return 5;
   }
-  if (t.contains('community playlist') || t.contains('community')) {
+  if (t.contains('forgotten')) {
     return 6;
   }
-  if (t.contains('album')) {
+  if (t.contains('community playlist') || t.contains('community')) {
     return 7;
   }
-  return 8;
+  if (t.contains('album')) {
+    return 8;
+  }
+  return 9;
 }
 
 /// Online home: "For you" (for Quick picks) and "Discover" from the suggestion
@@ -202,35 +211,53 @@ class OnlineHomeNotifier extends Notifier<OnlineHomeState> {
   Future<void> _load(bool force, {OnlineMood? mood}) async {
     state = state.copyWith(loading: true, activeMood: mood);
     try {
-      final profile = await RecommendationEngine.buildProfile(force: force);
-      final results = await Future.wait([
-        RecommendationEngine.forYou(profile),
-        RecommendationEngine.discover(profile),
-        RecommendationEngine.buildMixShelves(profile.profiles),
-      ]);
-      List<OnlineShelf> youtubeShelves = const [];
+      final isConnected = ref.read(isOnlineConnectedProvider);
+      List<OnlineShelf> rawShelves;
+      List<OnlineSong> forYouSongs = const [];
       List<OnlineMood> youtubeMoods = const [];
-      try {
-        final yt = await OnlineApi.home(
-          params: mood?.params,
-          pages: 3,
-          automatic: !force,
-        );
-        youtubeShelves = yt.$1;
-        youtubeMoods = yt.$2;
-      } catch (e) {
-        LoggerHelper.write('Online home: YouTube shelves failed', e);
-      }
-      final forYouSongs = results[0] as List<OnlineSong>;
-      final discoverSongs = results[1] as List<OnlineSong>;
-      final mixShelves = results[2] as List<OnlineShelf>;
 
-      final rawShelves = [
-        if (discoverSongs.isNotEmpty)
-          OnlineShelf(discoverShelf, songs: discoverSongs),
-        ...mixShelves,
-        ...youtubeShelves,
-      ];
+      if (!isConnected && mood == null) {
+        // Guest mode: Synthesize home feed from offline library signals
+        final guestService = GuestFeedService();
+        final guestShelves = await guestService.buildGuestFeed(force: force);
+        rawShelves = guestShelves;
+        try {
+          final yt = await OnlineApi.home(
+            automatic: !force,
+            pages: 1,
+          );
+          youtubeMoods = yt.$2;
+        } catch (_) {}
+      } else {
+        final profile = await RecommendationEngine.buildProfile(force: force);
+        final results = await Future.wait([
+          RecommendationEngine.forYou(profile),
+          RecommendationEngine.discover(profile),
+          RecommendationEngine.buildMixShelves(profile.profiles),
+        ]);
+        List<OnlineShelf> youtubeShelves = const [];
+        try {
+          final yt = await OnlineApi.home(
+            params: mood?.params,
+            pages: 3,
+            automatic: !force,
+          );
+          youtubeShelves = yt.$1;
+          youtubeMoods = yt.$2;
+        } catch (e) {
+          LoggerHelper.write('Online home: YouTube shelves failed', e);
+        }
+        forYouSongs = results[0] as List<OnlineSong>;
+        final discoverSongs = results[1] as List<OnlineSong>;
+        final mixShelves = results[2] as List<OnlineShelf>;
+
+        rawShelves = [
+          if (discoverSongs.isNotEmpty)
+            OnlineShelf(discoverShelf, songs: discoverSongs),
+          ...mixShelves,
+          ...youtubeShelves,
+        ];
+      }
 
       // Sort shelves in descending order of personal relevance and mood relation
       final hasActiveMood = mood != null;
@@ -283,6 +310,7 @@ class OnlineHomeNotifier extends Notifier<OnlineHomeState> {
   /// a fresh identity, no cached URLs and no throttle hold, then reload.
   Future<void> refresh() async {
     await StreamResolver.instance.reset();
+    unawaited(ref.read(guestRecommendationProvider.notifier).refresh());
     await load(force: true);
   }
 }
