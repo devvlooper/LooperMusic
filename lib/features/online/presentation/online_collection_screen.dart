@@ -14,6 +14,8 @@ import 'package:looper_player/features/playback/presentation/providers/playback/
 import 'package:looper_player/l10n/app_localizations.dart';
 import 'package:looper_player/ui/android/widgets/premium_section.dart';
 import 'package:looper_player/ui/widgets/collection_detail/collection_pinned_bar.dart';
+import 'package:looper_player/features/artwork/data/animated_artwork_service.dart';
+import 'package:looper_player/features/artwork/presentation/widgets/animated_artwork_widget.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 /// An online album, playlist or artist: header, play/shuffle, the song
@@ -181,6 +183,25 @@ class _OnlineCollectionScreenState
                   child: LayoutBuilder(
                     builder: (context, constraints) {
                       final isNarrow = constraints.maxWidth < 450;
+                      final motionArt = isArtist
+                          ? ref.watch(animatedArtworkForArtistProvider(title))
+                          : ref.watch(
+                              animatedArtworkForCollectionProvider((
+                                artist: subtitle,
+                                album: title,
+                              )),
+                            );
+                      final mediaSrc = motionArt.asData?.value?.bestSquareMedia;
+
+                      final staticOnlineArt = OnlineArt(
+                        url: art,
+                        size: 140,
+                        round: isArtist,
+                        icon: isArtist
+                            ? LucideIcons.user
+                            : LucideIcons.disc3,
+                      );
+
                       final artWidget = ScrollStage(
                         controller: _controller,
                         length: 220,
@@ -194,14 +215,20 @@ class _OnlineCollectionScreenState
                               ),
                             ],
                           ),
-                          child: OnlineArt(
-                            url: art,
-                            size: 140,
-                            round: isArtist,
-                            icon: isArtist
-                                ? LucideIcons.user
-                                : LucideIcons.disc3,
-                          ),
+                          child: mediaSrc != null
+                              ? SizedBox(
+                                  width: 140,
+                                  height: 140,
+                                  child: AnimatedArtworkWidget(
+                                    mediaSource: mediaSrc,
+                                    staticFallback: staticOnlineArt,
+                                    borderRadius: BorderRadius.circular(
+                                      isArtist ? 70 : 16,
+                                    ),
+                                    fit: BoxFit.cover,
+                                  ),
+                                )
+                              : staticOnlineArt,
                         ),
                       );
 

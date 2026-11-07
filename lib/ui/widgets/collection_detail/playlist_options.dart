@@ -32,6 +32,12 @@ extension _CollectionPlaylistOptions on CollectionDetailView {
             l10n.changePlaylistCover,
             () => _pickPlaylistCover(playlist),
           ),
+          (
+            LucideIcons.video,
+            Colors.purpleAccent,
+            l10n.linkAnimatedArtwork,
+            () => _showLinkAnimatedArtworkDialog(context, ref, playlist),
+          ),
           if (playlist.coverPath != null)
             (
               LucideIcons.imageOff,
@@ -296,6 +302,49 @@ extension _CollectionPlaylistOptions on CollectionDetailView {
                 l10n.delete,
                 style: AppFonts.jostStyle(color: Colors.redAccent),
               ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showLinkAnimatedArtworkDialog(
+    BuildContext context,
+    WidgetRef ref,
+    Playlist playlist,
+  ) {
+    final controller = TextEditingController();
+    showTaskDialog(
+      context: context,
+      builder: (context) {
+        final l10n = AppLocalizations.of(context)!;
+        return AlertDialog(
+          backgroundColor: Theme.of(context).colorScheme.surfaceContainer,
+          title: Text(l10n.linkAnimatedArtwork),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            style: const TextStyle(color: Colors.white),
+            decoration: InputDecoration(
+              hintText: l10n.linkAnimatedArtworkPrompt,
+              hintStyle: const TextStyle(color: Colors.white38),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(l10n.cancel),
+            ),
+            TextButton(
+              onPressed: () async {
+                final url = controller.text.trim();
+                if (url.isNotEmpty) {
+                  Navigator.pop(context);
+                  await AnimatedArtworkService.instance.resolveByUrl(url);
+                }
+              },
+              child: const Text('Link'),
             ),
           ],
         );

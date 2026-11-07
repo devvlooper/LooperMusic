@@ -12,6 +12,8 @@ import 'package:looper_player/features/online/data/online_settings.dart';
 import 'package:looper_player/features/online/presentation/online_providers.dart';
 import 'package:looper_player/features/online/presentation/online_widgets.dart';
 import 'package:looper_player/features/online/presentation/taste_profiles_screen.dart';
+import 'package:looper_player/features/artwork/data/animated_artwork_service.dart';
+import 'package:looper_player/features/artwork/domain/animated_artwork_models.dart';
 import 'package:looper_player/features/settings/presentation/providers/settings_notifier.dart';
 import 'package:looper_player/features/settings/presentation/widgets/settings_widgets.dart';
 import 'package:looper_player/l10n/app_localizations.dart';
@@ -57,6 +59,16 @@ List<({String title, List<Widget> tiles})> onlineSettingsSections(
   (
     title: l10n.onlineDownloads,
     tiles: const [_DownloadDirTile(), _DownloadQualityTile()],
+  ),
+  (
+    title: l10n.animatedArtworks,
+    tiles: const [
+      _AnimatedArtworkModeTile(),
+      _ImmersiveBackgroundTile(),
+      _CustomArtworkServerTile(),
+      _AnimatedArtworkCacheLimitTile(),
+      _ClearAnimatedArtworkCacheTile(),
+    ],
   ),
 ];
 
@@ -534,6 +546,177 @@ class _DownloadQualityTile extends ConsumerWidget {
               .update((curr) => curr.copyWith(downloadQuality: q));
         },
       ),
+    );
+  }
+}
+
+class _AnimatedArtworkModeTile extends ConsumerWidget {
+  const _AnimatedArtworkModeTile();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context)!;
+    final s = ref.watch(animatedArtworkSettingsProvider);
+    String label(AnimatedArtworkMode m) => switch (m) {
+      AnimatedArtworkMode.always => l10n.animatedArtworksAlways,
+      AnimatedArtworkMode.wifiOnly => l10n.animatedArtworksWifiOnly,
+      AnimatedArtworkMode.never => l10n.animatedArtworksNever,
+    };
+    return ListTile(
+      leading: const Icon(LucideIcons.sparkles, color: Colors.white70),
+      title: Text(l10n.animatedArtworks, style: _title()),
+      subtitle: Text(l10n.animatedArtworksDesc, style: _sub()),
+      trailing: DropdownButton<AnimatedArtworkMode>(
+        value: s.mode,
+        underline: const SizedBox.shrink(),
+        dropdownColor: Theme.of(context).colorScheme.surfaceContainerHigh,
+        style: AppFonts.jostStyle(color: Colors.white),
+        items: [
+          for (final m in AnimatedArtworkMode.values)
+            DropdownMenuItem(value: m, child: Text(label(m))),
+        ],
+        onChanged: (m) {
+          if (m == null) return;
+          ref
+              .read(animatedArtworkSettingsProvider.notifier)
+              .update((curr) => curr.copyWith(mode: m));
+        },
+      ),
+    );
+  }
+}
+
+class _ImmersiveBackgroundTile extends ConsumerWidget {
+  const _ImmersiveBackgroundTile();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context)!;
+    final s = ref.watch(animatedArtworkSettingsProvider);
+    return _Switch(
+      icon: LucideIcons.scan,
+      title: l10n.immersivePlayerBackground,
+      subtitle: l10n.immersivePlayerBackgroundDesc,
+      value: s.immersiveBackground,
+      onChanged: (val) {
+        ref
+            .read(animatedArtworkSettingsProvider.notifier)
+            .update((curr) => curr.copyWith(immersiveBackground: val));
+      },
+    );
+  }
+}
+
+class _CustomArtworkServerTile extends ConsumerWidget {
+  const _CustomArtworkServerTile();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context)!;
+    final s = ref.watch(animatedArtworkSettingsProvider);
+    return ListTile(
+      leading: const Icon(LucideIcons.server, color: Colors.white70),
+      title: Text(l10n.customArtworkServer, style: _title()),
+      subtitle: Text(
+        s.customServerUrl != null && s.customServerUrl!.isNotEmpty
+            ? s.customServerUrl!
+            : l10n.customArtworkServerDesc,
+        style: _sub(),
+      ),
+      onTap: () async {
+        final controller = TextEditingController(text: s.customServerUrl ?? '');
+        await showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            backgroundColor: Theme.of(ctx).colorScheme.surfaceContainer,
+            title: Text(l10n.customArtworkServer),
+            content: TextField(
+              controller: controller,
+              style: const TextStyle(color: Colors.white),
+              decoration: const InputDecoration(
+                hintText: 'http://192.168.1.100:5000',
+                hintStyle: TextStyle(color: Colors.white38),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: Text(l10n.cancel),
+              ),
+              TextButton(
+                onPressed: () {
+                  final text = controller.text.trim();
+                  ref
+                      .read(animatedArtworkSettingsProvider.notifier)
+                      .update((curr) => curr.copyWith(customServerUrl: text.isEmpty ? null : text));
+                  Navigator.pop(ctx);
+                },
+                child: const Text('Save'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _AnimatedArtworkCacheLimitTile extends ConsumerWidget {
+  const _AnimatedArtworkCacheLimitTile();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context)!;
+    final s = ref.watch(animatedArtworkSettingsProvider);
+    const options = [100, 300, 500, 1024, 2048];
+    String label(int mb) => mb >= 1024 ? '${(mb / 1024).round()} GB' : '$mb MB';
+
+    return ListTile(
+      leading: const Icon(LucideIcons.hardDrive, color: Colors.white70),
+      title: Text(l10n.animatedArtworkCacheLimit, style: _title()),
+      trailing: DropdownButton<int>(
+        value: s.cacheLimitMB,
+        underline: const SizedBox.shrink(),
+        dropdownColor: Theme.of(context).colorScheme.surfaceContainerHigh,
+        style: AppFonts.jostStyle(color: Colors.white),
+        items: [
+          for (final opt in options)
+            DropdownMenuItem(value: opt, child: Text(label(opt))),
+        ],
+        onChanged: (val) {
+          if (val == null) return;
+          ref
+              .read(animatedArtworkSettingsProvider.notifier)
+              .update((curr) => curr.copyWith(cacheLimitMB: val));
+        },
+      ),
+    );
+  }
+}
+
+class _ClearAnimatedArtworkCacheTile extends ConsumerWidget {
+  const _ClearAnimatedArtworkCacheTile();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context)!;
+    return ListTile(
+      leading: const Icon(LucideIcons.trash2, color: Colors.redAccent),
+      title: Text(
+        l10n.clearAnimatedArtworkCache,
+        style: AppFonts.jostStyle(color: Colors.redAccent),
+      ),
+      onTap: () async {
+        await AnimatedArtworkService.instance.clearCache();
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(l10n.animatedArtworkCacheCleared),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      },
     );
   }
 }

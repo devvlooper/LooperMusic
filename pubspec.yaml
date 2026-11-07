@@ -69,6 +69,7 @@ dependencies:
   crypto: ^3.0.7
   audio_metadata_reader: ^1.8.1
   webview_flutter: ^4.14.1
+  video_player: ^2.9.2
 
 
 dev_dependencies:

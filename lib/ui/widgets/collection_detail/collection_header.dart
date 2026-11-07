@@ -42,28 +42,60 @@ extension _CollectionHeader on CollectionDetailView {
     String? artOverride, {
     Playlist? playlist,
     String? imageUrl,
+    Album? album,
+    Artist? artist,
+    WidgetRef? ref,
   }) {
     final double size = 140; // Unified size for a cleaner Row look
+    final Widget staticArt;
     if (playlist != null) {
-      return PlaylistArtwork(
+      staticArt = PlaylistArtwork(
         songPaths: playlist.songPaths,
         coverPath: playlist.coverPath,
         size: size,
         borderRadius: BorderRadius.circular(16),
       );
+    } else {
+      staticArt = OptimizedImage(
+        imagePath: artOverride,
+        imageUrl: imageUrl,
+        width: size,
+        height: size,
+        borderRadius: BorderRadius.circular(16),
+        placeholder: Container(
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.05),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: const Icon(LucideIcons.music, size: 48, color: Colors.grey),
+        ),
+      );
     }
-    return OptimizedImage(
-      imagePath: artOverride,
-      imageUrl: imageUrl,
+
+    if (ref == null) return staticArt;
+
+    String? mediaSource;
+    if (album != null) {
+      final motion = ref.watch(animatedArtworkForCollectionProvider((
+        artist: album.artist,
+        album: album.name,
+      )));
+      mediaSource = motion.asData?.value?.bestSquareMedia;
+    } else if (artist != null) {
+      final motion = ref.watch(animatedArtworkForArtistProvider(artist.name));
+      mediaSource = motion.asData?.value?.bestSquareMedia;
+    }
+
+    if (mediaSource == null) return staticArt;
+
+    return SizedBox(
       width: size,
       height: size,
-      borderRadius: BorderRadius.circular(16),
-      placeholder: Container(
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.05),
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: const Icon(LucideIcons.music, size: 48, color: Colors.grey),
+      child: AnimatedArtworkWidget(
+        mediaSource: mediaSource,
+        staticFallback: staticArt,
+        borderRadius: BorderRadius.circular(16),
+        fit: BoxFit.cover,
       ),
     );
   }

@@ -1,6 +1,9 @@
 import 'dart:io';
 import 'package:flutter/material.dart' hide RepeatMode;
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:looper_player/core/services/storage/db_service.dart';
+import 'package:looper_player/features/artwork/data/animated_artwork_service.dart';
+import 'package:looper_player/features/artwork/presentation/widgets/animated_artwork_widget.dart';
 import 'package:looper_player/features/library/domain/models/models.dart';
 import 'package:looper_player/core/utils/responsive.dart';
 import 'package:looper_player/ui/widgets/common/optimized_image.dart';
@@ -67,12 +70,12 @@ class PlayerGradientBackground extends StatelessWidget {
   }
 }
 
-class ForegroundAlbumArt extends StatelessWidget {
+class ForegroundAlbumArt extends ConsumerWidget {
   final Song song;
   const ForegroundAlbumArt({required this.song, super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final Size screenSize = MediaQuery.sizeOf(context);
     final double decodeWidth = Responsive.isLandscape(screenSize)
         ? PlayerLandscapeMetrics.of(
@@ -82,7 +85,7 @@ class ForegroundAlbumArt extends StatelessWidget {
         : screenSize.width;
     final double dpr = MediaQuery.maybeDevicePixelRatioOf(context) ?? 2.0;
 
-    return AspectRatio(
+    final staticArt = AspectRatio(
       aspectRatio: 1.0,
       child: OptimizedImage(
         imagePath: song.artPath != null && !song.artPath!.startsWith('http')
@@ -94,6 +97,19 @@ class ForegroundAlbumArt extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         fit: BoxFit.cover,
         cacheWidth: (decodeWidth * dpr).toInt(),
+      ),
+    );
+
+    final motionAsync = ref.watch(animatedArtworkForSongProvider(song));
+    final mediaSource = motionAsync.asData?.value?.bestSquareMedia;
+
+    return AspectRatio(
+      aspectRatio: 1.0,
+      child: AnimatedArtworkWidget(
+        mediaSource: mediaSource,
+        staticFallback: staticArt,
+        borderRadius: BorderRadius.circular(12),
+        fit: BoxFit.cover,
       ),
     );
   }

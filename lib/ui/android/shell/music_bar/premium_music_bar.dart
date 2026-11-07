@@ -28,6 +28,8 @@ import '../../widgets/premium_section.dart';
 import 'package:looper_player/core/utils/l10n.dart';
 import 'package:looper_player/ui/widgets/common/song_playback_overlay.dart';
 import 'package:looper_player/core/services/haptics/app_haptics.dart';
+import 'package:looper_player/features/artwork/data/animated_artwork_service.dart';
+import 'package:looper_player/features/artwork/presentation/widgets/animated_artwork_widget.dart';
 part 'mini_player_content.dart';
 
 class PremiumMusicBar extends ConsumerStatefulWidget {

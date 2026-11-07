@@ -58,18 +58,33 @@ extension _MiniPlayerContent on _PremiumMusicBarState {
                               child: Stack(
                                 fit: StackFit.expand,
                                 children: [
-                                  OptimizedImage(
-                                    imagePath:
-                                        song.artPath != null &&
-                                            !song.artPath!.startsWith('http')
-                                        ? song.artPath
-                                        : null,
-                                    imageUrl:
-                                        song.artPath != null &&
-                                            song.artPath!.startsWith('http')
-                                        ? song.artPath
-                                        : null,
-                                    fit: BoxFit.cover,
+                                  Consumer(
+                                    builder: (context, ref, _) {
+                                      final motion = ref.watch(
+                                        animatedArtworkForSongProvider(song),
+                                      );
+                                      final src =
+                                          motion.asData?.value?.bestSquareMedia;
+                                      final staticArt = OptimizedImage(
+                                        imagePath:
+                                            song.artPath != null &&
+                                                    !song.artPath!.startsWith('http')
+                                                ? song.artPath
+                                                : null,
+                                        imageUrl:
+                                            song.artPath != null &&
+                                                    song.artPath!.startsWith('http')
+                                                ? song.artPath
+                                                : null,
+                                        fit: BoxFit.cover,
+                                      );
+                                      if (src == null) return staticArt;
+                                      return AnimatedArtworkWidget(
+                                        mediaSource: src,
+                                        staticFallback: staticArt,
+                                        fit: BoxFit.cover,
+                                      );
+                                    },
                                   ),
                                   Positioned.fill(
                                     child: SongPlaybackOverlay(

@@ -111,10 +111,41 @@ Task takeover from Claude Code after weekly limit exhaustion, continuing the imp
   - `RecommendationEngine.forYou` and `discover` expanded to query up to 5 top artists (guaranteeing the newly followed artist at index 0 is queried for `$artist songs` and `$artist latest songs`).
   - `onlineArtistsForYouProvider` checks cache validity against active followed artists and bypasses stale cache when new artists are followed.
 
-### H. Apple Music Animated Artwork Support Documentation
-- Produced comprehensive architectural and implementation specification in [`docs/online/20-apple-music-animated-artworks.md`](file:///home/hiteshsuthar/projects/looper_music/docs/online/20-apple-music-animated-artworks.md).
-- Analyzed [`m8tec/apple-music-animated-artworks`](https://github.com/m8tec/apple-music-animated-artworks) and Apple Music's native `amp-api.music.apple.com` HLS streaming format (`editorialVideo` with `motionDetailSquare`, `motionDetailTall`, and single-MP4 byte-range streams).
-- Outlined end-to-end integration for Looper Music across Albums, Playlists, Tracks/Songs, Artists, and Expanded/Mini Player utilizing `media_kit_video` with hardware decoding, `--no-audio`, and `--loop=inf`.
+### H. Apple Music Animated Artwork Support Implementation
+- Fully implemented Apple Music Motion Artworks per [`docs/online/20-apple-music-animated-artworks.md`](file:///home/hiteshsuthar/projects/looper_music/docs/online/20-apple-music-animated-artworks.md):
+  - **Domain & Service**:
+    - Created [`lib/features/artwork/domain/animated_artwork_models.dart`](file:///home/hiteshsuthar/projects/looper_music/lib/features/artwork/domain/animated_artwork_models.dart) with `AnimatedArtwork`, `AnimatedArtworkSettings`, and `AnimatedArtworkMode` (`always`, `wifiOnly`, `never`).
+    - Created [`lib/features/artwork/data/animated_artwork_service.dart`](file:///home/hiteshsuthar/projects/looper_music/lib/features/artwork/data/animated_artwork_service.dart):
+      - Direct Apple Music storefront scraper & iTunes catalog resolver (`itunes.apple.com/search` -> `music.apple.com` embedded JSON parser for `videoArtwork` & `tallVideoArtwork`).
+      - Self-hosted `m8tec/apple-music-animated-artworks` REST API client support (`/api/v1/artwork/search`).
+      - Two-tier cache architecture: `LocalJsonStore` metadata index with 30-day negative caching, and disk media cache (`<cacheDir>/animated_artwork/`) with automatic LRU eviction based on user-configured limits.
+      - Seamless master `.m3u8` variant parser extracting single-file continuous `.mp4` loop containers for offline caching and battery savings.
+      - Network policy gating using native `isNetworkMetered()`.
+  - **Rendering Pipeline (`AnimatedArtworkWidget`)**:
+    - Implemented [`lib/features/artwork/presentation/widgets/animated_artwork_widget.dart`](file:///home/hiteshsuthar/projects/looper_music/lib/features/artwork/presentation/widgets/animated_artwork_widget.dart) using `video_player`:
+      - Audio strictly disabled (`setVolume(0.0)`).
+      - Seamless hardware looping (`setLooping(true)`).
+      - Lifecycle and visibility management: auto-pauses when app is backgrounded or inactive.
+      - First-frame crossfade: static cover displays instantaneously, smoothly crossfading to motion loop when first frame is rendered.
+  - **Surface Integrations**:
+    - **Expanded Player (`ForegroundAlbumArt`)**: Now Playing card seamlessly plays the motion artwork loop.
+    - **Immersive Backdrop (`BlurredBackgroundArt`)**: Full-bleed ambient motion backdrop behind lyrics and controls when enabled.
+    - **Collection Detail (`CollectionHeader` & `OnlineCollectionScreen`)**: Displays motion artwork in the header for albums, playlists, and artists.
+    - **Mini Player (`MiniPlayerContent`)**: Micro animated artwork in bottom navigation bar.
+    - **Manual Link Option**: "Link animated artwork" in playlist options sheet.
+    - **Settings**: Dedicated "Animated artworks" section in Settings > Online music (Mode selector, immersive background toggle, custom server URL, cache limit slider, cache clear button).
+  - **Unit Tests**:
+    - Created [`test/animated_artwork_test.dart`](file:///home/hiteshsuthar/projects/looper_music/test/animated_artwork_test.dart) verifying settings serialization, metadata roundtrip, TTL expiration, and best media resolution.
+
+### I. Inzx Architecture & Feature Study Documentation
+- Produced comprehensive architectural and implementation study in [`docs/online/21-inzx-features-and-architecture.md`](file:///home/hiteshsuthar/projects/looper_music/docs/online/21-inzx-features-and-architecture.md).
+- Analyzed [`nirmaleeswar30/Inzx`](https://github.com/nirmaleeswar30/Inzx) (Flutter YouTube Music client) covering:
+  - Real-time collaborative Jam sessions via Supabase Realtime with clock drift compensation.
+  - Multi-source audio streaming with JioSaavn 320 kbps fallback and lossless FLAC matching.
+  - Word/syllable-level synced lyrics with AI translation and transliteration/romanization.
+  - AutoEQ headphone calibration presets mapped to mpv parametric equalizer filters.
+  - Dynamic visualizer player themes (Cinematic, Ripple, Canvas).
+  - Last.fm and ListenBrainz scrobbling integration.
 
 ## 3. Verification & Checks
 - All unit and integration tests passing:

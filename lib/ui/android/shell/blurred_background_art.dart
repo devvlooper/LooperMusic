@@ -3,13 +3,17 @@ import 'dart:io';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:looper_player/features/artwork/data/animated_artwork_service.dart';
+import 'package:looper_player/features/artwork/domain/animated_artwork_models.dart';
+import 'package:looper_player/features/artwork/presentation/widgets/animated_artwork_widget.dart';
 import 'package:looper_player/features/library/domain/models/models.dart';
 
 /// The song's art, blurred, filling its box. The blur is drawn once per song
 /// and box size into a small image that every copy (main screen, music bar,
 /// player) reuses. A live ImageFiltered re-blurred the whole screen on every
 /// frame: Impeller has no raster cache, so RepaintBoundary didn't help.
-class BlurredBackgroundArt extends StatelessWidget {
+class BlurredBackgroundArt extends ConsumerWidget {
   final Song song;
 
   /// Scale applied around the blurred art (the player zooms in slightly).
@@ -17,10 +21,11 @@ class BlurredBackgroundArt extends StatelessWidget {
   const BlurredBackgroundArt({required this.song, this.zoom = 1.0, super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final path = song.artPath;
     if (path == null) return const SizedBox.shrink();
-    return RepaintBoundary(
+
+    final staticArt = RepaintBoundary(
       child: LayoutBuilder(
         builder: (context, constraints) {
           if (!constraints.hasBoundedWidth ||
@@ -35,6 +40,22 @@ class BlurredBackgroundArt extends StatelessWidget {
           return zoom == 1.0 ? art : Transform.scale(scale: zoom, child: art);
         },
       ),
+    );
+
+    final motionSettings = ref.watch(animatedArtworkSettingsProvider);
+    if (!motionSettings.immersiveBackground ||
+        motionSettings.mode == AnimatedArtworkMode.never) {
+      return staticArt;
+    }
+
+    final motionAsync = ref.watch(animatedArtworkForSongProvider(song));
+    final mediaSource = motionAsync.asData?.value?.bestTallMedia;
+    if (mediaSource == null) return staticArt;
+
+    return AnimatedArtworkWidget(
+      mediaSource: mediaSource,
+      staticFallback: staticArt,
+      fit: BoxFit.cover,
     );
   }
 }

@@ -39,6 +39,8 @@ import 'package:looper_player/features/online/data/online_api.dart';
 import 'package:looper_player/features/online/data/parsers.dart';
 import 'package:looper_player/features/online/presentation/online_providers.dart';
 import 'package:looper_player/features/online/presentation/online_widgets.dart';
+import 'package:looper_player/features/artwork/data/animated_artwork_service.dart';
+import 'package:looper_player/features/artwork/presentation/widgets/animated_artwork_widget.dart';
 part 'collection_header.dart';
 part 'desktop_collection.dart';
 part 'sort_sheet.dart';
@@ -373,6 +375,9 @@ class CollectionDetailView extends ConsumerWidget {
                                           artToRender,
                                           playlist: reactivePlaylist,
                                           imageUrl: imageUrlToRender,
+                                          album: reactiveAlbum,
+                                          artist: reactiveArtist,
+                                          ref: ref,
                                         ),
                                       ),
                                     ),
@@ -408,6 +413,9 @@ class CollectionDetailView extends ConsumerWidget {
                                         artToRender,
                                         playlist: reactivePlaylist,
                                         imageUrl: imageUrlToRender,
+                                        album: reactiveAlbum,
+                                        artist: reactiveArtist,
+                                        ref: ref,
                                       ),
                                     ),
                                     const SizedBox(width: 20),
