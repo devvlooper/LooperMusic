@@ -1,14 +1,19 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:looper_player/core/motion/app_routes.dart';
 import 'package:looper_player/core/motion/looper_scroll_physics.dart';
 import 'package:looper_player/core/motion/scroll_stage.dart';
 import 'package:looper_player/core/services/haptics/app_haptics.dart';
 import 'package:looper_player/core/theme/app_fonts.dart';
+import 'package:looper_player/features/library/domain/models/models.dart';
 import 'package:looper_player/features/library/presentation/widgets/songs/song_tile.dart';
 import 'package:looper_player/features/online/data/online_downloader.dart';
 import 'package:looper_player/features/online/data/parsers.dart';
 import 'package:looper_player/features/online/data/taste_store.dart';
 import 'package:looper_player/features/online/presentation/online_providers.dart';
+import 'package:looper_player/features/online/presentation/online_view_all_screen.dart';
 import 'package:looper_player/features/online/presentation/online_widgets.dart';
 import 'package:looper_player/features/playback/presentation/providers/playback/playback_notifier.dart';
 import 'package:looper_player/l10n/app_localizations.dart';
@@ -339,23 +344,33 @@ class _OnlineCollectionScreenState
                     },
                   ),
                 ),
-                if (isArtist && p.songs.isNotEmpty)
+                if (isArtist && songs.isNotEmpty)
                   SliverToBoxAdapter(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        OnlineSectionTitle(l10n.songs),
-                        SizedBox(
-                          height: 186,
-                          child: ListView.builder(
-                            scrollDirection: Axis.horizontal,
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
-                            itemCount: p.songs.length,
-                            itemBuilder: (context, i) => OnlineSongCard(
-                              songs: p.songs,
-                              index: i,
-                            ),
-                          ),
+                        OnlineSectionTitle(
+                          l10n.songs,
+                          trailing: (p.moreSongsBrowseId != null || songs.length > 5)
+                              ? ViewAllHeaderButton(
+                                  onTap: () {
+                                    Navigator.of(context).push(
+                                      riseRoute(
+                                        OnlineViewAllScreen(
+                                          title: l10n.songs,
+                                          initialSongs: p.songs,
+                                          browseId: p.moreSongsBrowseId,
+                                          params: p.moreSongsParams,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                )
+                              : null,
+                        ),
+                        _ArtistSongPages(
+                          songs: songs,
+                          l10n: l10n,
                         ),
                       ],
                     ),
@@ -435,5 +450,74 @@ class _FollowButton extends ConsumerWidget {
             icon: const Icon(LucideIcons.plus, size: 18),
             label: Text(l10n.onlineFollow),
           );
+  }
+}
+
+class _ArtistSongPages extends StatelessWidget {
+  const _ArtistSongPages({
+    required this.songs,
+    required this.l10n,
+  });
+
+  final List<Song> songs;
+  final AppLocalizations l10n;
+
+  @override
+  Widget build(BuildContext context) {
+    final chunks = <List<Song>>[];
+    for (var i = 0; i < songs.length; i += 5) {
+      chunks.add(songs.sublist(i, math.min(i + 5, songs.length)));
+    }
+    if (chunks.isEmpty) return const SizedBox.shrink();
+
+    final firstCount = chunks.first.length;
+    final height = firstCount * 64.0;
+
+    if (chunks.length == 1) {
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (var i = 0; i < chunks.first.length; i++)
+            SongTile(
+              key: ValueKey('online-artist-0-$i-${chunks.first[i].path}'),
+              song: chunks.first[i],
+              songs: songs,
+              l10n: l10n,
+              collectionIndex: i,
+            ),
+        ],
+      );
+    }
+
+    return SizedBox(
+      height: height,
+      child: PageView.builder(
+        controller: PageController(viewportFraction: 0.92),
+        padEnds: false,
+        physics: const LooperScrollPhysics(),
+        itemCount: chunks.length,
+        itemBuilder: (context, pageIndex) {
+          final chunk = chunks[pageIndex];
+          return Padding(
+            padding: const EdgeInsets.only(right: 6),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (var j = 0; j < chunk.length; j++)
+                  SongTile(
+                    key: ValueKey(
+                      'online-artist-$pageIndex-$j-${chunk[j].path}',
+                    ),
+                    song: chunk[j],
+                    songs: songs,
+                    l10n: l10n,
+                    collectionIndex: pageIndex * 5 + j,
+                  ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
   }
 }

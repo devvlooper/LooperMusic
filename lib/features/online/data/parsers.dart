@@ -177,6 +177,8 @@ class OnlinePage {
     this.songs = const [],
     this.shelves = const [],
     this.continuation,
+    this.moreSongsBrowseId,
+    this.moreSongsParams,
   });
   final String title;
   final String? subtitle;
@@ -184,6 +186,8 @@ class OnlinePage {
   final List<OnlineSong> songs;
   final List<OnlineShelf> shelves;
   final String? continuation;
+  final String? moreSongsBrowseId;
+  final String? moreSongsParams;
 }
 
 // ---------------------------------------------------------------- helpers
@@ -715,6 +719,12 @@ OnlinePage parsePage(Map<String, dynamic> json) {
       _at(shelf, ['continuations', 0, 'nextContinuationData', 'continuation'])
           as String?;
 
+  final bottomBrowse = _at(shelf, ['bottomEndpoint', 'browseEndpoint']);
+  final moreSongsBrowseId =
+      bottomBrowse is Map ? bottomBrowse['browseId'] as String? : null;
+  final moreSongsParams =
+      bottomBrowse is Map ? bottomBrowse['params'] as String? : null;
+
   return OnlinePage(
     title: title,
     subtitle: runText(header?['subtitle']) ?? straplineArtist,
@@ -722,6 +732,8 @@ OnlinePage parsePage(Map<String, dynamic> json) {
     songs: songs,
     shelves: parseShelves(json),
     continuation: token,
+    moreSongsBrowseId: moreSongsBrowseId,
+    moreSongsParams: moreSongsParams,
   );
 }
 

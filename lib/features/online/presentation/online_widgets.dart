@@ -208,8 +208,8 @@ class OnlineSectionTitle extends StatelessWidget {
   }
 }
 
-class _ViewAllHeaderButton extends StatelessWidget {
-  const _ViewAllHeaderButton({required this.onTap});
+class ViewAllHeaderButton extends StatelessWidget {
+  const ViewAllHeaderButton({super.key, required this.onTap});
   final VoidCallback onTap;
 
   @override
@@ -330,7 +330,7 @@ class OnlineShelfView extends StatelessWidget {
         OnlineSectionTitle(
           shelfTitle(l10n, shelf.title),
           trailing: hasViewAll
-              ? _ViewAllHeaderButton(
+              ? ViewAllHeaderButton(
                   onTap: () => _openShelfViewAll(context, shelf),
                 )
               : null,
@@ -719,7 +719,7 @@ class _ArtistsForYouRow extends ConsumerWidget {
             OnlineSectionTitle(
               l10n.artistsForYou,
               trailing: showMore
-                  ? _ViewAllHeaderButton(
+                  ? ViewAllHeaderButton(
                       onTap: () =>
                           _openOnlineArtistsViewAll(context, ref, artists),
                     )

@@ -169,7 +169,39 @@ abstract final class OnlineApi {
   static Future<OnlinePage> page(String browseId) async {
     final page = parsePage(await _it.music('browse', {'browseId': browseId}));
     var token = page.continuation;
-    if (token == null || browseId.startsWith('UC')) return page;
+    if (browseId.startsWith('UC')) {
+      // For artists: YouTube Music only puts 5 songs on the overview shelf.
+      // Fetch the "Top songs" playlist from bottomEndpoint to load the full list.
+      if (page.moreSongsBrowseId != null) {
+        try {
+          final (moreShelf, _) = await listPage(
+            page.moreSongsBrowseId,
+            page.title,
+            params: page.moreSongsParams,
+            automatic: true,
+          );
+          if (moreShelf.songs.isNotEmpty) {
+            final seen = {for (final s in page.songs) s.videoId};
+            final allSongs = [
+              ...page.songs,
+              ...moreShelf.songs.where((s) => seen.add(s.videoId)),
+            ];
+            return OnlinePage(
+              title: page.title,
+              subtitle: page.subtitle,
+              thumbnail: page.thumbnail,
+              songs: allSongs,
+              shelves: page.shelves,
+              continuation: page.continuation,
+              moreSongsBrowseId: page.moreSongsBrowseId,
+              moreSongsParams: page.moreSongsParams,
+            );
+          }
+        } catch (_) {}
+      }
+      return page;
+    }
+    if (token == null) return page;
     final songs = [...page.songs];
     final seen = {for (final s in songs) s.videoId};
     for (var i = 0; i < _maxPages && token != null; i++) {
