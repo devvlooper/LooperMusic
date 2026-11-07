@@ -15,6 +15,7 @@ import 'package:looper_player/features/online/data/taste_store.dart';
 import 'package:looper_player/features/online/presentation/online_providers.dart';
 import 'package:looper_player/features/online/presentation/online_view_all_screen.dart';
 import 'package:looper_player/features/online/presentation/online_widgets.dart';
+import 'package:looper_player/ui/widgets/common/optimized_image.dart';
 import 'package:looper_player/features/playback/presentation/providers/playback/playback_notifier.dart';
 import 'package:looper_player/l10n/app_localizations.dart';
 import 'package:looper_player/ui/android/widgets/premium_section.dart';
@@ -184,166 +185,299 @@ class _OnlineCollectionScreenState
                     actionIcon: LucideIcons.download,
                   ),
                 ),
-                SliverToBoxAdapter(
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      final isNarrow = constraints.maxWidth < 450;
-                      final motionArt = isArtist
-                          ? ref.watch(animatedArtworkForArtistProvider(title))
-                          : ref.watch(
-                              animatedArtworkForCollectionProvider((
-                                artist: subtitle,
-                                album: title,
-                              )),
-                            );
-                      final mediaSrc = motionArt.asData?.value?.bestSquareMedia;
+                if (isArtist)
+                  SliverToBoxAdapter(
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final motionArt =
+                            ref.watch(animatedArtworkForArtistProvider(title));
+                        final mediaSrc =
+                            motionArt.asData?.value?.bestTallMedia ??
+                            motionArt.asData?.value?.bestSquareMedia;
 
-                      final staticOnlineArt = OnlineArt(
-                        url: art,
-                        size: 140,
-                        round: isArtist,
-                        icon: isArtist
-                            ? LucideIcons.user
-                            : LucideIcons.disc3,
-                      );
-
-                      final artWidget = ScrollStage(
-                        controller: _controller,
-                        length: 220,
-                        child: Container(
-                          decoration: BoxDecoration(
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.3),
-                                blurRadius: 16,
-                                offset: const Offset(0, 8),
+                        return SizedBox(
+                          height: 320,
+                          width: constraints.maxWidth,
+                          child: Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              mediaSrc != null
+                                  ? AnimatedArtworkWidget(
+                                      mediaSource: mediaSrc,
+                                      staticFallback: OptimizedImage(
+                                        imageUrl: art,
+                                        fit: BoxFit.cover,
+                                        width: double.infinity,
+                                        height: double.infinity,
+                                      ),
+                                      fit: BoxFit.cover,
+                                    )
+                                  : OptimizedImage(
+                                      imageUrl: art,
+                                      fit: BoxFit.cover,
+                                      width: double.infinity,
+                                      height: double.infinity,
+                                    ),
+                              DecoratedBox(
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topCenter,
+                                    end: Alignment.bottomCenter,
+                                    colors: [
+                                      Colors.black.withValues(alpha: 0.15),
+                                      Colors.black.withValues(alpha: 0.45),
+                                      Theme.of(context).colorScheme.surface,
+                                    ],
+                                    stops: const [0.0, 0.55, 1.0],
+                                  ),
+                                ),
+                              ),
+                              Positioned(
+                                left: 16,
+                                right: 16,
+                                bottom: 16,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      title,
+                                      key: _titleKey,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: AppFonts.jostStyle(
+                                        fontSize: 30,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                        shadows: const [
+                                          Shadow(
+                                            color: Colors.black54,
+                                            blurRadius: 12,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    if (subtitle != null && subtitle.isNotEmpty)
+                                      Text(
+                                        subtitle,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: AppFonts.jostStyle(
+                                          fontSize: 14,
+                                          color: Colors.white
+                                              .withValues(alpha: 0.8),
+                                        ),
+                                      ),
+                                    if (songs.isNotEmpty) ...[
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        l10n.songsCount(songs.length),
+                                        style: AppFonts.jostStyle(
+                                          fontSize: 12,
+                                          color: Colors.white60,
+                                        ),
+                                      ),
+                                    ],
+                                    const SizedBox(height: 14),
+                                    Wrap(
+                                      spacing: 12,
+                                      runSpacing: 10,
+                                      crossAxisAlignment:
+                                          WrapCrossAlignment.center,
+                                      children: [
+                                        if (songs.isNotEmpty) ...[
+                                          FilledButton.icon(
+                                            onPressed: () {
+                                              AppHaptics.light();
+                                              ref
+                                                  .read(playbackProvider.notifier)
+                                                  .playCollection(songs);
+                                            },
+                                            icon: const Icon(LucideIcons.play,
+                                                size: 18),
+                                            label: Text(l10n.playAll),
+                                          ),
+                                          OutlinedButton.icon(
+                                            onPressed: () {
+                                              AppHaptics.light();
+                                              ref
+                                                  .read(playbackProvider.notifier)
+                                                  .playCollection(songs,
+                                                      shuffle: true);
+                                            },
+                                            icon: const Icon(LucideIcons.shuffle,
+                                                size: 18),
+                                            label: Text(l10n.shuffleTitle),
+                                          ),
+                                        ],
+                                        _FollowButton(
+                                          collection: widget.collection,
+                                          title: title,
+                                          thumbnail: art,
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
                               ),
                             ],
                           ),
-                          child: mediaSrc != null
-                              ? SizedBox(
-                                  width: 140,
-                                  height: 140,
-                                  child: AnimatedArtworkWidget(
-                                    mediaSource: mediaSrc,
-                                    staticFallback: staticOnlineArt,
-                                    borderRadius: BorderRadius.circular(
-                                      isArtist ? 70 : 16,
-                                    ),
-                                    fit: BoxFit.cover,
-                                  ),
-                                )
-                              : staticOnlineArt,
-                        ),
-                      );
+                        );
+                      },
+                    ),
+                  )
+                else
+                  SliverToBoxAdapter(
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final isNarrow = constraints.maxWidth < 450;
+                        final motionArt = ref.watch(
+                          animatedArtworkForCollectionProvider((
+                            artist: subtitle,
+                            album: title,
+                          )),
+                        );
+                        final mediaSrc =
+                            motionArt.asData?.value?.bestSquareMedia;
 
-                      final infoWidget = Column(
-                        crossAxisAlignment: isNarrow
-                            ? CrossAxisAlignment.center
-                            : CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            title,
-                            key: _titleKey,
-                            textAlign: isNarrow
-                                ? TextAlign.center
-                                : TextAlign.start,
-                            style: AppFonts.jostStyle(
-                              fontSize: 26,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
+                        final staticOnlineArt = OnlineArt(
+                          url: art,
+                          size: 140,
+                          round: false,
+                          icon: LucideIcons.disc3,
+                        );
+
+                        final artWidget = ScrollStage(
+                          controller: _controller,
+                          length: 220,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.3),
+                                  blurRadius: 16,
+                                  offset: const Offset(0, 8),
+                                ),
+                              ],
                             ),
+                            child: mediaSrc != null
+                                ? SizedBox(
+                                    width: 140,
+                                    height: 140,
+                                    child: AnimatedArtworkWidget(
+                                      mediaSource: mediaSrc,
+                                      staticFallback: staticOnlineArt,
+                                      borderRadius: BorderRadius.circular(16),
+                                      fit: BoxFit.cover,
+                                    ),
+                                  )
+                                : staticOnlineArt,
                           ),
-                          const SizedBox(height: 6),
-                          if (subtitle != null && subtitle.isNotEmpty)
+                        );
+
+                        final infoWidget = Column(
+                          crossAxisAlignment: isNarrow
+                              ? CrossAxisAlignment.center
+                              : CrossAxisAlignment.start,
+                          children: [
                             Text(
-                              subtitle,
+                              title,
+                              key: _titleKey,
                               textAlign: isNarrow
                                   ? TextAlign.center
                                   : TextAlign.start,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
                               style: AppFonts.jostStyle(
-                                fontSize: 14,
-                                color: Colors.white.withValues(alpha: 0.6),
+                                fontSize: 26,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
                               ),
                             ),
-                          if (songs.isNotEmpty) ...[
-                            const SizedBox(height: 4),
-                            Text(
-                              l10n.songsCount(songs.length),
-                              style: AppFonts.jostStyle(
-                                fontSize: 13,
-                                color: Colors.white38,
+                            const SizedBox(height: 6),
+                            if (subtitle != null && subtitle.isNotEmpty)
+                              Text(
+                                subtitle,
+                                textAlign: isNarrow
+                                    ? TextAlign.center
+                                    : TextAlign.start,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: AppFonts.jostStyle(
+                                  fontSize: 14,
+                                  color: Colors.white.withValues(alpha: 0.6),
+                                ),
                               ),
+                            if (songs.isNotEmpty) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                l10n.songsCount(songs.length),
+                                style: AppFonts.jostStyle(
+                                  fontSize: 13,
+                                  color: Colors.white38,
+                                ),
+                              ),
+                            ],
+                            const SizedBox(height: 16),
+                            Wrap(
+                              spacing: 12,
+                              runSpacing: 10,
+                              alignment: isNarrow
+                                  ? WrapAlignment.center
+                                  : WrapAlignment.start,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              children: [
+                                if (songs.isNotEmpty) ...[
+                                  FilledButton.icon(
+                                    onPressed: () {
+                                      AppHaptics.light();
+                                      ref
+                                          .read(playbackProvider.notifier)
+                                          .playCollection(songs);
+                                    },
+                                    icon:
+                                        const Icon(LucideIcons.play, size: 18),
+                                    label: Text(l10n.playAll),
+                                  ),
+                                  OutlinedButton.icon(
+                                    onPressed: () {
+                                      AppHaptics.light();
+                                      ref
+                                          .read(playbackProvider.notifier)
+                                          .playCollection(songs, shuffle: true);
+                                    },
+                                    icon: const Icon(LucideIcons.shuffle,
+                                        size: 18),
+                                    label: Text(l10n.shuffleTitle),
+                                  ),
+                                ],
+                              ],
                             ),
                           ],
-                          const SizedBox(height: 16),
-                          Wrap(
-                            spacing: 12,
-                            runSpacing: 10,
-                            alignment: isNarrow
-                                ? WrapAlignment.center
-                                : WrapAlignment.start,
-                            crossAxisAlignment: WrapCrossAlignment.center,
-                            children: [
-                              if (songs.isNotEmpty) ...[
-                                FilledButton.icon(
-                                  onPressed: () {
-                                    AppHaptics.light();
-                                    ref
-                                        .read(playbackProvider.notifier)
-                                        .playCollection(songs);
-                                  },
-                                  icon: const Icon(LucideIcons.play, size: 18),
-                                  label: Text(l10n.playAll),
-                                ),
-                                OutlinedButton.icon(
-                                  onPressed: () {
-                                    AppHaptics.light();
-                                    ref
-                                        .read(playbackProvider.notifier)
-                                        .playCollection(songs, shuffle: true);
-                                  },
-                                  icon: const Icon(LucideIcons.shuffle,
-                                      size: 18),
-                                  label: Text(l10n.shuffleTitle),
-                                ),
-                              ],
-                              if (isArtist)
-                                _FollowButton(
-                                  collection: widget.collection,
-                                  title: title,
-                                  thumbnail: art,
-                                ),
-                            ],
-                          ),
-                        ],
-                      );
+                        );
 
-                      return Container(
-                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                        child: isNarrow
-                            ? Column(
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                children: [
-                                  Center(child: artWidget),
-                                  const SizedBox(height: 18),
-                                  infoWidget,
-                                ],
-                              )
-                            : Row(
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                children: [
-                                  artWidget,
-                                  const SizedBox(width: 20),
-                                  Expanded(child: infoWidget),
-                                ],
-                              ),
-                      );
-                    },
+                        return Container(
+                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                          child: isNarrow
+                              ? Column(
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  children: [
+                                    Center(child: artWidget),
+                                    const SizedBox(height: 18),
+                                    infoWidget,
+                                  ],
+                                )
+                              : Row(
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  children: [
+                                    artWidget,
+                                    const SizedBox(width: 20),
+                                    Expanded(child: infoWidget),
+                                  ],
+                                ),
+                        );
+                      },
+                    ),
                   ),
-                ),
                 if (isArtist && songs.isNotEmpty)
                   SliverToBoxAdapter(
                     child: Column(
@@ -471,7 +605,7 @@ class _ArtistSongPages extends StatelessWidget {
     if (chunks.isEmpty) return const SizedBox.shrink();
 
     final firstCount = chunks.first.length;
-    final height = firstCount * 64.0;
+    final height = firstCount * 72.0;
 
     if (chunks.length == 1) {
       return Column(
