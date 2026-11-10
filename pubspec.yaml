@@ -1,10 +1,10 @@
 name: looper_player
-description: "Looper Player - A powerful music player."
+description: "Looper Music - A powerful music player."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 
-version: 3.0.0+2053
+version: 3.0.0+2054
 
 environment:
   sdk: ^3.11.0
@@ -85,6 +85,10 @@ dev_dependencies:
   coverage: ^1.15.1
 
 dependency_overrides:
+  # Patched copy: the limiter and resampler run last in the filter chain
+  # (see third_party/mpv_audio_kit/LOOPER_PATCH.md).
+  mpv_audio_kit:
+    path: third_party/mpv_audio_kit
   # metadata_god 1.1.0 ships Rust and Dart glue generated with exactly
   # flutter_rust_bridge 2.11.1 and refuses to initialise on any other
   # runtime version. Left to float (its constraint is ^2.11.1) pub picks a

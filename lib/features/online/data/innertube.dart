@@ -144,14 +144,31 @@ class InnerTube {
   final _replacements = <DateTime>[];
   DateTime? _holdUntil;
 
+  String get country => _country;
+  String get language => _language;
+
   String get _country {
+    final configured = OnlineSettingsNotifier.current.contentRegion;
+    if (configured != null && RegExp(r'^[A-Z]{2}$').hasMatch(configured)) {
+      return configured;
+    }
+    final device = OnlineSettingsNotifier.deviceCountry;
+    if (device != null && RegExp(r'^[A-Z]{2}$').hasMatch(device)) {
+      return device;
+    }
     final parts = Platform.localeName.split(RegExp('[_.-]'));
     return parts.length > 1 && parts[1].length == 2
         ? parts[1].toUpperCase()
         : 'US';
   }
 
-  String get _language => Platform.localeName.split(RegExp('[_.-]')).first;
+  String get _language {
+    final configured = OnlineSettingsNotifier.current.contentLanguage;
+    if (configured != null && configured.isNotEmpty) {
+      return configured.toLowerCase();
+    }
+    return Platform.localeName.split(RegExp('[_.-]')).first;
+  }
 
   /// The visitor id that signed the most recent call, without minting.
   String? get currentVisitor => _visitor;
@@ -321,6 +338,8 @@ class InnerTube {
               'X-Goog-Visitor-Id': vd,
               'X-YouTube-Client-Name': '67',
               'X-YouTube-Client-Version': InnerTubeClients.remixVersion,
+              'Accept-Language':
+                  '$_language-$_country,$_language;q=0.9,en;q=0.8',
               ...auth,
             },
             body: jsonEncode(payload),

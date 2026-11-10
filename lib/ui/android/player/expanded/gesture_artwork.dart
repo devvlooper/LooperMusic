@@ -256,7 +256,10 @@ class _GestureArtworkWithFeedbackState
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(12),
-        child: AnimatedSwitcher(
+        child: Hero(
+          tag: 'album_art',
+          flightShuttleBuilder: artworkFlightShuttle,
+          child: AnimatedSwitcher(
           duration: animate ? const Duration(milliseconds: 320) : Duration.zero,
           switchInCurve: Curves.easeOutCubic,
           switchOutCurve: Curves.easeInCubic,
@@ -325,7 +328,8 @@ class _GestureArtworkWithFeedbackState
           ),
         ),
       ),
-    );
+    ),
+  );
 
     if (nextSong?.artPath != null &&
         nextSong!.artPath != _precachedNextArtPath) {
@@ -444,10 +448,11 @@ class _GestureArtworkWithFeedbackState
       child: ValueListenableBuilder<double>(
         valueListenable: ref.watch(playerExpandProgressProvider),
         builder: (context, expandProgress, child) {
+          final double opacity = !enableSlide
+              ? 1.0
+              : ((expandProgress - 0.90) / 0.10).clamp(0.0, 1.0);
           return Opacity(
-            opacity: !enableSlide || expandProgress >= kFluidHandoff
-                ? 1.0
-                : 0.0,
+            opacity: opacity,
             child: child,
           );
         },
@@ -509,11 +514,7 @@ class _GestureArtworkWithFeedbackState
                           child: child,
                         ),
                       ),
-                      child: Hero(
-                        tag: 'album_art',
-                        flightShuttleBuilder: artworkFlightShuttle,
-                        child: artworkSwitcher,
-                      ),
+                      child: artworkSwitcher,
                     ),
                   ),
                   // Feedback Overlay

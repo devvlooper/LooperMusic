@@ -84,83 +84,126 @@ const videoTypePodcast = 'MUSIC_VIDEO_TYPE_PODCAST_EPISODE';
 
 enum CollectionKind { album, playlist, artist }
 
+enum MixKind {
+  songRadio,
+  playlistRadio,
+  artistRadio,
+  artistShuffle,
+  personalMix,
+  editorialPlaylist,
+}
+
+enum ShelfKind {
+  regular,
+  discover,
+  guestQuickPicks,
+  guestRadio,
+  guestBecause,
+  guestSimilar,
+  guestMoreFrom,
+  guestTrending,
+}
+
 enum OnlineShelfType {
   heroSpotlight,
   multiRowTracks,
   standardCards,
   genreGrid,
   artistCircles,
+  speedDial,
+  videoCards,
+  discoverCards,
+  featuredRelease,
+  playlistPreview,
+}
+
+MixKind? mixKindFromId(String? browseId) {
+  if (browseId == null) return null;
+  var id = browseId;
+  if (id.startsWith('VL')) id = id.substring(2);
+  if (id.startsWith('RDAMVM')) return MixKind.songRadio;
+  if (id.startsWith('RDAMPL')) return MixKind.playlistRadio;
+  if (id.startsWith('RDEM')) return MixKind.artistRadio;
+  if (id.startsWith('RDAO')) return MixKind.artistShuffle;
+  if (id.startsWith('RDTMAK')) return MixKind.personalMix;
+  if (id.startsWith('RDCLAK')) return MixKind.editorialPlaylist;
+  return null;
+}
+
+bool isRadioStation(String? browseId, [String? title]) {
+  final kind = mixKindFromId(browseId);
+  return kind != null && kind != MixKind.editorialPlaylist;
 }
 
 OnlineShelfType classifyShelf(OnlineShelf shelf) {
-  final title = shelf.title.toLowerCase();
+  // 1. Explicit shelf type (our own shelves)
+  if (shelf.shelfType != null) {
+    return shelf.shelfType!;
+  }
 
-  // 1. Artist shelf: all collections are artists
+  // 2. Pure artist collections
   if (shelf.collections.isNotEmpty &&
       shelf.collections.every((c) => c.kind == CollectionKind.artist)) {
     return OnlineShelfType.artistCircles;
   }
 
-  // 2. Quick Picks / Listen Again / Track recommendations
-  if (shelf.songs.isNotEmpty && shelf.collections.isEmpty) {
-    if (title.contains('quick picks') ||
-        title.contains('listen again') ||
-        title.contains('start radio') ||
-        title.contains('based on your library') ||
-        title.contains('songs')) {
-      return OnlineShelfType.multiRowTracks;
-    }
-  }
-
-  // 3. Hero Spotlight: Mixed for you / Supermix / Featured
-  if (title.contains('mixed for you') ||
-      title.contains('supermix') ||
-      title.contains('featured') ||
-      title.contains('daily mix')) {
-    return OnlineShelfType.heroSpotlight;
-  }
-
-  // 4. Moods & Genres
-  if (title.contains('mood') ||
-      title.contains('genre') ||
-      title.contains('activities')) {
+  // 3. Mood/genre activity hub chips
+  if (shelf.renderer == 'musicNavigationButtonRenderer' ||
+      (shelf.collections.isNotEmpty &&
+          shelf.collections.every(
+            (c) =>
+                c.browseId.startsWith('FEmusic_moods_and_genres') ||
+                c.browseId.startsWith('FEmusic_genre') ||
+                c.browseId.startsWith('FEmusic_workout') ||
+                c.browseId.startsWith('FEmusic_focus') ||
+                c.browseId.startsWith('FEmusic_party'),
+          ))) {
     return OnlineShelfType.genreGrid;
   }
 
-  // 5. Default
-  return OnlineShelfType.standardCards;
-}
+  // 4. Quick picks / track list rows
+  if (shelf.renderer == 'musicResponsiveListItemRenderer' ||
+      (shelf.songs.isNotEmpty && shelf.collections.isEmpty)) {
+    return OnlineShelfType.multiRowTracks;
+  }
 
-bool isRadioStation(String? browseId, String? title) {
-  final id = browseId ?? '';
-  if (id.startsWith('RDAMVM') ||
-      id.startsWith('RDAMPL') ||
-      id.startsWith('RDCLAK') ||
-      id.startsWith('RDTMAK') ||
-      id.startsWith('VLRDAM') ||
-      id.startsWith('VLRD')) {
-    return true;
+  // 5. Immersive carousel or >= 60% stations
+  if (shelf.renderer == 'musicImmersiveCarouselShelfRenderer') {
+    return OnlineShelfType.heroSpotlight;
   }
-  final t = (title ?? '').toLowerCase().trim();
-  if (t.startsWith('mix - ') ||
-      t.startsWith('mix: ') ||
-      t.endsWith(' mix') ||
-      t.startsWith('radio: ') ||
-      t.endsWith(' radio') ||
-      t.contains('supermix')) {
-    return true;
+  if (shelf.collections.isNotEmpty) {
+    final stationCount = shelf.collections.where((c) => c.isRadio).length;
+    if (stationCount / shelf.collections.length >= 0.6) {
+      return OnlineShelfType.heroSpotlight;
+    }
   }
-  return false;
+
+  // 6. Otherwise standard cards
+  return OnlineShelfType.standardCards;
 }
 
 String cleanMixTitle(String raw) {
   var t = raw.trim();
-  if (t.startsWith('Mix - ')) t = t.substring(6).trim();
-  if (t.startsWith('Mix: ')) t = t.substring(5).trim();
-  if (t.startsWith('Radio: ')) t = t.substring(7).trim();
-  if (t.endsWith(' Mix')) t = t.substring(0, t.length - 4).trim();
-  if (t.endsWith(' Radio')) t = t.substring(0, t.length - 6).trim();
+  final lower = t.toLowerCase();
+  if (lower.startsWith('mix - ')) {
+    t = t.substring(6).trim();
+  } else if (lower.startsWith('mix: ')) {
+    t = t.substring(5).trim();
+  } else if (lower.startsWith('radio: ')) {
+    t = t.substring(7).trim();
+  } else if (lower.endsWith(' mix')) {
+    t = t.substring(0, t.length - 4).trim();
+  } else if (lower.endsWith(' radio')) {
+    t = t.substring(0, t.length - 6).trim();
+  }
   return t.isEmpty ? raw.trim() : t;
+}
+
+String mixTitle(OnlineCollection c) {
+  if (c.mixKind == null || c.mixKind == MixKind.editorialPlaylist) {
+    return c.title;
+  }
+  return cleanMixTitle(c.title);
 }
 
 String? cleanMixSubtitle(
@@ -170,41 +213,37 @@ String? cleanMixSubtitle(
   List<String> artists = const [],
 }) {
   final cleanT = cleanMixTitle(rawTitle).toLowerCase();
-  if (rawSubtitle == null || rawSubtitle.trim().isEmpty) {
-    return _synthesizeMixSubtitle(browseId, artists);
-  }
-  var sub = rawSubtitle.trim();
-  if (sub.startsWith('Mix • ')) sub = sub.substring(6).trim();
-  if (sub.startsWith('Mix - ')) sub = sub.substring(6).trim();
-  if (sub.startsWith('Radio • ')) sub = sub.substring(8).trim();
+  String normalize(String s) => s
+      .toLowerCase()
+      .replaceAll(RegExp(r'\b(mix|radio)\b', caseSensitive: false), '')
+      .replaceAll(RegExp(r'[\s•\-]+'), ' ')
+      .trim();
 
-  final cleanS = sub.toLowerCase();
-  if (cleanS == cleanT ||
-      cleanS == 'mix' ||
-      cleanS == 'radio' ||
-      cleanS.isEmpty) {
-    return _synthesizeMixSubtitle(browseId, artists);
-  }
-  return sub;
-}
+  final normT = normalize(cleanT);
+  final normS = rawSubtitle != null ? normalize(rawSubtitle) : '';
 
-String _synthesizeMixSubtitle(String? browseId, List<String> artists) {
+  if (normS.isNotEmpty && normS != normT) {
+    var sub = rawSubtitle!.trim();
+    if (sub.startsWith('Mix • ')) sub = sub.substring(6).trim();
+    if (sub.startsWith('Mix - ')) sub = sub.substring(6).trim();
+    if (sub.startsWith('Radio • ')) sub = sub.substring(8).trim();
+    return sub;
+  }
+
   if (artists.isNotEmpty) {
-    return 'Feat. ${artists.take(3).join(', ')}';
+    return artists.take(3).join(', ');
   }
-  final id = browseId ?? '';
-  if (id.startsWith('RDAMVM') ||
-      id.startsWith('RDAMPL') ||
-      id.startsWith('VLRDAM')) {
-    return 'Endless Radio • Based on track';
-  }
-  if (id.startsWith('RDTMAK')) {
-    return 'Artist Station • Complete catalog & similar';
-  }
-  if (id.startsWith('RDCLAK')) {
-    return 'Curated Blend • Dynamic flow';
-  }
-  return 'Endless Radio • Autoplay';
+
+  final kind = mixKindFromId(browseId);
+  return switch (kind) {
+    MixKind.songRadio => 'Endless Radio • Based on track',
+    MixKind.artistRadio ||
+    MixKind.artistShuffle => 'Artist Station • Complete catalog & similar',
+    MixKind.personalMix => 'Made for you',
+    MixKind.editorialPlaylist => 'Curated Blend • Dynamic flow',
+    MixKind.playlistRadio => 'Endless Radio • Based on playlist',
+    null => null,
+  };
 }
 
 /// An album, playlist or artist card.
@@ -215,22 +254,52 @@ class OnlineCollection {
     required this.kind,
     this.subtitle,
     this.thumbnail,
-    this.isRadio = false,
-  });
+    this.mixKind,
+    this.artists = const [],
+    bool? isRadio,
+  }) : _explicitRadio = isRadio;
 
   final String browseId;
   final String title;
   final CollectionKind kind;
   final String? subtitle;
   final String? thumbnail;
-  final bool isRadio;
+  final MixKind? mixKind;
+  final List<String> artists;
+  final bool? _explicitRadio;
+
+  bool get isRadio =>
+      _explicitRadio ??
+      (mixKind != null && mixKind != MixKind.editorialPlaylist);
+
+  OnlineCollection copyWith({
+    String? browseId,
+    String? title,
+    CollectionKind? kind,
+    String? subtitle,
+    String? thumbnail,
+    MixKind? mixKind,
+    List<String>? artists,
+    bool? isRadio,
+  }) => OnlineCollection(
+    browseId: browseId ?? this.browseId,
+    title: title ?? this.title,
+    kind: kind ?? this.kind,
+    subtitle: subtitle ?? this.subtitle,
+    thumbnail: thumbnail ?? this.thumbnail,
+    mixKind: mixKind ?? this.mixKind,
+    artists: artists ?? this.artists,
+    isRadio: isRadio ?? this.isRadio,
+  );
 
   Map<String, dynamic> toJson() => {
     'b': browseId,
     't': title,
     'k': kind.name,
-    's': subtitle,
-    'th': thumbnail,
+    if (subtitle != null) 's': subtitle,
+    if (thumbnail != null) 'th': thumbnail,
+    if (mixKind != null) 'mk': mixKind!.name,
+    if (artists.isNotEmpty) 'ar': artists,
     if (isRadio) 'r': true,
   };
 
@@ -238,13 +307,20 @@ class OnlineCollection {
     if (j is! Map || j['b'] is! String || j['t'] is! String) return null;
     final kind = CollectionKind.values.where((k) => k.name == j['k']);
     if (kind.isEmpty) return null;
+    final mkName = j['mk'] as String?;
+    final mk = mkName != null
+        ? MixKind.values.where((k) => k.name == mkName).firstOrNull
+        : mixKindFromId(j['b'] as String?);
     return OnlineCollection(
       browseId: j['b'] as String,
       title: j['t'] as String,
       kind: kind.first,
       subtitle: j['s'] as String?,
       thumbnail: j['th'] as String?,
-      isRadio: j['r'] as bool? ?? false,
+      mixKind: mk,
+      artists: [for (final a in (j['ar'] as List? ?? const [])) a.toString()],
+      isRadio:
+          j['r'] as bool? ?? (mk != null && mk != MixKind.editorialPlaylist),
     );
   }
 }
@@ -258,6 +334,10 @@ class OnlineShelf {
     this.moreBrowseId,
     this.moreParams,
     this.shelfType,
+    this.kind = ShelfKind.regular,
+    this.args = const [],
+    this.renderer,
+    this.itemsPerColumn,
   });
   final String title;
   final List<OnlineSong> songs;
@@ -268,10 +348,38 @@ class OnlineShelf {
   final String? moreBrowseId;
   final String? moreParams;
   final OnlineShelfType? shelfType;
+  final ShelfKind kind;
+  final List<String> args;
+  final String? renderer;
+  final int? itemsPerColumn;
 
   OnlineShelfType get type => shelfType ?? classifyShelf(this);
 
   bool get isEmpty => songs.isEmpty && collections.isEmpty;
+
+  OnlineShelf copyWith({
+    String? title,
+    List<OnlineSong>? songs,
+    List<OnlineCollection>? collections,
+    String? moreBrowseId,
+    String? moreParams,
+    OnlineShelfType? shelfType,
+    ShelfKind? kind,
+    List<String>? args,
+    String? renderer,
+    int? itemsPerColumn,
+  }) => OnlineShelf(
+    title ?? this.title,
+    songs: songs ?? this.songs,
+    collections: collections ?? this.collections,
+    moreBrowseId: moreBrowseId ?? this.moreBrowseId,
+    moreParams: moreParams ?? this.moreParams,
+    shelfType: shelfType ?? this.shelfType,
+    kind: kind ?? this.kind,
+    args: args ?? this.args,
+    renderer: renderer ?? this.renderer,
+    itemsPerColumn: itemsPerColumn ?? this.itemsPerColumn,
+  );
 
   Map<String, dynamic> toJson() => {
     't': title,
@@ -280,6 +388,10 @@ class OnlineShelf {
     if (moreBrowseId != null) 'mb': moreBrowseId,
     if (moreParams != null) 'mp': moreParams,
     if (shelfType != null) 'st': shelfType!.name,
+    if (kind != ShelfKind.regular) 'sk': kind.name,
+    if (args.isNotEmpty) 'ka': args,
+    if (renderer != null) 'rr': renderer,
+    if (itemsPerColumn != null) 'ipc': itemsPerColumn,
   };
 
   static OnlineShelf? fromJson(Object? j) {
@@ -288,6 +400,18 @@ class OnlineShelf {
     final st = stName != null
         ? OnlineShelfType.values.where((e) => e.name == stName).firstOrNull
         : null;
+    final skName = j['sk'] as String?;
+    final sk = skName != null
+        ? ShelfKind.values.where((e) => e.name == skName).firstOrNull ??
+              ShelfKind.regular
+        : ShelfKind.regular;
+    final ka = [
+      for (final a in (j['ka'] as List? ?? j['ska'] as List? ?? const []))
+        a.toString(),
+    ];
+    final rr = j['rr'] as String?;
+    final ipc = j['ipc'] as int?;
+
     return OnlineShelf(
       j['t'] as String,
       songs: [
@@ -300,8 +424,118 @@ class OnlineShelf {
       moreBrowseId: j['mb'] as String?,
       moreParams: j['mp'] as String?,
       shelfType: st,
+      kind: sk,
+      args: ka,
+      renderer: rr,
+      itemsPerColumn: ipc,
     );
   }
+}
+
+/// Pure layout pass (Doc 22 §6.3): at most 2 heroes and 2 song lists,
+/// varied styles for the rest, and no two neighbouring shelves in the
+/// same style.
+List<OnlineShelf> applyFeedLayoutPass(List<OnlineShelf> shelves) {
+  final typed = <OnlineShelf>[];
+  var heroCount = 0;
+  var trackListCount = 0;
+  var songStyleIndex = 0;
+  var cardShelfCount = 0;
+  OnlineShelfType? previous;
+
+  for (final shelf in shelves) {
+    final base = shelf.type;
+    final cs = shelf.collections;
+    // Styles this shelf can take, most preferred first.
+    final List<OnlineShelfType> options;
+    if (base == OnlineShelfType.heroSpotlight) {
+      options = [
+        if (heroCount < 2) OnlineShelfType.heroSpotlight,
+        OnlineShelfType.standardCards,
+      ];
+    } else if (base == OnlineShelfType.multiRowTracks &&
+        shelf.songs.isNotEmpty) {
+      final rotating = [
+        if (_isVideoShelf(shelf)) OnlineShelfType.videoCards,
+        if (shelf.songs.length >= 9) OnlineShelfType.speedDial,
+        OnlineShelfType.discoverCards,
+      ];
+      final start = songStyleIndex++ % rotating.length;
+      options = [
+        if (trackListCount < 2) OnlineShelfType.multiRowTracks,
+        ...rotating.skip(start),
+        ...rotating.take(start),
+      ];
+    } else if (base == OnlineShelfType.standardCards &&
+        cs.isNotEmpty &&
+        shelf.songs.isEmpty) {
+      final rich = cs.every((c) => c.kind == CollectionKind.album)
+          ? OnlineShelfType.featuredRelease
+          : cs.every((c) => c.kind == CollectionKind.playlist && !c.isRadio)
+          ? OnlineShelfType.playlistPreview
+          : null;
+      // Every second card shelf prefers the richer style.
+      options = cardShelfCount++ % 2 == 1
+          ? [?rich, OnlineShelfType.standardCards]
+          : [OnlineShelfType.standardCards, ?rich];
+    } else {
+      options = [base];
+    }
+    final type = options.firstWhere(
+      (t) => t != previous,
+      orElse: () => options.first,
+    );
+    if (type == OnlineShelfType.heroSpotlight) heroCount++;
+    if (type == OnlineShelfType.multiRowTracks) trackListCount++;
+    previous = type;
+    typed.add(type == base ? shelf : shelf.copyWith(shelfType: type));
+  }
+  return _spreadStyles(typed);
+}
+
+/// Keeps the order, but when a shelf would sit under one of the same
+/// style, the next shelf of another style moves up between them.
+List<OnlineShelf> _spreadStyles(List<OnlineShelf> shelves) {
+  final rest = [...shelves];
+  final out = <OnlineShelf>[];
+  while (rest.isNotEmpty) {
+    final i = rest.indexWhere((s) => out.isEmpty || s.type != out.last.type);
+    out.add(rest.removeAt(i < 0 ? 0 : i));
+  }
+  return out;
+}
+
+/// Most of the songs are music videos (wide thumbnails).
+bool _isVideoShelf(OnlineShelf shelf) {
+  final videos = shelf.songs
+      .where((s) => s.videoType != null && s.videoType != videoTypeAlbum)
+      .length;
+  return videos * 2 > shelf.songs.length;
+}
+
+/// Deduplicates browseIds and videoIds across shelves (Doc 22 §6.4).
+List<OnlineShelf> deduplicateShelves(List<OnlineShelf> shelves) {
+  final seenBrowseIds = <String>{};
+  final seenSongIds = <String>{};
+  final result = <OnlineShelf>[];
+
+  for (final shelf in shelves) {
+    final dedupedCollections = shelf.collections
+        .where((c) => seenBrowseIds.add(c.browseId))
+        .toList();
+
+    final dedupedSongs = shelf.songs
+        .where((s) => seenSongIds.add(s.videoId))
+        .toList();
+
+    final totalItems = dedupedCollections.length + dedupedSongs.length;
+    if (totalItems >= 3) {
+      result.add(
+        shelf.copyWith(collections: dedupedCollections, songs: dedupedSongs),
+      );
+    }
+  }
+  return result;
 }
 
 /// An album, playlist or artist page: header, its main song list and the
@@ -550,8 +784,10 @@ OnlineCollection? _collection(
   final browse = _at(endpointHolder, ['navigationEndpoint', 'browseEndpoint']);
   var id = browse is Map ? browse['browseId'] as String? : null;
   if (id == null) {
-    final watchPlaylist =
-        _at(endpointHolder, ['navigationEndpoint', 'watchPlaylistEndpoint']);
+    final watchPlaylist = _at(endpointHolder, [
+      'navigationEndpoint',
+      'watchPlaylistEndpoint',
+    ]);
     if (watchPlaylist is Map) {
       id = watchPlaylist['playlistId'] as String?;
     }
@@ -564,30 +800,31 @@ OnlineCollection? _collection(
   }
   if (id == null || title == null) return null;
 
-  final kind = _kindFor(
-    _at(browse, [
-          'browseEndpointContextSupportedConfigs',
-          'browseEndpointContextMusicConfig',
-          'pageType',
-        ])
-        as String?,
-    id,
-  ) ?? (id.startsWith('RD') || id.startsWith('VL') ? CollectionKind.playlist : null);
+  final kind =
+      _kindFor(
+        _at(browse, [
+              'browseEndpointContextSupportedConfigs',
+              'browseEndpointContextMusicConfig',
+              'pageType',
+            ])
+            as String?,
+        id,
+      ) ??
+      (id.startsWith('RD') || id.startsWith('VL')
+          ? CollectionKind.playlist
+          : null);
   if (kind == null) return null;
 
-  final isRadio = isRadioStation(id, title);
-  final finalTitle = isRadio ? cleanMixTitle(title) : title;
-  final finalSubtitle = isRadio
-      ? cleanMixSubtitle(title, subtitle, browseId: id, artists: artists)
-      : subtitle;
+  final mk = mixKindFromId(id);
 
   return OnlineCollection(
     browseId: id,
-    title: finalTitle,
+    title: title,
     kind: kind,
-    subtitle: finalSubtitle,
+    subtitle: subtitle,
     thumbnail: bestThumbnail(thumbNode),
-    isRadio: isRadio,
+    mixKind: mk,
+    artists: artists,
   );
 }
 
@@ -611,17 +848,17 @@ OnlineCollection? collectionFromListItem(Map<String, dynamic> r) {
   final title = runText(r['title']);
   final subtitleRuns = _runs(r['subtitle']);
   final subtitle = runText(r['subtitle']);
-  final artists = _artistsFrom(subtitleRuns)
-          ?.split(',')
-          .map((e) => e.trim())
-          .where((e) => e.isNotEmpty)
-          .toList() ??
+  final artists =
+      _artistsFrom(
+        subtitleRuns,
+      )?.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList() ??
       const [];
 
   final videoId =
       _at(r, ['navigationEndpoint', 'watchEndpoint', 'videoId']) as String?;
   final playlistId =
-      _at(r, ['navigationEndpoint', 'watchEndpoint', 'playlistId']) as String? ??
+      _at(r, ['navigationEndpoint', 'watchEndpoint', 'playlistId'])
+          as String? ??
       _at(r, ['navigationEndpoint', 'watchPlaylistEndpoint', 'playlistId'])
           as String?;
 
@@ -653,12 +890,15 @@ OnlineShelf _shelfOf(
   List contents, {
   String? moreBrowseId,
   String? moreParams,
+  String? renderer,
+  int? itemsPerColumn,
 }) {
   final songs = <OnlineSong>[];
   final cards = <OnlineCollection>[];
   for (final item in contents) {
     final list = _at(item, ['musicResponsiveListItemRenderer']);
     final two = _at(item, ['musicTwoRowItemRenderer']);
+    final navButton = _at(item, ['musicNavigationButtonRenderer']);
     if (list is Map) {
       final row = list.cast<String, dynamic>();
       final s = songFromListItem(row);
@@ -672,6 +912,22 @@ OnlineShelf _shelfOf(
       final (s, c) = _twoRow(two.cast<String, dynamic>());
       if (s != null) songs.add(s);
       if (c != null) cards.add(c);
+    } else if (navButton is Map) {
+      final btn = navButton.cast<String, dynamic>();
+      final btnTitle = runText(btn['buttonText']);
+      if (btnTitle != null) {
+        final browse =
+            _at(btn, ['clickCommand', 'browseEndpoint']) ??
+            _at(btn, ['navigationEndpoint', 'browseEndpoint']);
+        final bId = browse is Map ? browse['browseId'] as String? ?? '' : '';
+        cards.add(
+          OnlineCollection(
+            browseId: bId,
+            title: btnTitle,
+            kind: CollectionKind.playlist,
+          ),
+        );
+      }
     }
   }
   return OnlineShelf(
@@ -680,10 +936,12 @@ OnlineShelf _shelfOf(
     collections: cards,
     moreBrowseId: moreBrowseId,
     moreParams: moreParams,
+    renderer: renderer,
+    itemsPerColumn: itemsPerColumn,
   );
 }
 
-OnlineShelf _carousel(Map<String, dynamic> s) {
+OnlineShelf _carousel(Map<String, dynamic> s, {String? rendererName}) {
   final header =
       _at(s, ['header', 'musicCarouselShelfBasicHeaderRenderer']) ??
       _at(s, ['header', 'musicImmersiveCarouselShelfBasicHeaderRenderer']);
@@ -693,11 +951,31 @@ OnlineShelf _carousel(Map<String, dynamic> s) {
     'navigationEndpoint',
     'browseEndpoint',
   ]);
+  final contents = s['contents'] as List? ?? const [];
+  final rawIpc = s['numItemsPerColumn'];
+  final itemsPerColumn = rawIpc is int
+      ? rawIpc
+      : (rawIpc is String ? int.tryParse(rawIpc) : null);
+
+  String? itemRenderer;
+  if (contents.isNotEmpty) {
+    final first = contents.first;
+    if (first is Map) {
+      if (first.containsKey('musicNavigationButtonRenderer')) {
+        itemRenderer = 'musicNavigationButtonRenderer';
+      } else if (first.containsKey('musicResponsiveListItemRenderer')) {
+        itemRenderer = 'musicResponsiveListItemRenderer';
+      }
+    }
+  }
+
   return _shelfOf(
     runText(_at(header, ['title'])) ?? '',
-    s['contents'] as List? ?? const [],
+    contents,
     moreBrowseId: _at(more, ['browseId']) as String?,
     moreParams: _at(more, ['params']) as String?,
+    renderer: itemRenderer ?? rendererName,
+    itemsPerColumn: itemsPerColumn,
   );
 }
 
@@ -711,7 +989,7 @@ List<OnlineShelf> parseShelves(Map<String, dynamic> json) {
         if ((e.key == 'musicCarouselShelfRenderer' ||
                 e.key == 'musicImmersiveCarouselShelfRenderer') &&
             v is Map) {
-          out.add(_carousel(v.cast<String, dynamic>()));
+          out.add(_carousel(v.cast<String, dynamic>(), rendererName: e.key));
         } else {
           walk(v);
         }
@@ -894,10 +1172,12 @@ OnlinePage parsePage(Map<String, dynamic> json) {
           as String?;
 
   final bottomBrowse = _at(shelf, ['bottomEndpoint', 'browseEndpoint']);
-  final moreSongsBrowseId =
-      bottomBrowse is Map ? bottomBrowse['browseId'] as String? : null;
-  final moreSongsParams =
-      bottomBrowse is Map ? bottomBrowse['params'] as String? : null;
+  final moreSongsBrowseId = bottomBrowse is Map
+      ? bottomBrowse['browseId'] as String?
+      : null;
+  final moreSongsParams = bottomBrowse is Map
+      ? bottomBrowse['params'] as String?
+      : null;
 
   return OnlinePage(
     title: title,

@@ -129,7 +129,7 @@ class LoggerHelper {
       if (file != null && await file.exists()) {
         await Share.shareXFiles([
           XFile(file.path),
-        ], text: 'Looper Player Diagnostic Logs');
+        ], text: 'Looper Music Diagnostic Logs');
       }
     } catch (e) {
       write('Failed to export logs', e);
@@ -222,7 +222,7 @@ class LoggerHelper {
       if (await file.exists()) {
         await Share.shareXFiles([
           XFile(file.path),
-        ], text: 'Looper Player Crash Log');
+        ], text: 'Looper Music Crash Log');
       }
     } catch (e) {
       write('Failed to share crash log', e);

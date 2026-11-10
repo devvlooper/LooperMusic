@@ -20,7 +20,16 @@ class BlurredBackgroundArt extends ConsumerWidget {
 
   /// Scale applied around the blurred art (the player zooms in slightly).
   final double zoom;
-  const BlurredBackgroundArt({required this.song, this.zoom = 1.0, super.key});
+
+  /// Plays the song's motion art instead when Immersive Background is on.
+  /// Off for the player, which shows motion in its top art instead.
+  final bool motion;
+  const BlurredBackgroundArt({
+    required this.song,
+    this.zoom = 1.0,
+    this.motion = true,
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -47,15 +56,16 @@ class BlurredBackgroundArt extends ConsumerWidget {
         : const SizedBox.shrink();
 
     final motionSettings = ref.watch(animatedArtworkSettingsProvider);
-    if (!motionSettings.immersiveBackground ||
+    if (!motion ||
+        !motionSettings.immersiveBackground ||
         motionSettings.mode == AnimatedArtworkMode.never) {
       return staticArt;
     }
 
     final motionAsync = ref.watch(animatedArtworkForSongProvider(song));
-    final mediaSource = motionAsync.asData?.value?.bestTallMedia ??
+    final mediaSource =
+        motionAsync.asData?.value?.bestTallMedia ??
         motionAsync.asData?.value?.bestSquareMedia;
-    if (mediaSource == null) return staticArt;
 
     return AnimatedArtworkWidget(
       mediaSource: mediaSource,

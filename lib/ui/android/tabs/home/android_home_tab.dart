@@ -2,12 +2,16 @@ import 'package:looper_player/core/motion/looper_scroll_physics.dart';
 import 'package:looper_player/features/online/presentation/online_widgets.dart';
 import 'package:looper_player/features/online/presentation/online_providers.dart';
 import 'package:looper_player/core/providers/collection_navigation.dart';
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:looper_player/core/utils/song_metadata.dart';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:looper_player/ui/widgets/common/song_artwork.dart';
+import 'package:looper_player/ui/widgets/common/mochy_card_row.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:isar_community/isar.dart';
@@ -38,7 +42,11 @@ import '../../widgets/genre_card.dart';
 import '../../widgets/recent_song_pills.dart';
 
 import 'package:looper_player/core/services/haptics/app_haptics.dart';
+import 'home_order.dart';
+import 'hold_bloom.dart';
+
 part 'home_sections.dart';
+part 'home_reorder.dart';
 
 class AndroidHomeTab extends ConsumerStatefulWidget {
   const AndroidHomeTab({super.key});
@@ -47,17 +55,168 @@ class AndroidHomeTab extends ConsumerStatefulWidget {
   ConsumerState<AndroidHomeTab> createState() => _AndroidHomeTabState();
 }
 
-class _AndroidHomeTabState extends ConsumerState<AndroidHomeTab> {
+class _AndroidHomeTabState extends ConsumerState<AndroidHomeTab>
+    with TickerProviderStateMixin {
   int _currentQuickPickPage = 0;
 
-  @override
-  void initState() {
-    super.initState();
-  }
+  // Reorder mode (docs/online/27). Nothing is saved until Done.
+  bool _reordering = false;
+  List<String> _draftOrder = const [];
+  // Set each build: the rows on screen, and whether the 5 s hold may start.
+  List<String> _visibleRows = const [];
+  bool _holdAllowed = false;
+
+  // The 5 s hold that enters reorder mode: a thin ring fills around the
+  // finger from 1 s to 5 s, then ripples spread like a drop on water
+  // (see hold_bloom.dart).
+  late final _hold = AnimationController(
+    vsync: this,
+    duration: const Duration(seconds: 4),
+  );
+  late final _bloom = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1100),
+  );
+  late final _modeFade = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 280),
+    value: 1,
+  );
+  Timer? _holdTimer;
+  Offset? _holdStart;
+  // Where the finger went down, local to Home: the drop's center.
+  Offset _dropAt = Offset.zero;
+  int _pointers = 0;
 
   @override
   void dispose() {
+    _holdTimer?.cancel();
+    if (homeReorderCancel == _cancelReorder) homeReorderCancel = null;
+    _hold.dispose();
+    _bloom.dispose();
+    _modeFade.dispose();
     super.dispose();
+  }
+
+  // Both the tab's own route and the route holding the tab navigator must be
+  // on top, so a sheet opened by a card's long-press stops the hold.
+  bool get _homeOnTop =>
+      (ModalRoute.of(context)?.isCurrent ?? true) &&
+      (ModalRoute.of(Navigator.of(context).context)?.isCurrent ?? true);
+
+  // Raw pointer events, outside the gesture arena: a card's tap, a scroll
+  // or a card's own long-press can win the arena without telling a losing
+  // recognizer, which left the old hold running after plain taps. Here any
+  // lift, cancel, move past touch slop, second finger or scroll stops it.
+  void _onPointerDown(PointerDownEvent e) {
+    _pointers++;
+    if (_pointers > 1) return _stopHold();
+    if (!_bloom.isAnimating) _dropAt = e.localPosition;
+    _startHold(e.position);
+  }
+
+  void _onPointerMove(PointerMoveEvent e) {
+    final start = _holdStart;
+    if (start != null && (e.position - start).distance > kTouchSlop) {
+      _stopHold();
+    }
+  }
+
+  void _onPointerEnd(PointerEvent _) {
+    _pointers = math.max(0, _pointers - 1);
+    _stopHold();
+  }
+
+  void _startHold(Offset at) {
+    _stopHold();
+    if (!_holdAllowed || _bloom.isAnimating) return;
+    _holdStart = at;
+    var seconds = 0;
+    _holdTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      seconds++;
+      if (!mounted || !_holdAllowed || !_homeOnTop) return _stopHold();
+      if (seconds == 1) {
+        _hold.forward(from: 0);
+      } else if (seconds < 5) {
+        AppHaptics.tick();
+      } else {
+        _enterReorder();
+      }
+    });
+  }
+
+  void _stopHold() {
+    _holdTimer?.cancel();
+    _holdTimer = null;
+    _holdStart = null;
+    if (_bloom.isAnimating) return;
+    // Stop first: a grow that just started still reads 0.
+    _hold.stop();
+    if (_hold.value > 0) {
+      _hold.animateBack(
+        0,
+        duration: const Duration(milliseconds: 260),
+        curve: Curves.easeOutCubic,
+      );
+    }
+  }
+
+  void _enterReorder() {
+    _holdTimer?.cancel();
+    _holdTimer = null;
+    _holdStart = null;
+    AppHaptics.success();
+    void swapIn() {
+      if (!mounted || _reordering) return;
+      setState(() {
+        _reordering = true;
+        _draftOrder = [..._visibleRows];
+      });
+      _modeFade.forward(from: 0);
+      homeReorderCancel = _cancelReorder;
+    }
+
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _hold.value = 0;
+      return swapIn();
+    }
+    // Reorder mode fades in under the ripples, just after the splash.
+    void onBloom() {
+      if (_bloom.value < 0.12) return;
+      _bloom.removeListener(onBloom);
+      swapIn();
+    }
+
+    _bloom.addListener(onBloom);
+    _bloom.forward(from: 0).whenComplete(() {
+      _bloom.removeListener(onBloom);
+      if (!mounted) return;
+      swapIn();
+      _hold.value = 0;
+      _bloom.value = 0;
+    });
+  }
+
+  void _cancelReorder() => _leaveReorder(save: false);
+
+  /// [to] is the index before removal, as [SliverReorderableList] gives it.
+  void _moveDraft(List<String> rows, int from, int to) {
+    if (to > from) to--;
+    setState(() => _draftOrder = rows..insert(to, rows.removeAt(from)));
+  }
+
+  void _leaveReorder({required bool save}) {
+    if (!_reordering) return;
+    if (save) {
+      final saved = ref.read(settingsProvider).homeSectionOrder;
+      ref
+          .read(settingsProvider.notifier)
+          .updateHomeSectionOrder(mergeHomeOrder(saved, _draftOrder));
+      AppHaptics.success();
+    }
+    homeReorderCancel = null;
+    setState(() => _reordering = false);
+    _modeFade.forward(from: 0);
   }
 
   void _showSongOptions(BuildContext context, Song song) {
@@ -108,10 +267,7 @@ class _AndroidHomeTabState extends ConsumerState<AndroidHomeTab> {
               ),
               PremiumSection(
                 borderRadius: BorderRadius.circular(32),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 0,
-                  vertical: 0,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 0),
                 height: 40,
                 useExpanded: false,
                 useBlur: useBlur,
@@ -150,8 +306,7 @@ class _AndroidHomeTabState extends ConsumerState<AndroidHomeTab> {
                 ? math.max(3, ((availableWidth + 8) / (110 + 8)).floor())
                 : 3;
             final itemWidth =
-                ((availableWidth - 8 * (crossAxisCount - 1)) /
-                        crossAxisCount)
+                ((availableWidth - 8 * (crossAxisCount - 1)) / crossAxisCount)
                     .clamp(0.0, double.infinity);
             final gridHeight = ((itemWidth * 2) + 8).clamp(
               8.0,
@@ -186,9 +341,7 @@ class _AndroidHomeTabState extends ConsumerState<AndroidHomeTab> {
                           .toList();
 
                       return Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16.0,
-                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 16.0),
                         child: GridView.builder(
                           padding: EdgeInsets.zero,
                           physics: const NeverScrollableScrollPhysics(),
@@ -291,13 +444,13 @@ class _AndroidHomeTabState extends ConsumerState<AndroidHomeTab> {
                                                     showAlbumInQuickPicks,
                                               ),
                                               style: AppFonts.jostStyle(
-                                                color: Colors.white
-                                                    .withValues(alpha: 0.6),
+                                                color: Colors.white.withValues(
+                                                  alpha: 0.6,
+                                                ),
                                                 fontSize: 10,
                                               ),
                                               maxLines: 1,
-                                              overflow:
-                                                  TextOverflow.ellipsis,
+                                              overflow: TextOverflow.ellipsis,
                                             ),
                                         ],
                                       ),
@@ -334,9 +487,7 @@ class _AndroidHomeTabState extends ConsumerState<AndroidHomeTab> {
         ),
       ),
     );
-    orderedSlivers.add(
-      const SliverToBoxAdapter(child: SizedBox(height: 16)),
-    );
+    orderedSlivers.add(const SliverToBoxAdapter(child: SizedBox(height: 16)));
   }
 
   @override
@@ -536,128 +687,156 @@ class _AndroidHomeTabState extends ConsumerState<AndroidHomeTab> {
 
     final useBlur = enableDynamicTheming && !disableBlur;
 
-    final orderedSlivers = <Widget>[
-      SliverToBoxAdapter(
-        child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-          child: Stack(
-            alignment: Alignment.center,
+    final onlineActive = ref.watch(onlineActiveProvider);
+    // Online rows count as shown only with content, like on screen.
+    final (onlineFirstLoad, hasOnlineMore) = onlineActive
+        ? ref.watch(
+            onlineHomeProvider.select(
+              (h) => (h.loading && h.shelves.isEmpty, h.shelves.length > 2),
+            ),
+          )
+        : (false, false);
+    final hasOnlineArtists =
+        onlineActive &&
+        !onlineFirstLoad &&
+        ref.watch(
+          onlineArtistsForYouProvider.select(
+            (a) => a.value?.isNotEmpty ?? false,
+          ),
+        );
+
+    // Switching tabs cancels reorder mode.
+    ref.listen(appNavigationProvider.select((s) => s.activeItem), (_, item) {
+      if (item != NavItem.home) _cancelReorder();
+    });
+
+    final header = Padding(
+      key: const ValueKey('header'),
+      padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Row(
             children: [
+              // Square avatars sit centered in a 40dp slot as before; a
+              // wide logo keeps the 38dp height and grows to the right
+              // (capped so it stays clear of the centered indicator).
+              SizedBox(
+                height: 38,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(minWidth: 40),
+                  child: const Center(
+                    child: SelectedAvatar(size: 38, maxWidth: 130),
+                  ),
+                ),
+              ),
+              // The enriching pill takes only the space between the
+              // avatar and the buttons (shrinking to fit instead of
+              // sliding under them on narrow screens / long languages).
+              const Expanded(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 8),
+                  child: Center(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: EnrichmentIndicator(),
+                    ),
+                  ),
+                ),
+              ),
               Row(
                 children: [
-                  // Square avatars sit centered in a 40dp slot as before; a
-                  // wide logo keeps the 38dp height and grows to the right
-                  // (capped so it stays clear of the centered indicator).
-                  SizedBox(
-                    height: 38,
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(minWidth: 40),
-                      child: const Center(
-                        child: SelectedAvatar(size: 38, maxWidth: 130),
-                      ),
+                  PremiumSection(
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(32),
+                      bottomLeft: Radius.circular(32),
+                      topRight: Radius.circular(10),
+                      bottomRight: Radius.circular(10),
+                    ),
+                    width: 48,
+                    height: 48,
+                    useExpanded: false,
+                    useBlur: useBlur,
+                    forceNoBlur: true,
+                    backgroundColor: Colors.white.withValues(alpha: 0.04),
+                    onTap: () {
+                      AppHaptics.light();
+                      ref
+                          .read(appNavigationProvider.notifier)
+                          .setItem(NavItem.search);
+                    },
+                    child: const Icon(
+                      LucideIcons.search,
+                      color: Colors.white,
+                      size: 20,
                     ),
                   ),
-                  // The enriching pill takes only the space between the
-                  // avatar and the buttons (shrinking to fit instead of
-                  // sliding under them on narrow screens / long languages).
-                  const Expanded(
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 8),
-                      child: Center(
-                        child: FittedBox(
-                          fit: BoxFit.scaleDown,
-                          child: EnrichmentIndicator(),
-                        ),
-                      ),
+                  if (ref.watch(onlineActiveProvider)) ...[
+                    const SizedBox(width: 5),
+                    const OnlineStatusIndicator(),
+                  ],
+                  const SizedBox(width: 5),
+                  PremiumSection(
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(10),
+                      bottomLeft: Radius.circular(10),
+                      topRight: Radius.circular(32),
+                      bottomRight: Radius.circular(32),
                     ),
-                  ),
-                  Row(
-                    children: [
-                      PremiumSection(
-                        borderRadius: const BorderRadius.only(
-                          topLeft: Radius.circular(32),
-                          bottomLeft: Radius.circular(32),
-                          topRight: Radius.circular(10),
-                          bottomRight: Radius.circular(10),
-                        ),
-                        width: 48,
-                        height: 48,
-                        useExpanded: false,
-                        useBlur: useBlur,
-                        forceNoBlur: true,
-                        backgroundColor: Colors.white.withValues(alpha: 0.04),
-                        onTap: () {
-                          AppHaptics.light();
-                          ref
-                              .read(appNavigationProvider.notifier)
-                              .setItem(NavItem.search);
-                        },
-                        child: const Icon(
-                          LucideIcons.search,
-                          color: Colors.white,
-                          size: 20,
-                        ),
-                      ),
-                      if (ref.watch(onlineActiveProvider)) ...[
-                        const SizedBox(width: 5),
-                        const OnlineStatusIndicator(),
-                      ],
-                      const SizedBox(width: 5),
-                      PremiumSection(
-                        borderRadius: const BorderRadius.only(
-                          topLeft: Radius.circular(10),
-                          bottomLeft: Radius.circular(10),
-                          topRight: Radius.circular(32),
-                          bottomRight: Radius.circular(32),
-                        ),
-                        width: 48,
-                        height: 48,
-                        useExpanded: false,
-                        useBlur: useBlur,
-                        backgroundColor: Colors.white.withValues(alpha: 0.04),
-                        forceNoBlur: true,
-                        onTap: () {
-                          AppHaptics.light();
-                          ref
-                              .read(appNavigationProvider.notifier)
-                              .setItem(NavItem.settings);
-                        },
-                        child: const Icon(
-                          LucideIcons.settings,
-                          color: Colors.white,
-                          size: 20,
-                        ),
-                      ),
-                    ],
+                    width: 48,
+                    height: 48,
+                    useExpanded: false,
+                    useBlur: useBlur,
+                    backgroundColor: Colors.white.withValues(alpha: 0.04),
+                    forceNoBlur: true,
+                    onTap: () {
+                      AppHaptics.light();
+                      ref
+                          .read(appNavigationProvider.notifier)
+                          .setItem(NavItem.settings);
+                    },
+                    child: const Icon(
+                      LucideIcons.settings,
+                      color: Colors.white,
+                      size: 20,
+                    ),
                   ),
                 ],
               ),
             ],
           ),
-        ),
+        ],
       ),
-    ];
+    );
 
-    // Quick picks is pinned first, ignoring homeSectionOrder.
-    if (allQuickPicks.isNotEmpty) {
-      _buildQuickPicksSlivers(
-        context,
-        orderedSlivers,
-        allQuickPicks,
-        l10n,
-        useBlur,
-        showArtistInQuickPicks,
-        showAlbumInQuickPicks,
-      );
-    }
-
-    // Online feed follows Quick picks.
-    orderedSlivers.add(const OnlineHomeSliver());
-
+    // Every row follows homeSectionOrder. Rows with nothing to show keep
+    // their slot but are left out, also in reorder mode.
+    final visibleRows = <String>[];
+    final rowSlivers = <Widget>[];
     for (final section in homeSectionOrder) {
-      if (section == 'quick_picks') continue;
-      if (section == 'songs') {
-        orderedSlivers.add(
+      final slivers = <Widget>[];
+      if (section == 'quick_picks') {
+        if (allQuickPicks.isNotEmpty) {
+          _buildQuickPicksSlivers(
+            context,
+            slivers,
+            allQuickPicks,
+            l10n,
+            useBlur,
+            showArtistInQuickPicks,
+            showAlbumInQuickPicks,
+          );
+        }
+      } else if (section == 'online_feed') {
+        if (onlineActive) slivers.add(const OnlineFeedSliver());
+      } else if (section == 'online_artists') {
+        if (hasOnlineArtists) slivers.add(const OnlineArtistsSliver());
+      } else if (section == 'online_more') {
+        if (onlineActive && hasOnlineMore) {
+          slivers.add(const OnlineMoreSliver());
+        }
+      } else if (section == 'songs' && dateAddedSongs.isNotEmpty) {
+        slivers.add(
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
@@ -714,7 +893,7 @@ class _AndroidHomeTabState extends ConsumerState<AndroidHomeTab> {
           ),
         );
 
-        orderedSlivers.add(
+        slivers.add(
           SliverList(
             delegate: SliverChildBuilderDelegate(
               (context, index) {
@@ -743,14 +922,12 @@ class _AndroidHomeTabState extends ConsumerState<AndroidHomeTab> {
             ),
           ),
         );
-        orderedSlivers.add(
-          const SliverToBoxAdapter(child: SizedBox(height: 16)),
-        );
+        slivers.add(const SliverToBoxAdapter(child: SizedBox(height: 16)));
       } else if (section == 'playlists') {
         if (showHomePlaylists && playlists.isNotEmpty) {
           final displayCount = math.min(15, playlists.length);
           final hasMore = playlists.length > 15;
-          orderedSlivers.add(
+          slivers.add(
             _buildHorizontalSection(
               title: l10n.playlists,
               actionText: l10n.viewAll,
@@ -786,7 +963,7 @@ class _AndroidHomeTabState extends ConsumerState<AndroidHomeTab> {
         if (showHomeArtists && (artists.isNotEmpty || loadingInParts)) {
           final displayCount = math.min(15, artists.length);
           final hasMore = artists.length > 15;
-          orderedSlivers.add(
+          slivers.add(
             _buildHorizontalSection(
               title: l10n.artists,
               actionText: l10n.viewAll,
@@ -821,7 +998,7 @@ class _AndroidHomeTabState extends ConsumerState<AndroidHomeTab> {
         if (showHomeAlbums && (albums.isNotEmpty || loadingInParts)) {
           final displayCount = math.min(15, albums.length);
           final hasMore = albums.length > 15;
-          orderedSlivers.add(
+          slivers.add(
             _buildHorizontalSection(
               title: l10n.albums,
               actionText: l10n.viewAll,
@@ -855,7 +1032,7 @@ class _AndroidHomeTabState extends ConsumerState<AndroidHomeTab> {
         if (showHomeGenres && (genres.isNotEmpty || loadingInParts)) {
           final displayCount = math.min(15, genres.length);
           final hasMore = genres.length > 15;
-          orderedSlivers.add(
+          slivers.add(
             _buildHorizontalSection(
               title: l10n.genres,
               actionText: l10n.viewAll,
@@ -888,7 +1065,7 @@ class _AndroidHomeTabState extends ConsumerState<AndroidHomeTab> {
         }
       } else if (section == 'recent') {
         if (showHomeRecent && recentSongs.isNotEmpty) {
-          orderedSlivers.add(
+          slivers.add(
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
@@ -945,23 +1122,54 @@ class _AndroidHomeTabState extends ConsumerState<AndroidHomeTab> {
             ),
           );
 
-          orderedSlivers.add(
+          slivers.add(
             SliverToBoxAdapter(
               child: RecentSongPills(songs: recentSongs, horizontalPadding: 16),
             ),
           );
-          orderedSlivers.add(
-            const SliverToBoxAdapter(child: SizedBox(height: 16)),
-          );
+          slivers.add(const SliverToBoxAdapter(child: SizedBox(height: 16)));
         }
       }
+      if (slivers.isNotEmpty) {
+        visibleRows.add(section);
+        rowSlivers.addAll(slivers);
+      }
     }
+    _visibleRows = visibleRows;
+    _holdAllowed = !_reordering && !loadingInParts && visibleRows.length >= 2;
 
-    if (!ref.watch(onlineActiveProvider)) {
-      orderedSlivers.add(
-        const SliverToBoxAdapter(
-          child: OnlineDisabledHomeFooter(),
+    final accent = ref.watch(settingsProvider.select((s) => s.accent));
+    final orderedSlivers = <Widget>[
+      SliverToBoxAdapter(
+        child: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 220),
+          child: _reordering ? _buildReorderBar(l10n, useBlur, accent) : header,
         ),
+      ),
+      SliverFadeTransition(
+        opacity: CurvedAnimation(parent: _modeFade, curve: Curves.easeOutCubic),
+        sliver: _reordering
+            ? _buildReorderList(
+                l10n: l10n,
+                accent: accent,
+                visible: visibleRows,
+                allQuickPicks: allQuickPicks,
+                dateAddedSongs: dateAddedSongs,
+                recentSongs: recentSongs,
+                albums: albums,
+                artists: artists,
+                genres: genres,
+                genresMap: genresMap,
+              )
+            : rowSlivers.isEmpty
+            ? const SliverToBoxAdapter(child: SizedBox.shrink())
+            : SliverMainAxisGroup(slivers: rowSlivers),
+      ),
+    ];
+
+    if (!onlineActive && !_reordering) {
+      orderedSlivers.add(
+        const SliverToBoxAdapter(child: OnlineDisabledHomeFooter()),
       );
     }
 
@@ -970,42 +1178,46 @@ class _AndroidHomeTabState extends ConsumerState<AndroidHomeTab> {
     return LoadStateSwitcher(
       state: 'content',
       child: SafeArea(
-        child: AppRefreshIndicator(
-          onRefresh: () async {
-            final futures = <Future>[];
-            if (ref.read(onlineActiveProvider)) {
-              futures.add(
-                ref
-                    .read(onlineHomeProvider.notifier)
-                    .load(force: true)
-                    .timeout(const Duration(seconds: 15))
-                    .catchError((e) {
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              AppLocalizations.of(context)!.onlineLoadFailed,
+        child: _wrapHold(
+          accent: accent,
+          child: AppRefreshIndicator(
+            enabled: !_reordering,
+            onRefresh: () async {
+              final futures = <Future>[];
+              if (ref.read(onlineActiveProvider)) {
+                futures.add(
+                  ref
+                      .read(onlineHomeProvider.notifier)
+                      .load(force: true)
+                      .timeout(const Duration(seconds: 15))
+                      .catchError((e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                AppLocalizations.of(context)!.onlineLoadFailed,
+                              ),
                             ),
-                          ),
-                        );
-                      }
-                    }),
-              );
-            }
-            ref
-                .read(libraryProvider.notifier)
-                .refreshLibrary(showVisualIndicator: true)
-                .ignore();
+                          );
+                        }
+                      }),
+                );
+              }
+              ref
+                  .read(libraryProvider.notifier)
+                  .refreshLibrary(showVisualIndicator: true)
+                  .ignore();
 
-            if (futures.isNotEmpty) {
-              await Future.wait(futures);
-            }
-          },
-          child: CustomScrollView(
-            physics: const AlwaysScrollableScrollPhysics(
-              parent: LooperScrollPhysics(),
+              if (futures.isNotEmpty) {
+                await Future.wait(futures);
+              }
+            },
+            child: CustomScrollView(
+              physics: const AlwaysScrollableScrollPhysics(
+                parent: LooperScrollPhysics(),
+              ),
+              slivers: orderedSlivers,
             ),
-            slivers: orderedSlivers,
           ),
         ),
       ),

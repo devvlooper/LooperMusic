@@ -9,6 +9,7 @@ import 'package:looper_player/features/microg/presentation/providers/auth_provid
 import 'package:looper_player/features/online/data/account_data_sync.dart';
 import 'package:looper_player/features/online/data/guest_feed_service.dart';
 import 'package:looper_player/features/online/data/innertube.dart';
+import 'package:looper_player/features/online/data/offline_online_resolver.dart';
 import 'package:looper_player/features/online/data/online_api.dart';
 import 'package:looper_player/features/online/data/online_settings.dart';
 import 'package:looper_player/features/online/data/parsers.dart';
@@ -16,7 +17,6 @@ import 'package:looper_player/features/online/data/recommendation_engine.dart';
 import 'package:looper_player/features/online/data/stream_resolver.dart';
 import 'package:looper_player/features/online/data/taste_store.dart';
 import 'package:looper_player/features/online/data/taste_profile_store.dart';
-import 'package:looper_player/features/online/presentation/providers/guest_recommendation_provider.dart';
 import 'package:looper_player/features/settings/presentation/providers/settings_notifier.dart';
 import 'package:isar_community/isar.dart';
 
@@ -71,15 +71,14 @@ class OnlineHomeState {
     OnlineMood? activeMood,
     bool? loading,
     Object? error,
-  }) =>
-      OnlineHomeState(
-        shelves: shelves ?? this.shelves,
-        forYou: forYou ?? this.forYou,
-        moods: moods ?? this.moods,
-        activeMood: activeMood ?? this.activeMood,
-        loading: loading ?? this.loading,
-        error: error,
-      );
+  }) => OnlineHomeState(
+    shelves: shelves ?? this.shelves,
+    forYou: forYou ?? this.forYou,
+    moods: moods ?? this.moods,
+    activeMood: activeMood ?? this.activeMood,
+    loading: loading ?? this.loading,
+    error: error,
+  );
 }
 
 /// Helper to sort shelves in descending personal/mood relevance:
@@ -204,11 +203,23 @@ class OnlineHomeNotifier extends Notifier<OnlineHomeState> {
     if (!force && at != null && DateTime.now().difference(at) < _fresh) {
       return Future.value();
     }
-    return _running ??= _load(force, mood: state.activeMood)
-        .whenComplete(() => _running = null);
+    return _running ??= _load(
+      force,
+      mood: state.activeMood,
+    ).whenComplete(() => _running = null);
   }
 
   Future<void> _load(bool force, {OnlineMood? mood}) async {
+    final active = ref.read(onlineActiveProvider);
+    if (!active) {
+      state = state.copyWith(
+        loading: false,
+        shelves: const [],
+        forYou: const [],
+      );
+      return;
+    }
+
     state = state.copyWith(loading: true, activeMood: mood);
     try {
       final isConnected = ref.read(isOnlineConnectedProvider);
@@ -220,14 +231,14 @@ class OnlineHomeNotifier extends Notifier<OnlineHomeState> {
         // Guest mode: Synthesize home feed from offline library signals
         final guestService = GuestFeedService();
         final guestShelves = await guestService.buildGuestFeed(force: force);
-        rawShelves = guestShelves;
+        List<OnlineShelf> ytShelves = const [];
         try {
-          final yt = await OnlineApi.home(
-            automatic: !force,
-            pages: 1,
-          );
+          final yt = await OnlineApi.home(automatic: !force, pages: 1);
+          ytShelves = yt.$1;
           youtubeMoods = yt.$2;
         } catch (_) {}
+        // Exploration shelves from public YouTube home (fixes B18, §7.2)
+        rawShelves = [...guestShelves, ...ytShelves];
       } else {
         final profile = await RecommendationEngine.buildProfile(force: force);
         final results = await Future.wait([
@@ -270,11 +281,13 @@ class OnlineHomeNotifier extends Notifier<OnlineHomeState> {
         if (rankA != rankB) return rankA.compareTo(rankB);
         return a.$1.compareTo(b.$1);
       });
-      final shelves = [for (final entry in indexed) entry.$2];
+      final rankedShelves = [for (final entry in indexed) entry.$2];
 
-      final nextMoods = youtubeMoods.isNotEmpty
-          ? youtubeMoods
-          : state.moods;
+      // Dedup first (Doc 22 §6.4): it drops shelves, which would break the
+      // style spacing the layout pass sets up (Doc 22 §6.3).
+      final shelves = applyFeedLayoutPass(deduplicateShelves(rankedShelves));
+
+      final nextMoods = youtubeMoods.isNotEmpty ? youtubeMoods : state.moods;
 
       if (shelves.isEmpty && forYouSongs.isEmpty) {
         // Keep what is on screen; an empty answer never replaces it.
@@ -299,10 +312,7 @@ class OnlineHomeNotifier extends Notifier<OnlineHomeState> {
       });
     } catch (e) {
       LoggerHelper.write('Online home failed', e);
-      state = state.copyWith(
-        loading: false,
-        error: e,
-      );
+      state = state.copyWith(loading: false, error: e);
     }
   }
 
@@ -310,7 +320,7 @@ class OnlineHomeNotifier extends Notifier<OnlineHomeState> {
   /// a fresh identity, no cached URLs and no throttle hold, then reload.
   Future<void> refresh() async {
     await StreamResolver.instance.reset();
-    unawaited(ref.read(guestRecommendationProvider.notifier).refresh());
+    await OfflineOnlineResolver.clearNegativeCache();
     await load(force: true);
   }
 }
@@ -480,28 +490,28 @@ class OnlineArtistForYou {
   final String? thumbnail;
 
   Map<String, dynamic> toJson() => {
-        'name': name,
-        'browseId': browseId,
-        'thumbnail': thumbnail,
-      };
+    'name': name,
+    'browseId': browseId,
+    'thumbnail': thumbnail,
+  };
 
   factory OnlineArtistForYou.fromJson(Map j) => OnlineArtistForYou(
-        name: j['name'] as String? ?? '',
-        browseId: j['browseId'] as String? ?? '',
-        thumbnail: j['thumbnail'] as String?,
-      );
+    name: j['name'] as String? ?? '',
+    browseId: j['browseId'] as String? ?? '',
+    thumbnail: j['thumbnail'] as String?,
+  );
 }
 
-final onlineArtistsForYouProvider =
-    FutureProvider<List<OnlineArtistForYou>>((ref) async {
+final onlineArtistsForYouProvider = FutureProvider<List<OnlineArtistForYou>>((
+  ref,
+) async {
   if (!ref.watch(onlineActiveProvider)) return const [];
   final taste = ref.watch(tasteProvider);
   const cacheKey = 'online_artists_for_you_v1';
   final raw = await LocalJsonStore.read(cacheKey);
   if (raw is Map) {
     final savedAt = raw['savedAt'] as int? ?? 0;
-    if (DateTime.now().millisecondsSinceEpoch - savedAt <
-        7 * 86400 * 1000) {
+    if (DateTime.now().millisecondsSinceEpoch - savedAt < 7 * 86400 * 1000) {
       final list = raw['artists'] as List? ?? const [];
       final cached = [
         for (final a in list)
@@ -556,9 +566,9 @@ final onlineArtistsForYouProvider =
         name,
         CollectionKind.artist,
       );
-      final match = collections.where(
-        (c) => c.title.toLowerCase() == lower,
-      ).firstOrNull;
+      final match = collections
+          .where((c) => c.title.toLowerCase() == lower)
+          .firstOrNull;
       if (match != null) {
         resolved.add(
           OnlineArtistForYou(
@@ -613,8 +623,10 @@ final onlineGenresProvider = FutureProvider<List<String>>((ref) async {
   return result;
 });
 
-final onlineGenrePageProvider =
-    FutureProvider.family<OnlinePage, String>((ref, genre) async {
+final onlineGenrePageProvider = FutureProvider.family<OnlinePage, String>((
+  ref,
+  genre,
+) async {
   final results = await Future.wait([
     OnlineApi.searchSongs('$genre songs'),
     OnlineApi.searchCollections(genre, CollectionKind.playlist),
@@ -625,8 +637,7 @@ final onlineGenrePageProvider =
     title: genre,
     songs: songs,
     shelves: [
-      if (playlists.isNotEmpty)
-        OnlineShelf(genre, collections: playlists),
+      if (playlists.isNotEmpty) OnlineShelf(genre, collections: playlists),
     ],
   );
 });
@@ -634,13 +645,15 @@ final onlineGenrePageProvider =
 /// Personalized search autocompletions & query suggestions from YouTube Music.
 final onlineSuggestionsProvider = FutureProvider.autoDispose
     .family<List<String>, String>((ref, input) async {
-  if (!ref.watch(onlineActiveProvider) || input.trim().isEmpty) return const [];
-  try {
-    return await OnlineApi.suggestions(input.trim());
-  } catch (_) {
-    return const [];
-  }
-});
+      if (!ref.watch(onlineActiveProvider) || input.trim().isEmpty) {
+        return const [];
+      }
+      try {
+        return await OnlineApi.suggestions(input.trim());
+      } catch (_) {
+        return const [];
+      }
+    });
 
 /// True only when online features are enabled AND the user has a signed-in Google account.
 final isOnlineConnectedProvider = Provider<bool>((ref) {
@@ -649,32 +662,37 @@ final isOnlineConnectedProvider = Provider<bool>((ref) {
   return active && auth.status == AuthStatus.signedIn;
 });
 
-final onlineAccountPlaylistsProvider =
-    FutureProvider<List<OnlineCollection>>((ref) async {
+final onlineAccountPlaylistsProvider = FutureProvider<List<OnlineCollection>>((
+  ref,
+) async {
   if (!ref.watch(isOnlineConnectedProvider)) return const [];
   return AccountDataSync.getAccountPlaylists();
 });
 
-final onlineAccountArtistsProvider =
-    FutureProvider<List<OnlineCollection>>((ref) async {
+final onlineAccountArtistsProvider = FutureProvider<List<OnlineCollection>>((
+  ref,
+) async {
   if (!ref.watch(isOnlineConnectedProvider)) return const [];
   return AccountDataSync.getAccountArtists();
 });
 
-final onlineAccountAlbumsProvider =
-    FutureProvider<List<OnlineCollection>>((ref) async {
+final onlineAccountAlbumsProvider = FutureProvider<List<OnlineCollection>>((
+  ref,
+) async {
   if (!ref.watch(isOnlineConnectedProvider)) return const [];
   return AccountDataSync.getAccountAlbums();
 });
 
-final onlineAccountFavoritesProvider =
-    FutureProvider<List<OnlineSong>>((ref) async {
+final onlineAccountFavoritesProvider = FutureProvider<List<OnlineSong>>((
+  ref,
+) async {
   if (!ref.watch(isOnlineConnectedProvider)) return const [];
   return AccountDataSync.getAccountFavorites();
 });
 
-final onlineAccountHistoryProvider =
-    FutureProvider<List<OnlineSong>>((ref) async {
+final onlineAccountHistoryProvider = FutureProvider<List<OnlineSong>>((
+  ref,
+) async {
   if (!ref.watch(isOnlineConnectedProvider)) return const [];
   return AccountDataSync.getAccountHistory();
 });

@@ -40,13 +40,13 @@ final class LibraryProvider extends $NotifierProvider<Library, LibraryState> {
   }
 }
 
-String _$libraryHash() => r'da37f670a0fe32f80d1d7a93aa0e7ecf3a7055e0';
+String _$libraryHash() => r'1f84aa0245ce9d36b9c4ebe4562bd400235b6cce';
 
 abstract class _$Library extends $Notifier<LibraryState> {
   LibraryState build();
   @$mustCallSuper
   @override
-  void runBuild() {
+  WhenComplete runBuild() {
     final ref = this.ref as $Ref<LibraryState, LibraryState>;
     final element =
         ref.element
@@ -56,7 +56,7 @@ abstract class _$Library extends $Notifier<LibraryState> {
               Object?,
               Object?
             >;
-    element.handleCreate(ref, build);
+    return element.handleCreate(ref, build);
   }
 }
 
@@ -487,7 +487,7 @@ abstract class _$ExcludedFolders extends $Notifier<List<String>> {
   List<String> build();
   @$mustCallSuper
   @override
-  void runBuild() {
+  WhenComplete runBuild() {
     final ref = this.ref as $Ref<List<String>, List<String>>;
     final element =
         ref.element
@@ -497,6 +497,6 @@ abstract class _$ExcludedFolders extends $Notifier<List<String>> {
               Object?,
               Object?
             >;
-    element.handleCreate(ref, build);
+    return element.handleCreate(ref, build);
   }
 }

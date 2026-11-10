@@ -53,9 +53,11 @@ class _OnlineCollectionScreenState
     final page = isGenre
         ? ref.watch(onlineGenrePageProvider(widget.collection.title))
         : ref.watch(onlinePageProvider(widget.collection.browseId));
-    final isArtist = widget.collection.kind == CollectionKind.artist ||
+    final isArtist =
+        widget.collection.kind == CollectionKind.artist ||
         widget.collection.browseId.startsWith('UC') ||
-        widget.collection.subtitle?.toLowerCase().contains('subscriber') == true;
+        widget.collection.subtitle?.toLowerCase().contains('subscriber') ==
+            true;
 
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
@@ -89,9 +91,7 @@ class _OnlineCollectionScreenState
                   ],
                 ),
               ),
-              const Expanded(
-                child: Center(child: CircularProgressIndicator()),
-              ),
+              const Expanded(child: Center(child: CircularProgressIndicator())),
             ],
           ),
           error: (e, _) => Column(
@@ -135,7 +135,9 @@ class _OnlineCollectionScreenState
                       TextButton(
                         onPressed: () => isGenre
                             ? ref.invalidate(
-                                onlineGenrePageProvider(widget.collection.title),
+                                onlineGenrePageProvider(
+                                  widget.collection.title,
+                                ),
                               )
                             : ref.invalidate(
                                 onlinePageProvider(widget.collection.browseId),
@@ -151,8 +153,7 @@ class _OnlineCollectionScreenState
           data: (p) {
             final songs = [for (final s in p.songs) s.toSong()];
             final art = p.thumbnail ?? widget.collection.thumbnail;
-            final title =
-                p.title.isEmpty ? widget.collection.title : p.title;
+            final title = p.title.isEmpty ? widget.collection.title : p.title;
             final subtitle = p.subtitle ?? widget.collection.subtitle;
 
             return CustomScrollView(
@@ -175,8 +176,9 @@ class _OnlineCollectionScreenState
                                 .enqueueAll(p.songs);
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
-                                content:
-                                    Text(l10n.downloadQueued(songs.length)),
+                                content: Text(
+                                  l10n.downloadQueued(songs.length),
+                                ),
                                 behavior: SnackBarBehavior.floating,
                               ),
                             );
@@ -189,11 +191,13 @@ class _OnlineCollectionScreenState
                   SliverToBoxAdapter(
                     child: LayoutBuilder(
                       builder: (context, constraints) {
-                        final motionArt =
-                            ref.watch(animatedArtworkForArtistProvider(title));
-                        final mediaSrc =
-                            motionArt.asData?.value?.bestTallMedia ??
-                            motionArt.asData?.value?.bestSquareMedia;
+                        final motionArt = ref.watch(
+                          animatedArtworkForArtistProvider(title),
+                        );
+                        final banner = motionArt.asData?.value;
+                        final mediaSrc = banner?.bestWideMedia;
+                        final still = banner?.stillUrl ?? art;
+                        final logo = banner?.logoUrl;
 
                         return SizedBox(
                           height: 320,
@@ -205,7 +209,7 @@ class _OnlineCollectionScreenState
                                   ? AnimatedArtworkWidget(
                                       mediaSource: mediaSrc,
                                       staticFallback: OptimizedImage(
-                                        imageUrl: art,
+                                        imageUrl: still,
                                         fit: BoxFit.cover,
                                         width: double.infinity,
                                         height: double.infinity,
@@ -213,7 +217,7 @@ class _OnlineCollectionScreenState
                                       fit: BoxFit.cover,
                                     )
                                   : OptimizedImage(
-                                      imageUrl: art,
+                                      imageUrl: still,
                                       fit: BoxFit.cover,
                                       width: double.infinity,
                                       height: double.infinity,
@@ -240,6 +244,25 @@ class _OnlineCollectionScreenState
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
+                                    if (logo != null)
+                                      Semantics(
+                                        label: title,
+                                        child: Padding(
+                                          padding: const EdgeInsets.only(
+                                            bottom: 8,
+                                          ),
+                                          child: OptimizedImage(
+                                            imageUrl: logo,
+                                            // No box while loading / on error.
+                                            placeholder:
+                                                const SizedBox.shrink(),
+                                            height: 56,
+                                            width:
+                                                56 * (banner?.logoAspect ?? 3),
+                                            fit: BoxFit.contain,
+                                          ),
+                                        ),
+                                      ),
                                     Text(
                                       title,
                                       key: _titleKey,
@@ -265,8 +288,9 @@ class _OnlineCollectionScreenState
                                         overflow: TextOverflow.ellipsis,
                                         style: AppFonts.jostStyle(
                                           fontSize: 14,
-                                          color: Colors.white
-                                              .withValues(alpha: 0.8),
+                                          color: Colors.white.withValues(
+                                            alpha: 0.8,
+                                          ),
                                         ),
                                       ),
                                     if (songs.isNotEmpty) ...[
@@ -291,23 +315,33 @@ class _OnlineCollectionScreenState
                                             onPressed: () {
                                               AppHaptics.light();
                                               ref
-                                                  .read(playbackProvider.notifier)
+                                                  .read(
+                                                    playbackProvider.notifier,
+                                                  )
                                                   .playCollection(songs);
                                             },
-                                            icon: const Icon(LucideIcons.play,
-                                                size: 18),
+                                            icon: const Icon(
+                                              LucideIcons.play,
+                                              size: 18,
+                                            ),
                                             label: Text(l10n.playAll),
                                           ),
                                           OutlinedButton.icon(
                                             onPressed: () {
                                               AppHaptics.light();
                                               ref
-                                                  .read(playbackProvider.notifier)
-                                                  .playCollection(songs,
-                                                      shuffle: true);
+                                                  .read(
+                                                    playbackProvider.notifier,
+                                                  )
+                                                  .playCollection(
+                                                    songs,
+                                                    shuffle: true,
+                                                  );
                                             },
-                                            icon: const Icon(LucideIcons.shuffle,
-                                                size: 18),
+                                            icon: const Icon(
+                                              LucideIcons.shuffle,
+                                              size: 18,
+                                            ),
                                             label: Text(l10n.shuffleTitle),
                                           ),
                                         ],
@@ -434,8 +468,10 @@ class _OnlineCollectionScreenState
                                           .read(playbackProvider.notifier)
                                           .playCollection(songs);
                                     },
-                                    icon:
-                                        const Icon(LucideIcons.play, size: 18),
+                                    icon: const Icon(
+                                      LucideIcons.play,
+                                      size: 18,
+                                    ),
                                     label: Text(l10n.playAll),
                                   ),
                                   OutlinedButton.icon(
@@ -445,8 +481,10 @@ class _OnlineCollectionScreenState
                                           .read(playbackProvider.notifier)
                                           .playCollection(songs, shuffle: true);
                                     },
-                                    icon: const Icon(LucideIcons.shuffle,
-                                        size: 18),
+                                    icon: const Icon(
+                                      LucideIcons.shuffle,
+                                      size: 18,
+                                    ),
                                     label: Text(l10n.shuffleTitle),
                                   ),
                                 ],
@@ -485,7 +523,8 @@ class _OnlineCollectionScreenState
                       children: [
                         OnlineSectionTitle(
                           l10n.songs,
-                          trailing: (p.moreSongsBrowseId != null || songs.length > 5)
+                          trailing:
+                              (p.moreSongsBrowseId != null || songs.length > 5)
                               ? ViewAllHeaderButton(
                                   onTap: () {
                                     Navigator.of(context).push(
@@ -502,10 +541,7 @@ class _OnlineCollectionScreenState
                                 )
                               : null,
                         ),
-                        _ArtistSongPages(
-                          songs: songs,
-                          l10n: l10n,
-                        ),
+                        _ArtistSongPages(songs: songs, l10n: l10n),
                       ],
                     ),
                   )
@@ -523,8 +559,7 @@ class _OnlineCollectionScreenState
                 if (p.shelves.isNotEmpty)
                   SliverList.builder(
                     itemCount: p.shelves.length,
-                    itemBuilder: (_, i) =>
-                        OnlineShelfView(shelf: p.shelves[i]),
+                    itemBuilder: (_, i) => OnlineShelfView(shelf: p.shelves[i]),
                   ),
                 const SliverToBoxAdapter(child: SizedBox(height: 180)),
               ],
@@ -559,7 +594,9 @@ class _FollowButton extends ConsumerWidget {
         ? FilledButton.tonalIcon(
             onPressed: () {
               AppHaptics.light();
-              ref.read(tasteProvider.notifier).toggleArtist(
+              ref
+                  .read(tasteProvider.notifier)
+                  .toggleArtist(
                     TasteArtist(
                       artistName,
                       browseId: collection.browseId,
@@ -573,7 +610,9 @@ class _FollowButton extends ConsumerWidget {
         : OutlinedButton.icon(
             onPressed: () {
               AppHaptics.light();
-              ref.read(tasteProvider.notifier).toggleArtist(
+              ref
+                  .read(tasteProvider.notifier)
+                  .toggleArtist(
                     TasteArtist(
                       artistName,
                       browseId: collection.browseId,
@@ -588,10 +627,7 @@ class _FollowButton extends ConsumerWidget {
 }
 
 class _ArtistSongPages extends StatelessWidget {
-  const _ArtistSongPages({
-    required this.songs,
-    required this.l10n,
-  });
+  const _ArtistSongPages({required this.songs, required this.l10n});
 
   final List<Song> songs;
   final AppLocalizations l10n;

@@ -1,19 +1,19 @@
 /// Centralized repository for all external URLs, API endpoints, developer social links,
-/// support links, and provider URLs used throughout Looper Player.
+/// support links, and provider URLs used throughout Looper Music.
 class AppLinks {
   AppLinks._();
 
   // App GitHub & Releases Links
-  static const String githubRepo = 'https://github.com/SthrNilshaaa/looper';
+  static const String githubRepo = 'https://github.com/sthrnilshaaa/Looper-music';
   static const String githubReleasesApi =
-      'https://api.github.com/repos/SthrNilshaaa/looper/releases/latest';
+      'https://api.github.com/repos/sthrnilshaaa/Looper-music/releases/latest';
 
   /// Everyone who has committed to the repo; the About screen's maintainers
   /// row is built from it, so new contributors show up without a release.
   static const String githubContributorsApi =
-      'https://api.github.com/repos/SthrNilshaaa/looper/contributors';
+      'https://api.github.com/repos/sthrnilshaaa/Looper-music/contributors';
   static const String githubReleasesWeb =
-      'https://github.com/SthrNilshaaa/looper/releases';
+      'https://github.com/sthrnilshaaa/Looper-music/releases';
   static const String playStoreWeb =
       'https://play.google.com/store/apps/details?id=com.looper.player';
 
@@ -52,10 +52,17 @@ class AppLinks {
   static const String azlyricsWeb = 'https://www.azlyrics.com';
   static const String lyricsmintWeb = 'https://www.lyricsmint.com';
   static const String lyricfindWeb = 'https://www.lyricfind.com';
+  static const String lyricsOvhWeb = 'https://lyrics.ovh';
   static const String amllWeb = 'https://amll.dev';
   static const String neteaseWeb = 'https://music.163.com';
   static const String kugouWeb = 'https://www.kugou.com';
   static const String lyricifyWeb = 'https://lyricify.app';
+  static const String betterLyricsWeb = 'https://lyrics-api.boidu.dev';
+  static const String betterLyricsQqWeb = 'https://lyrics-api.boidu.dev/qq';
+  static const String simpMusicWeb = 'https://simpmusic.org';
+  static const String paxsenixWeb = 'https://lyrics.paxsenix.org';
+  static const String unisonWeb = 'https://unison.boidu.dev';
+  static const String biniLyricsWeb = 'https://lyrics-api.binimum.org';
 
   // Lyrics API endpoints (the ones above are the sites credited in About).
   static const String amllApiBase = 'https://api.amll.dev/v1/lyrics';
@@ -70,6 +77,7 @@ class AppLinks {
       'https://api.credits.fm/v1/resolve/track';
 
   // Credits: projects our word-synced lyrics build on (see About).
+  static const String inzxSource = 'https://github.com/nirmaleeswar30/Inzx';
   static const String lyricsPlusSource =
       'https://github.com/ibratabian17/lyricsplus';
   static const String amLyricsSource = 'https://github.com/binimum/am-lyrics';

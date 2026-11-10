@@ -3,22 +3,17 @@
 </p>
 
 <p align="center">
-  <b>A music player that makes your own collection feel new again.</b>
+  <b>Looper Music: your own collection and YouTube Music, in one player.</b>
   <br />
-   Word-synced lyrics, album-coloured themes. On Android, Linux and Windows.
+  Word-synced lyrics, album-coloured themes, online streaming. On Android, Linux and Windows.
 </p>
 
 <p align="center">
-  <img height="20" src="https://img.shields.io/github/v/release/SthrNilshaaa/looper?style=flat-square&color=000000" />
-  <img height="20" src="https://img.shields.io/github/downloads/SthrNilshaaa/looper/total?style=flat-square&label=Downloads&color=blue&labelColor=000000&logo=github" />
-  <img height="20" src="https://img.shields.io/github/stars/SthrNilshaaa/looper?style=flat-square&color=000000" />
+  <img height="20" src="https://img.shields.io/github/v/release/sthrnilshaaa/Looper-music?style=flat-square&color=000000" />
+  <img height="20" src="https://img.shields.io/github/downloads/sthrnilshaaa/Looper-music/total?style=flat-square&label=Downloads&color=blue&labelColor=000000&logo=github" />
+  <img height="20" src="https://img.shields.io/github/stars/sthrnilshaaa/Looper-music?style=flat-square&color=000000" />
   <img height="20" src="https://img.shields.io/badge/platform-Android%20%7C%20Linux%20%7C%20Windows-blueviolet?style=flat-square" />
   <img height="20" src="https://img.shields.io/badge/license-GPL--3.0-green?style=flat-square" />
-</p>
-
-<p align="center">
-  <a href="https://trendshift.io/repositories/39819" target="_blank"><img src="https://trendshift.io/api/badge/trendshift/repositories/39819/daily?language=Dart" alt="sthrnilshaaa/looper | Trendshift daily" height="55" /></a>
-  <a href="https://trendshift.io/repositories/39819" target="_blank"><img src="https://trendshift.io/api/badge/trendshift/repositories/39819/weekly?language=Dart" alt="sthrnilshaaa/looper | Trendshift weekly" height="55" /></a>
 </p>
 
 <p align="center">
@@ -29,6 +24,7 @@
 
 <p align="center">
   <a href="#features">Features</a> •
+  <a href="#online">Online streaming</a> •
   <a href="#screenshots">Screenshots</a> •
   <a href="#videos">Videos</a> •
   <a href="#installation">Install</a> •
@@ -49,32 +45,50 @@
 
 ---
 
-## What is Looper?
+## What is Looper Music?
 
-Looper plays the music files you already own. Point it at a folder and it builds a library you can browse by song, album, artist, genre or folder, then gets out of the way.
+Looper Music plays the music files you already own, and, when you want it to, streams from YouTube Music too. Point it at a folder and it builds a library you can browse by song, album, artist, genre or folder. Turn on online music and the same Home screen gains search, personalised shelves, mixes and stations, with online and local songs sharing one queue, one player and one lyrics page.
 
 We started it because we wanted one player that looks the same on a phone and on a Linux or Windows desktop, and that makes the album art the centre of the screen. The player, the lyrics page and the accents across the app all pick up the colours of the current cover.
 
-There is no account, no ads and no subscription. Your music stays on your device; the app goes online only for things like fetching lyrics and checking for updates.
+There are no ads and no subscription. Your library stays on your device. Online mode is **off by default**; the app goes online only for lyrics, update checks, and the streaming features you switch on.
 
 <a id="features"></a>
 ## Features
 
 <img src="media/output.gif" align="right" width="170" alt="Word-synced lyrics" />
 
-- **Lyrics that follow the song.** Word-by-word or line-by-line highlighting, tap a line to jump to it, adjust the offset if the timing is off. Lyrics are fetched online or loaded from your own `.lrc` file.
+- **Lyrics that follow the song.** Word-by-word or line-by-line highlighting, tap a line to jump to it, adjust the offset if the timing is off. Lyrics come from 18 online sources (reorder or disable any of them in Settings) or from your own `.lrc` file.
+- **Animated artwork.** Apple Music style motion covers and artist banners for songs that have them, with a strict matcher so the wrong video never plays over your song.
 - **Looper Analyze.** A report card for your listening: time listened, streaks, top songs and artists, busiest day, and a genre breakdown.
 - **Colours from the artwork.** The player background, buttons and highlights change with each track. Or pick your own theme and font.
-- **18-band equalizer.** Drag the curve to shape the sound, ±20 dB per band.
+- **18-band equalizer with AutoEQ.** Drag the curve to shape the sound, ±20 dB per band. Per-song presets, bass and tilt controls, and headphone correction profiles.
 - **Picks up where you left off.** The queue, the track and the position are restored when you reopen the app.
-- **Fast search.** Search by title, artist, album, or a line of the lyrics.
-- **Home-screen widgets** on Android, in 12 layouts.
+- **Fast search.** Search by title, artist, album, or a line of the lyrics. Local and online results side by side.
+- **Reorder Home your way.** Hold any row on Home to drag it into the order you want.
+- **Home-screen widgets** on Android, in 12 layouts, plus a quick-play shortcut.
 - **A real desktop layout** on Linux and Windows, with a sidebar, wide grids and media keys (MPRIS on Linux).
 - **Guided first run** on desktop: Looper finds your Music folder and sets up the library in one click.
 - **14 languages**, including Hindi, Arabic, Japanese, Korean and Chinese.
 - **Backups.** Export your app data and import it again later.
+- **Self-updating** GitHub build on Android.
 
 <br clear="right"/>
+
+<a id="online"></a>
+## Online streaming
+
+Switch on **Settings > Online music** and Looper Music streams from YouTube Music next to your local library.
+
+- **Search and play anything.** Songs, albums, artists and playlists, played through the normal queue with the same player, equalizer and lyrics.
+- **A Home feed that knows your taste, even signed out.** Guest mode seeds recommendations from the library you already have: quick picks, mixes, stations, moods and genre rows built from what you actually play. Pick your interests once in the taste setup, or keep several taste profiles and switch between them.
+- **Sign in for your own YouTube Music.** On Android with microG (or ReVanced GmsCore) your Google account is picked up with no extra prompt. Without it, and on desktop, sign in through a real Google login screen inside the app. Then you get *Listen again*, *Mixed for you*, your likes, playlists, saved albums and subscriptions, synced into Looper's library, and your plays recorded to your YouTube history. Multiple accounts and brand channels are supported.
+- **Downloads.** Save online songs as tagged `.m4a` files into a folder you choose. They then behave like any other local track.
+- **Plays once, works offline.** Every streamed song and its lyrics are cached, so a replay needs no network. Choose streaming and download quality separately for Wi-Fi and mobile data.
+- **Mark what you don't want.** "Not interested" removes a song or artist from future recommendations.
+- **Honest loading.** Buffering is shown as buffering, not as paused; the seek bar shows the buffered range; failed streams fall back and skip instead of hanging. If YouTube ever stops responding, **Refresh** on the Home header resets the session.
+
+Online mode is compiled into the GitHub build (`github` flavor) and disabled in the Play Store build. YouTube Music is a trademark of Google LLC; Looper Music is not affiliated with Google.
 
 ---
 
@@ -130,71 +144,42 @@ There is no account, no ads and no subscription. Your music stays on your device
     </td>
     <td align="center" width="50%">
       <a href="https://youtu.be/t8LsCkGY9-4">
-        <img src="https://i.ytimg.com/vi/t8LsCkGY9-4/hqdefault.jpg" width="100%" alt="Introducing Looper Player" />
+        <img src="https://i.ytimg.com/vi/t8LsCkGY9-4/hqdefault.jpg" width="100%" alt="Introducing Looper Music" />
       </a>
       <br />
-      <b><a href="https://youtu.be/t8LsCkGY9-4">Introducing Looper Player</a></b>
+      <b><a href="https://youtu.be/t8LsCkGY9-4">Introducing Looper Music</a></b>
       <br />
       the official intro, by <a href="https://www.youtube.com/@TechWithNeelshy">Neelesh Suthar</a>
     </td>
   </tr>
 </table>
 
-Thank you to everyone who has made a video about Looper. Made one too? Open an [issue](https://github.com/SthrNilshaaa/looper/issues) or message us on [Telegram](https://t.me/looperPlayer) and we'll add it here.
+Thank you to everyone who has made a video about Looper. Made one too? Open an [issue](https://github.com/sthrnilshaaa/Looper-music/issues) or message us on [Telegram](https://t.me/looperPlayer) and we'll add it here.
 
 ---
 
 <a id="installation"></a>
 ## Installation
 
-Android is on [Google Play](https://play.google.com/store/apps/details?id=com.looper.player). Everything else is on the [Releases](https://github.com/SthrNilshaaa/looper/releases) page.
+Android is on [Google Play](https://play.google.com/store/apps/details?id=com.looper.player) (offline player only). The GitHub build, with online streaming and the in-app updater, is on the [Releases](https://github.com/sthrnilshaaa/Looper-music/releases) page.
 
 ### Android (`.apk`)
-- Download the APK for your phone. `arm64-v8a` is right for almost every phone from the last several years; use `armeabi-v7a` for older ones and `x86_64` for emulators.
+Needs Android 10 or newer.
+- Download `looper-music-v<version>-<abi>-release.apk` for your phone. `arm64-v8a` is right for almost every phone from the last several years; use `armeabi-v7a` for older ones, `x86_64` for emulators, or `universal` if unsure.
 - Open it and tap **Install**. Android will ask you to allow installs from your browser or file manager the first time.
-- The GitHub build can update itself from inside the app.
+- The GitHub build updates itself from inside the app.
+- Verify a download against the `SHA256SUMS-v<version>.txt` file attached to each release.
 
-### Linux
+### Linux and Windows
 
-#### Debian / Ubuntu / Mint (`.deb`)
+Desktop packages are **not published right now** while the desktop builds are being reworked. The desktop app still works; build it from source (see [Contributing](#contributing)) or package it yourself:
+
 ```bash
-sudo apt install ./looper-player.deb
+./release.sh linux --build     # .deb, .rpm, .AppImage and .tar.gz into dist/linux
+./release.sh windows --build   # .zip and -setup.exe into dist/windows (Git Bash, needs Inno Setup)
 ```
 
-#### Fedora / RHEL / CentOS (`.rpm`)
-```bash
-# Fedora
-sudo dnf install ./looper-player.rpm
-# openSUSE
-sudo zypper install ./looper-player.rpm
-```
-
-#### AppImage
-Nothing to install. Make it executable and run it:
-```bash
-chmod +x looper-player.AppImage
-./looper-player.AppImage
-```
-
-#### Portable Archive (`.tar.gz`)
-Extract and run from anywhere:
-```bash
-tar -xzvf looper-player-linux.tar.gz
-cd universal
-./run.sh
-```
-
-### Windows
-
-Windows 10 or 11, 64-bit.
-
-#### Installer (`-setup.exe`)
-Download `looper-player_<version>_windows_x64-setup.exe` and run it. It installs for your user only (no admin needed), adds Start menu and optional desktop shortcuts, and registers Looper under **Open with** for audio files. Uninstall it from **Settings > Apps**.
-
-#### Portable (`.zip`)
-Extract `looper-player_<version>_windows_x64.zip` anywhere and run `looper_player.exe`. Nothing is installed.
-
-> Windows may show a SmartScreen warning because the app isn't code-signed yet. Click **More info > Run anyway**.
+Desktop releases will return to the Releases page as `looper-music_<version>_*` once they are back.
 
 ---
 
@@ -207,25 +192,28 @@ Extract `looper-player_<version>_windows_x64.zip` anywhere and run `looper_playe
 | State | Riverpod |
 | Database | Isar (local, on-device) |
 | Playback | mpv, through `mpv_audio_kit` |
+| Streaming | YouTube Music via InnerTube, resolved and cached in Dart |
+| Account sign-in | microG / GmsCore on Android, in-app Google login elsewhere |
 | Tags | `metadata_god` on Android, `ffprobe` on Linux, `audio_metadata_reader` on Windows |
+| Analytics / crash reports | AppAmbit (opt-in, only when an `env.json` is supplied at build time) |
 
 ---
 
 <a id="contributing"></a>
 ## Contributing
 
-Contributions are welcome, whether it's a bug fix, a new feature, a translation or a better screenshot. For anything big, open an [issue](https://github.com/SthrNilshaaa/looper/issues) first so we can talk it through.
+Contributions are welcome, whether it's a bug fix, a new feature, a translation or a better screenshot. For anything big, open an [issue](https://github.com/sthrnilshaaa/Looper-music/issues) first so we can talk it through.
 
 ### Getting started
 1. Fork the repo and create a branch from `main`.
-2. Install [Flutter](https://docs.flutter.dev/get-started/install) (Dart 3.11 or newer).
+2. Install [Flutter](https://docs.flutter.dev/get-started/install) (Dart 3.11 or newer; releases are built with Flutter 3.47.7).
 3. Get the packages. This also generates the translation files:
    ```bash
    flutter pub get
    ```
 4. Run it:
    ```bash
-   # Android (use the github flavor for local builds)
+   # Android (use the github flavor for local builds; the play flavor has online mode off)
    flutter run --flavor github
    # Linux. Needs: clang cmake ninja-build pkg-config libgtk-3-dev libmpv-dev
    flutter run -d linux
@@ -236,10 +224,13 @@ Contributions are welcome, whether it's a bug fix, a new feature, a translation 
    ```bash
    dart run build_runner build
    ```
-6. Run `flutter analyze` before you open a pull request, and describe what you changed and how you tested it.
+6. Run `flutter analyze` and `flutter test` before you open a pull request, and describe what you changed and how you tested it.
 
 ### Translations
 All app text lives in `lib/l10n/app_<language>.arb`. To fix a translation, edit that file. To add a new language, copy `app_en.arb` to your language's code and translate the values. Leave the keys and the `{placeholders}` as they are.
+
+### Releasing
+Releases are built by the **Build and Release** workflow (manual, `workflow_dispatch`). Bump `version` in `pubspec.yaml`, optionally add `media/release-notes/<tag>.md`, then run the workflow with the release tag. Signing material comes from the `release` environment secrets; APKs are verified against the pinned certificate before upload.
 
 ---
 
@@ -253,8 +244,8 @@ All app text lives in `lib/l10n/app_<language>.arb`. To fix a translation, edit 
 ### Contributors
 Everyone who has helped build Looper:
 
-<a href="https://github.com/SthrNilshaaa/looper/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=SthrNilshaaa/looper" alt="Contributors" />
+<a href="https://github.com/sthrnilshaaa/Looper-music/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=sthrnilshaaa/Looper-music" alt="Contributors" />
 </a>
 
 ### Thanks
@@ -262,11 +253,18 @@ Everyone who has helped build Looper:
 * **[YouTutosJeff](https://www.youtube.com/@YouTutosJeff)** for featuring Looper in [10 Mejores APLICACIONES Android 2026](https://youtu.be/KnoETY34sgk)
 * Everyone who reports bugs, suggests features and shares Looper with friends
 
+### Online streaming
+* **[Koda](https://github.com/Ivorisnoob/Koda)** by Ivorisnoob: its documented InnerTube findings and failure history shaped Looper's stream resolver and cache. Looper's Dart implementation was written from those notes, not from Koda's Kotlin.
+* **[yt-dlp](https://github.com/yt-dlp/yt-dlp)**: reference for client identities and stream resolution.
+* **[Inzx](https://github.com/nirmaleeswar30/Inzx)**: reference for AutoEQ and several lyrics sources.
+* **[microG](https://microg.org)** and **[ReVanced GmsCore](https://github.com/ReVanced/GmsCore)**: account sign-in on Android without Google Play Services.
+
 ### Lyrics Sources
 Online lyrics come from these services and projects. Lyrics belong to their artists and rights holders and are fetched for personal display only.
 * **[lrc.red](https://lrc.red)**: word-synced lyrics (the default provider)
 * **[LyricsPlus](https://github.com/ibratabian17/lyricsplus)**: word-synced lyrics. It's an open-source server by ibratabian17 (Apache-2.0), hosted by binimum.
-* **[AMLL](https://amll.dev)**, **[NetEase](https://music.163.com)**, **[KuGou](https://www.kugou.com)**, **[Musixmatch](https://www.musixmatch.com)** and **[Lyricify](https://lyricify.app)**: word-synced lyrics, asked after the two above. You can reorder the services or switch any of them off in Settings.
+* **[AMLL](https://amll.dev)**, **[NetEase](https://music.163.com)**, **[KuGou](https://www.kugou.com)**, **[Musixmatch](https://www.musixmatch.com)** and **[Lyricify](https://lyricify.app)**: word-synced lyrics, asked after the two above.
+* **[BetterLyrics](https://lyrics-api.boidu.dev)**, **[Unison](https://unison.boidu.dev)**, **[SimpMusic](https://simpmusic.org)**, **[Paxsenix](https://lyrics.paxsenix.org)**, **[BiniLyrics](https://lyrics-api.binimum.org)** and YouTube captions: further synced-lyrics sources.
 * **[LRCLIB](https://lrclib.net)**: line-synced lyrics from a free, open database
 * **[MusicBrainz](https://musicbrainz.org)**: finds each song's ISRC so lrc.red can match it (open music database, CC0 data)
 * **[am-lyrics](https://github.com/binimum/am-lyrics)** by binimum (MPL-2.0): inspired Looper's word-synced lyrics support. No code was copied; Looper's Dart implementation was written from the lyrics formats.
@@ -276,7 +274,7 @@ Online lyrics come from these services and projects. Lyrics belong to their arti
 
 ## Support
 
-Looper is free and open source. If you enjoy it, you can help by starring the repo, sharing it, or supporting us on Ko-fi:
+Looper Music is free and open source. If you enjoy it, you can help by starring the repo, sharing it, or supporting us on Ko-fi:
 
 <a href="https://ko-fi.com/L2L124TL7L">
   <img src="https://ko-fi.com/img/githubbutton_sm.svg" alt="Support Looper on Ko-fi" />
@@ -286,13 +284,13 @@ Looper is free and open source. If you enjoy it, you can help by starring the re
 
 ## License
 
-This project is licensed under the GPL-3.0 License.
+This project is licensed under the GPL-3.0 License. See [LICENSE.md](LICENSE.md).
 
 ---
 
 <a id="contact"></a>
 ## Contact
 
-Found a bug or want a feature? Open an [issue](https://github.com/SthrNilshaaa/looper/issues) or say hi on Telegram:
+Found a bug or want a feature? Open an [issue](https://github.com/sthrnilshaaa/Looper-music/issues) or say hi on Telegram:
 
 [![Telegram](https://img.shields.io/badge/Telegram-26A5E4?style=for-the-badge&logo=telegram&logoColor=white)](https://t.me/looperPlayer)

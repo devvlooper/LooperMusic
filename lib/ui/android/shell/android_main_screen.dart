@@ -22,6 +22,7 @@ import 'package:looper_player/features/playlists/presentation/screens/playlist_v
 import 'package:looper_player/ui/android/tabs/library/categories/library_categories_views.dart';
 
 import '../tabs/home/android_home_tab.dart';
+import '../tabs/home/home_order.dart' show homeReorderCancel;
 import '../tabs/search/android_search_tab.dart';
 import '../tabs/library/android_library_tab.dart';
 import '../tabs/songs/android_songs_tab.dart';
@@ -536,6 +537,11 @@ class _AndroidMainScreenState extends ConsumerState<AndroidMainScreen>
             ref.read(appNavigationProvider).isPlayerExpanded) {
           _lastBackPressTime = null;
           ref.read(appNavigationProvider.notifier).setPlayerExpansion(false);
+          return;
+        }
+        // Home reorder mode: back cancels it.
+        if (homeReorderCancel != null) {
+          homeReorderCancel!();
           return;
         }
         final bool canPopNavigator =

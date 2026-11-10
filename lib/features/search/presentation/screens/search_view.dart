@@ -133,6 +133,7 @@ int songSearchScore(Song song, String lowerQuery) {
 @Riverpod(keepAlive: true)
 Stream<SearchResults> searchResults(Ref ref) {
   final query = ref.watch(searchQueryProvider);
+  final onlineOn = ref.watch(onlineActiveProvider);
   if (query.isEmpty) {
     return Stream.value(SearchResults(songs: [], albums: [], artists: []));
   }
@@ -176,7 +177,10 @@ Stream<SearchResults> searchResults(Ref ref) {
 
         // Sort songs: top match songs name > lyrics match > others
         final lowerQuery = query.toLowerCase();
-        final sortedSongs = List<Song>.from(songs);
+        // Online songs stay in the DB; just hide them while online is off.
+        final sortedSongs = onlineOn
+            ? List<Song>.from(songs)
+            : songs.where((s) => !s.path.startsWith('yt:')).toList();
         sortedSongs.sort((a, b) {
           final scoreA = songSearchScore(a, lowerQuery);
           final scoreB = songSearchScore(b, lowerQuery);

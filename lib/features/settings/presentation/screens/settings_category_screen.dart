@@ -27,6 +27,7 @@ import '../widgets/tiles/about_settings_tiles.dart';
 import '../widgets/tiles/backup_logs_settings_tiles.dart';
 import 'package:looper_player/core/theme/app_assets.dart';
 import 'package:looper_player/core/services/haptics/app_haptics.dart';
+import 'package:looper_player/features/playback/data/crossmix/crossmix_settings.dart';
 
 class SettingsCategoryScreen extends ConsumerWidget {
   final String categoryId;
@@ -41,6 +42,7 @@ class SettingsCategoryScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final settings = ref.watch(settingsProvider);
+    final crossmix = ref.watch(crossmixSettingsProvider);
     final l10n = AppLocalizations.of(context)!;
     final useBlur = settings.enableDynamicTheming && !settings.disableBlur;
 
@@ -230,6 +232,12 @@ class SettingsCategoryScreen extends ConsumerWidget {
             const EqualizerTile(),
             const FadePlayPauseStopTile(),
             sub(settings.fadePlayPauseStop, const [FadeDurationSlider()]),
+            const CrossfadeTile(),
+            sub(crossmix.crossfadeEnabled, const [
+              CrossfadeDurationSlider(),
+              SmartTransitionsTile(),
+              BeatMixingTile(),
+            ]),
           ],
         ),
         (

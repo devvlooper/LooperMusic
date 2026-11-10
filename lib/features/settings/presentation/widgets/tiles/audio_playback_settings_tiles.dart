@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:looper_player/core/theme/app_fonts.dart';
+import 'package:looper_player/features/playback/data/crossmix/crossmix_settings.dart';
 import 'package:looper_player/features/settings/presentation/providers/settings_notifier.dart';
 import 'package:looper_player/l10n/app_localizations.dart';
 import '../settings_widgets.dart';
@@ -46,6 +47,92 @@ class FadeDurationSlider extends ConsumerWidget {
         ref
             .read(settingsProvider.notifier)
             .updatePlayPauseStopFadeLength(value.round());
+      },
+    );
+  }
+}
+
+class CrossfadeTile extends ConsumerWidget {
+  const CrossfadeTile({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final settings = ref.watch(settingsProvider);
+    final crossmix = ref.watch(crossmixSettingsProvider);
+    final l10n = AppLocalizations.of(context)!;
+    return SwitchListTile(
+      secondary: const Icon(LucideIcons.gitCompare, color: Colors.white70),
+      title: Text(l10n.audioCrossfade, style: _tileTitleStyle()),
+      subtitle: Text(l10n.audioCrossfadeDesc, style: _tileSubtitleStyle()),
+      activeThumbColor: settings.accent,
+      value: crossmix.crossfadeEnabled,
+      onChanged: (value) {
+        ref.read(crossmixSettingsProvider.notifier).setCrossfadeEnabled(value);
+      },
+    );
+  }
+}
+
+class CrossfadeDurationSlider extends ConsumerWidget {
+  const CrossfadeDurationSlider({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final crossmix = ref.watch(crossmixSettingsProvider);
+    final l10n = AppLocalizations.of(context)!;
+    return SettingsSliderTile(
+      icon: LucideIcons.sliders,
+      title: l10n.crossfadeDuration,
+      subtitle: l10n.crossfadeDurationDesc,
+      value: crossmix.durationSeconds,
+      min: 1.0,
+      max: 12.0,
+      divisions: 11,
+      suffix: 's',
+      onChanged: (value) {
+        ref.read(crossmixSettingsProvider.notifier).setDurationSeconds(value);
+      },
+    );
+  }
+}
+
+class SmartTransitionsTile extends ConsumerWidget {
+  const SmartTransitionsTile({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final settings = ref.watch(settingsProvider);
+    final crossmix = ref.watch(crossmixSettingsProvider);
+    final l10n = AppLocalizations.of(context)!;
+    return SwitchListTile(
+      secondary: const Icon(LucideIcons.sparkles, color: Colors.white70),
+      title: Text(l10n.smartTransitions, style: _tileTitleStyle()),
+      subtitle: Text(l10n.smartTransitionsDesc, style: _tileSubtitleStyle()),
+      activeThumbColor: settings.accent,
+      value: crossmix.smartTransitions,
+      onChanged: (value) {
+        ref.read(crossmixSettingsProvider.notifier).setSmartTransitions(value);
+      },
+    );
+  }
+}
+
+class BeatMixingTile extends ConsumerWidget {
+  const BeatMixingTile({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final settings = ref.watch(settingsProvider);
+    final crossmix = ref.watch(crossmixSettingsProvider);
+    final l10n = AppLocalizations.of(context)!;
+    return SwitchListTile(
+      secondary: const Icon(LucideIcons.disc, color: Colors.white70),
+      title: Text(l10n.beatMixing, style: _tileTitleStyle()),
+      subtitle: Text(l10n.beatMixingDesc, style: _tileSubtitleStyle()),
+      activeThumbColor: settings.accent,
+      value: crossmix.beatMixing,
+      onChanged: (value) {
+        ref.read(crossmixSettingsProvider.notifier).setBeatMixing(value);
       },
     );
   }

@@ -1,6 +1,6 @@
 [Desktop Entry]
 Version=1.0
-Name=Looper Player
+Name=Looper Music
 GenericName=Music Player
 Comment=A powerful music player.
 Exec=looper_player %U

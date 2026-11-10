@@ -2,6 +2,8 @@ import 'package:looper_player/ui/widgets/common/first_scan_stage.dart';
 import 'package:looper_player/core/motion/looper_scroll_physics.dart';
 import 'package:looper_player/core/utils/desktop_paths.dart';
 import 'dart:io';
+import 'dart:math' as math;
+import 'dart:ui' show ImageFilter;
 import 'package:looper_player/core/utils/ui_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -20,14 +22,21 @@ import '../widgets/common/folder_picker_helper.dart';
 import 'package:looper_player/core/utils/l10n.dart';
 import 'package:looper_player/core/theme/app_assets.dart';
 import 'package:looper_player/core/services/haptics/app_haptics.dart';
+import 'package:looper_player/core/motion/app_routes.dart';
+import 'package:looper_player/features/artwork/data/animated_artwork_service.dart';
+import 'package:looper_player/features/artwork/domain/animated_artwork_models.dart';
+import 'package:looper_player/features/online/data/online_settings.dart';
+import 'package:looper_player/features/online/presentation/taste_setup_screen.dart';
+import 'package:looper_player/features/online/presentation/online_settings_tiles.dart';
 
 part 'welcome_screen.g.dart';
 part 'glow_orb.dart';
 part 'premium_button.dart';
 part 'scanning_lottie_animation.dart';
 part 'welcome_states.dart';
+part 'online_setup_flow.dart';
 
-enum WelcomeState { initial, scanning, noSongs }
+enum WelcomeState { initial, scanning, noSongs, onlineSetup }
 
 @Riverpod(keepAlive: true)
 class WelcomeBypassed extends _$WelcomeBypassed {
@@ -56,6 +65,10 @@ class WelcomeBypassed extends _$WelcomeBypassed {
     // normal playback (see PlaybackNotifier's ~20s listen-time checkpoint),
     // stalling the UI thread with blocking filesystem I/O every time.
     ref.watch(libraryProvider.select((s) => s.isInitialized));
+    // Online-only users (no local music) finished setup too.
+    if (ref.watch(onlineSettingsProvider.select((s) => s.enabled))) {
+      return true;
+    }
     final songs = ref.read(libraryProvider).songs;
     final settings = ref.read(settingsProvider);
 
@@ -99,6 +112,7 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen>
   bool _allFilesGranted = false; // github flavor only, optional
   bool _canOfferAllFiles = false; // github flavor on Android 11+
   bool _autoScanTriggered = false;
+  bool _onlineFromNoSongs = false;
 
   @override
   void initState() {
@@ -354,6 +368,16 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen>
       return;
     }
 
+    if (ref.read(onlineSettingsProvider).enabled) return _finishWelcome();
+    setState(() {
+      _onlineFromNoSongs = false;
+      _currentState = WelcomeState.onlineSetup;
+    });
+  }
+
+  void _backToNoSongs() => setState(() => _currentState = WelcomeState.noSongs);
+
+  void _finishWelcome() {
     ref.read(forceWelcomeProvider.notifier).set(false);
     ref.read(welcomeBypassedProvider.notifier).set(true);
   }
@@ -429,6 +453,19 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen>
             color: Colors.white.withValues(alpha: 0.4),
             height: 1.5,
           ),
+        ),
+        const SizedBox(height: 24),
+        _PremiumButton(
+          onPressed: () => setState(() {
+            _onlineFromNoSongs = true;
+            _currentState = WelcomeState.onlineSetup;
+          }),
+          label: l10n.onlineSetupStreamInstead,
+          icon: LucideIcons.cloud,
+          gradientColors: [
+            settings.accent,
+            settings.accent.withValues(alpha: 0.75),
+          ],
         ),
         const SizedBox(height: 36),
 

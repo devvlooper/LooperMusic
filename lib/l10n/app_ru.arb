@@ -39,6 +39,12 @@
   "ascending": "По возрастанию",
   "audioCrossfade": "Кроссфейд (плавный переход)",
   "audioCrossfadeDesc": "Плавно накладывать треки друг на друга при смене песен",
+  "crossfadeDuration": "Длительность кроссфейда",
+  "crossfadeDurationDesc": "Длительность перекрывающегося перехода между песнями",
+  "smartTransitions": "Умные переходы",
+  "smartTransitionsDesc": "Выравнивает переходы по меткам, пропускает тишину и не обрывает слова песни",
+  "beatMixing": "Сведение по биту (Экспериментально)",
+  "beatMixingDesc": "Подстраивает темп и выравнивает доли для плавного DJ-микса",
   "audioFocusDenied": "Воспроизведение приостановлено: система отказала в фокусировке звука",
   "audioPlayback": "Аудио и воспроизведение",
   "audioPlaybackDesc": "Настройки кроссфейда, пауз и затухания",
@@ -52,7 +58,7 @@
   "clearQueue": "Очистить",
   "connectDevice": "ПОДКЛЮЧИТЬ УСТРОЙСТВО",
   "corePurpose": "Основная цель",
-  "corePurposeDesc": "Looper Player — это высококачественный аудиоплеер, предназначенный для любителей музыки, которым нужен абсолютный контроль над своей локальной библиотекой, непрерывное воспроизведение и плавная синхронизированная прокрутка текстов песен.",
+  "corePurposeDesc": "Looper Music — это высококачественный аудиоплеер, предназначенный для любителей музыки, которым нужен абсолютный контроль над своей локальной библиотекой, непрерывное воспроизведение и плавная синхронизированная прокрутка текстов песен.",
   "create": "Создать",
   "createPlaylist": "Создать плейлист",
   "creatorAndMaintainer": "Создатель и сопровождающий",
@@ -232,7 +238,7 @@
   "resetLibraryDesc": "Удалить все песни из вашей индексированной библиотеки",
   "resumeAfterCallDesc": "Автоматически возобновлять проигрывание после завершения звонка",
   "resumeAfterCallTitle": "Возобновлять после звонка",
-  "resumeOnStartDesc": "Автоматически возобновлять проигрывание при старте Looper Player",
+  "resumeOnStartDesc": "Автоматически возобновлять проигрывание при старте Looper Music",
   "resumeOnStartTitle": "Возобновлять при запуске",
   "right": "Справа",
   "scanCompleteSongsDetected": "СКАНИРОВАНИЕ ЗАВЕРШЕНО: ОБНАРУЖЕНО {count} ПЕСЕН!",
@@ -380,7 +386,7 @@
   "hapticStrengthHigh": "Сильная",
   "viewAll": "Посмотреть все",
   "visitOfficialRepository": "Посетить официальный репозиторий на GitHub",
-  "welcomeAboutDesc": "Looper Player — это музыкальная ОС нового поколения, созданная для автономного воспроизведения аудио премиум-класса. Особенности динамической генерации текстов в реальном времени, расширенное управление аудиосессиями с отключением звука при вызове, адаптивное фоновое оформление и поддержка многоформатной музыкальной библиотеки. Полностью оптимизирован для максимальной эффективности использования аккумулятора.",
+  "welcomeAboutDesc": "Looper Music — это музыкальная ОС нового поколения, созданная для автономного воспроизведения аудио премиум-класса. Особенности динамической генерации текстов в реальном времени, расширенное управление аудиосессиями с отключением звука при вызове, адаптивное фоновое оформление и поддержка многоформатной музыкальной библиотеки. Полностью оптимизирован для максимальной эффективности использования аккумулятора.",
   "welcomeAllFilesDesc": "Настоятельно рекомендуется для профессионального сканирования для поиска песен в нестандартных каталогах (Загрузки, Telegram, пользовательские папки).",
   "welcomeInstructionConnectDesc": "Подключите телефон или устройство к персональному компьютеру с помощью стандартного USB-кабеля для передачи данных.",
   "welcomeInstructionDownloadDesc": "Альтернативно загрузите файлы напрямую с помощью веб-браузера или другой утилиты загрузки на самом устройстве.",
@@ -418,12 +424,12 @@
   "sortYearNewest": "Год (Новые)",
   "sortYearOldest": "Год (Старые)",
   "supportDevelopment": "Поддержать разработку",
-  "supportDevelopmentDesc": "Looper Player на 100% бесплатен и имеет открытый исходный код. Если вам нравится им пользоваться, пожалуйста, поддержите создателя пожертвованием. Каждая поддержка помогает поддерживать проект активным!",
+  "supportDevelopmentDesc": "Looper Music на 100% бесплатен и имеет открытый исходный код. Если вам нравится им пользоваться, пожалуйста, поддержите создателя пожертвованием. Каждая поддержка помогает поддерживать проект активным!",
   "supportProjectLove": "Поддержите проект и проявите симпатию!",
   "supportPromptMessage": "Нравится Looper? Помогите сохранить его бесплатным — поддержите нас на Ko-fi.",
   "supportPromptAction": "Поддержать",
   "supportUs": "Поддержать нас",
-  "supportUsDesc": "Помогите сохранить Looper Player живым и открытым",
+  "supportUsDesc": "Помогите сохранить Looper Music живым и открытым",
   "useCustomFont": "Использовать свой шрифт",
   "useCustomFontDesc": "Использовать Jost или другие шрифты. Иначе используется DM Sans.",
   "useCustomFontLyrics": "Свой шрифт для текста песен",
@@ -656,7 +662,7 @@
   "excludedFolders": "Исключённые папки",
   "excludedFoldersSearchDesc": "Пропускать выбранные папки при сканировании",
   "clearLibraryData": "Очистить данные библиотеки",
-  "looperPlayerVersion": "Версия Looper Player",
+  "looperPlayerVersion": "Версия Looper Music",
   "versionLabel": "Версия {version}",
   "none": "Нет",
   "foldersSkippedCount": "{count, plural, one{{count} папка пропускается при сканировании} few{{count} папки пропускаются при сканировании} many{{count} папок пропускаются при сканировании} other{{count} папки пропускаются при сканировании}}",
@@ -865,7 +871,7 @@
   "editLyricsHint": "Введите обычный текст или синхронизированный текст в формате LRC [00:00.00]...",
   "addedSongsCount": "{count, plural, one{Добавлена {count} песня} few{Добавлено {count} песни} many{Добавлено {count} песен} other{Добавлено {count} песни}}",
   "chooseInternalStorageFolder": "Выберите папку во внутренней памяти или на SD-карте этого устройства.",
-  "appCrashedTitle": "Сбой Looper Player",
+  "appCrashedTitle": "Сбой Looper Music",
   "appCrashedDesc": "При запуске произошла непредвиденная ошибка. Создан диагностический отчёт.",
   "appCrashedDetails": "Ошибка при инициализации базы данных или служб приложения. Это может случиться, если доступ к хранилищу ограничен или файлы базы данных повреждены.",
   "crashReportSaved": "Диагностический отчёт сохранён в папке поддержки приложения.",
@@ -877,7 +883,7 @@
   "updateAvailableTitle": "Доступно обновление!",
   "visit": "ОТКРЫТЬ",
   "updateDownloaded": "Обновление загружено",
-  "restartToInstallUpdate": "Перезапустите Looper Player, чтобы установить его.",
+  "restartToInstallUpdate": "Перезапустите Looper Music, чтобы установить его.",
   "restart": "ПЕРЕЗАПУСК",
   "backupImportedSummary": "Резервная копия импортирована: объединено избранного — {favorites}, статистики прослушиваний — {stats}, синхронизировано плейлистов — {playlists}",
   "backupExportFailed": "Не удалось экспортировать резервную копию: внутренняя ошибка при сохранении файла.",
@@ -1161,5 +1167,602 @@
   "accountSignOutDesc": "Забыть этот аккаунт на этом устройстве",
   "accountExpired": "Сеанс истёк. Войдите снова.",
   "accountSignInFailed": "Не удалось войти: {error}",
-  "accountRisk": "Вход в YouTube через стороннее приложение нарушает условия YouTube и может привести к проверке аккаунта. Безопаснее использовать дополнительный аккаунт. Песни в любом случае воспроизводятся без вашего аккаунта."
+  "accountRisk": "Вход в YouTube через стороннее приложение нарушает условия YouTube и может привести к проверке аккаунта. Безопаснее использовать дополнительный аккаунт. Песни в любом случае воспроизводятся без вашего аккаунта.",
+  "reorderHome": "Порядок на главной",
+  "reorderHomeDragHint": "Удерживайте и перетащите строку",
+  "reorderHomeHint": "Или удерживайте пустое место на главной 5 секунд, затем перетаскивайте строки.",
+  "onlineFeedRow": "Подборка онлайн",
+  "onlineFeedRowDesc": "Настроения и верхние онлайн-полки",
+  "onlineMoreRow": "Ещё онлайн",
+  "onlineMoreRowDesc": "Остальные онлайн-полки",
+  "artistsForYouRowDesc": "Онлайн-исполнители под ваш вкус",
+  "reorderMoveUp": "Переместить вверх",
+  "reorderMoveDown": "Переместить вниз",
+  "reorderRowA11yHint": "Дважды нажмите и удерживайте, чтобы переместить",
+  "bluetoothCodec": "Bluetooth Codec",
+  "qualityBlockersTitle": "Active Blockers",
+  "qualityTurnBlockersOff": "Turn these off",
+  "qualityTurnBlockersOn": "Turn these back on",
+  "eqMono": "Mono Audio (Single Earbud)",
+  "eqReplayGainTitle": "Volume Normalization (ReplayGain)",
+  "eqReplayGainPreamp": "Normalization Preamp",
+  "@hapticStrength": {
+    "description": "Label of the haptic strength slider under the Haptic feedback switch"
+  },
+  "@activeFont": {
+    "placeholders": {
+      "fontName": {
+        "type": "String"
+      }
+    }
+  },
+  "@activeLyricsFont": {
+    "placeholders": {
+      "fontName": {
+        "type": "String"
+      }
+    }
+  },
+  "@sleepTimerStoppingIn": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "@sleepTimerStoppingAfter": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "@enrichingSongs": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@analyzePlaysAndSongs": {
+    "placeholders": {
+      "plays": {
+        "type": "int"
+      },
+      "songs": {
+        "type": "int"
+      }
+    }
+  },
+  "@playsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@songsPlayedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@errorWithDetails": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@songsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@lyricsProvidedBy": {
+    "placeholders": {
+      "source": {
+        "type": "String"
+      }
+    }
+  },
+  "@failedToImportLyrics": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@lyricsEditorLineNumber": {
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
+  },
+  "@lyricsEditorSelectedLine": {
+    "placeholders": {
+      "index": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "@fileNotFoundOrInaccessible": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "@playbackFailedCorrupted": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "@shareSongText": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "@shareSongsText": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@noSettingsFoundFor": {
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
+  },
+  "@lyricsFontWeightValue": {
+    "placeholders": {
+      "weight": {
+        "type": "int"
+      }
+    }
+  },
+  "@versionLabel": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "@foldersSkippedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@deletePresetConfirm": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "@lyricsSourceLabel": {
+    "placeholders": {
+      "source": {
+        "type": "String"
+      }
+    }
+  },
+  "@fetchingLyricsFrom": {
+    "placeholders": {
+      "provider": {
+        "type": "String"
+      }
+    }
+  },
+  "@lyricsUpdatedFrom": {
+    "placeholders": {
+      "provider": {
+        "type": "String"
+      }
+    }
+  },
+  "@noLyricsFoundOn": {
+    "placeholders": {
+      "provider": {
+        "type": "String"
+      }
+    }
+  },
+  "@lyricsExportedTo": {
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
+  "@failedToExportLyrics": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@linesSelected": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@playCountTimes": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@channelShort": {
+    "placeholders": {
+      "channel": {
+        "type": "int"
+      }
+    }
+  },
+  "@sampleRateHz": {
+    "placeholders": {
+      "rate": {
+        "type": "int"
+      }
+    }
+  },
+  "@nyquistKhz": {
+    "placeholders": {
+      "khz": {
+        "type": "String"
+      }
+    }
+  },
+  "@qualityResampledBy": {
+    "placeholders": {
+      "from": {
+        "type": "String"
+      },
+      "to": {
+        "type": "String"
+      }
+    }
+  },
+  "@welcomeStep": {
+    "placeholders": {
+      "step": {
+        "type": "String"
+      },
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "@minutesShort": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@minuteChip": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@songsCountTitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@songsLeft": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@sleepTimerWithRemaining": {
+    "placeholders": {
+      "remaining": {
+        "type": "String"
+      }
+    }
+  },
+  "@addedSongsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@updateAvailableOnGithub": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "@backupImportedSummary": {
+    "placeholders": {
+      "favorites": {
+        "type": "int"
+      },
+      "stats": {
+        "type": "int"
+      },
+      "playlists": {
+        "type": "int"
+      }
+    }
+  },
+  "@analyzeSongsOfTotal": {
+    "placeholders": {
+      "played": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "@daysCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@durationHoursMinutes": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      },
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "@durationMinutesOnly": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "@analyzeAvgPerDay": {
+    "placeholders": {
+      "avg": {
+        "type": "String"
+      }
+    }
+  },
+  "@m3uImportedSummary": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "found": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "@m3uImportedMany": {
+    "placeholders": {
+      "playlists": {
+        "type": "int"
+      },
+      "found": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "@noResultsFor": {
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
+  },
+  "@selectedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@desktopWelcomeScanningFolder": {
+    "placeholders": {
+      "folder": {
+        "type": "String"
+      }
+    }
+  },
+  "@desktopWelcomeNoSongsDesc": {
+    "placeholders": {
+      "folder": {
+        "type": "String"
+      }
+    }
+  },
+  "@onlineCacheUsed": {
+    "placeholders": {
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "@onlineSongSkipped": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      },
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "@onlinePlaybackStopped": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "@blockArtist": {
+    "placeholders": {
+      "artist": {
+        "type": "String"
+      }
+    }
+  },
+  "@downloadingSong": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "@downloadQueued": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@wrongLyricsDesc": {
+    "placeholders": {
+      "provider": {
+        "type": "String"
+      }
+    }
+  },
+  "@accountSignedInAs": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "@accountSignInFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "animatedArtworks": "Animated artworks",
+  "animatedArtworksDesc": "Motion album covers, playlist motion, and artist banners",
+  "animatedArtworksAlways": "Always",
+  "animatedArtworksWifiOnly": "Wi-Fi only",
+  "animatedArtworksNever": "Never",
+  "immersivePlayerBackground": "Immersive motion background",
+  "immersivePlayerBackgroundDesc": "Use motion artwork as full player backdrop",
+  "customArtworkServer": "Motion artwork server",
+  "customArtworkServerDesc": "Self-hosted m8tec server URL or direct Apple Music",
+  "animatedArtworkCacheLimit": "Motion artwork cache limit",
+  "clearAnimatedArtworkCache": "Clear motion artwork cache",
+  "animatedArtworkCacheCleared": "Motion artwork cache cleared",
+  "linkAnimatedArtwork": "Link animated artwork",
+  "linkAnimatedArtworkPrompt": "Enter Apple Music album or playlist URL",
+  "onlineRadioStation": "Radio station",
+  "onlineMixSongRadio": "Radio based on this song",
+  "onlineMixArtistRadio": "Artist radio",
+  "onlineMixPersonal": "Made for you",
+  "onlineMixPlaylistRadio": "Radio based on this playlist",
+  "onlineGuestPrivacyNote": "Guest mode uses a few of your most played song names to search YouTube Music. Nothing else leaves your phone.",
+  "onlineGuestQuickPicks": "Quick picks from your library",
+  "onlineGuestRadio": "Radio: based on {song}",
+  "@onlineGuestRadio": {
+    "placeholders": {
+      "song": {
+        "type": "String"
+      }
+    }
+  },
+  "onlineGuestBecause": "Because you listen to {artist}",
+  "@onlineGuestBecause": {
+    "placeholders": {
+      "artist": {
+        "type": "String"
+      }
+    }
+  },
+  "onlineGuestSimilar": "Similar to {artist}",
+  "@onlineGuestSimilar": {
+    "placeholders": {
+      "artist": {
+        "type": "String"
+      }
+    }
+  },
+  "onlineGuestMoreFrom": "More from {artist}",
+  "@onlineGuestMoreFrom": {
+    "placeholders": {
+      "artist": {
+        "type": "String"
+      }
+    }
+  },
+  "onlineGuestTrending": "Trending in {genre}",
+  "@onlineGuestTrending": {
+    "placeholders": {
+      "genre": {
+        "type": "String"
+      }
+    }
+  },
+  "onlineContentRegion": "Content region",
+  "onlineContentRegionDesc": "Changes charts, trending and suggestions. Song availability still depends on where you are.",
+  "onlineContentRegionAuto": "Auto ({country})",
+  "@onlineContentRegionAuto": {
+    "placeholders": {
+      "country": {
+        "type": "String"
+      }
+    }
+  },
+  "onlineContentRegionSearch": "Search country or region",
+  "ambientGlow": "Ambient glow",
+  "ambientGlowDesc": "Soft moving reflection of the cover around the player",
+  "headphoneCorrection": "Headphone correction",
+  "headphoneCorrectionDesc": "AutoEQ parametric headphone correction profiles",
+  "autoEqBass": "Bass",
+  "autoEqTilt": "Tilt",
+  "autoEqChooseHeadphones": "Choose headphones…",
+  "autoEqUseForDevice": "Use for this device",
+  "autoEqSavedDevices": "Saved devices",
+  "autoEqSearchHeadphones": "Search headphone models",
+  "autoEqDownloadIndex": "Download headphone profiles index",
+  "autoEqNoProfile": "None",
+  "autoEqSpeakerDisabled": "Disabled on phone speaker",
+  "autoEqForget": "Forget",
+  "autoEqCredit": "Profiles: AutoEQ by Jaakko Pasanen (MIT)",
+  "autoEqNoSavedDevices": "No saved devices",
+  "autoEqIndexDownloading": "Downloading index…"
 }

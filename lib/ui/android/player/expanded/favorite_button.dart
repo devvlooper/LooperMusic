@@ -69,11 +69,10 @@ class _FavoriteButtonWithGlowState extends State<FavoriteButtonWithGlow>
     // Only animate when the *same* song actually transitions to favorite
     // (a real like toggle). If the song itself changed - e.g. replaying a
     // previously-liked track after another song - don't replay the glow.
-    final sameTrack = oldWidget.song.path == widget.song.path ||
+    final sameTrack =
+        oldWidget.song.path == widget.song.path ||
         oldWidget.song.id == widget.song.id;
-    if (sameTrack &&
-        !oldWidget.song.isFavorite &&
-        widget.song.isFavorite) {
+    if (sameTrack && !oldWidget.song.isFavorite && widget.song.isFavorite) {
       if (_glowController.status != AnimationStatus.forward) {
         _generateRandomParticles();
         _glowController.forward(from: 0.0);
@@ -83,61 +82,71 @@ class _FavoriteButtonWithGlowState extends State<FavoriteButtonWithGlow>
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      clipBehavior: Clip.none,
-      alignment: Alignment.center,
-      children: [
-        PremiumSection(
-          borderRadius: BorderRadius.circular(32),
-          width: 56,
-          height: 56,
-          useExpanded: false,
-          showShadow: false,
-          useBlur: widget.useBlur,
-          forceNoBlur: true,
-          showBorder: false,
-          backgroundColor: widget.song.isFavorite
-              ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.08)
-              : Colors.transparent,
-          onTap: () {
-            if (widget.song.isFavorite) {
-              AppHaptics.selection();
-            } else {
-              AppHaptics.heartbeat();
-              _generateRandomParticles();
-              _glowController.forward(from: 0.0);
-            }
-            widget.ref.read(playbackProvider.notifier).toggleFavorite();
-          },
-          child: Center(
-            child: Icon(
-              widget.song.isFavorite
-                  ? Icons.star_rounded
-                  : Icons.star_outline_rounded,
-              size: 28,
-              color: widget.song.isFavorite
-                  ? Theme.of(context).colorScheme.primary
-                  : Colors.white.withValues(alpha: 0.35),
-            ),
+    // toggleFavorite mutates the same Song object, so watch the flag itself.
+    return Consumer(
+      builder: (context, ref, _) {
+        final isFav = ref.watch(
+          playbackProvider.select(
+            (s) => s.currentSong?.isFavorite ?? widget.song.isFavorite,
           ),
-        ),
-        IgnorePointer(
-          child: AnimatedBuilder(
-            animation: _glowController,
-            builder: (context, child) {
-              return CustomPaint(
-                size: const Size(56, 56),
-                painter: LikedGlowPainter(
-                  progress: _glowController.value,
-                  randomAngles: _randomAngles,
-                  randomRadii: _randomRadii,
-                  randomSpeeds: _randomSpeeds,
+        );
+        return Stack(
+          clipBehavior: Clip.none,
+          alignment: Alignment.center,
+          children: [
+            PremiumSection(
+              borderRadius: BorderRadius.circular(32),
+              width: 56,
+              height: 56,
+              useExpanded: false,
+              showShadow: false,
+              useBlur: widget.useBlur,
+              forceNoBlur: true,
+              showBorder: false,
+              backgroundColor: isFav
+                  ? Theme.of(
+                      context,
+                    ).colorScheme.primary.withValues(alpha: 0.08)
+                  : Colors.transparent,
+              onTap: () {
+                if (isFav) {
+                  AppHaptics.selection();
+                } else {
+                  AppHaptics.heartbeat();
+                  _generateRandomParticles();
+                  _glowController.forward(from: 0.0);
+                }
+                widget.ref.read(playbackProvider.notifier).toggleFavorite();
+              },
+              child: Center(
+                child: Icon(
+                  isFav ? Icons.star_rounded : Icons.star_outline_rounded,
+                  size: 28,
+                  color: isFav
+                      ? Theme.of(context).colorScheme.primary
+                      : Colors.white.withValues(alpha: 0.35),
                 ),
-              );
-            },
-          ),
-        ),
-      ],
+              ),
+            ),
+            IgnorePointer(
+              child: AnimatedBuilder(
+                animation: _glowController,
+                builder: (context, child) {
+                  return CustomPaint(
+                    size: const Size(56, 56),
+                    painter: LikedGlowPainter(
+                      progress: _glowController.value,
+                      randomAngles: _randomAngles,
+                      randomRadii: _randomRadii,
+                      randomSpeeds: _randomSpeeds,
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }

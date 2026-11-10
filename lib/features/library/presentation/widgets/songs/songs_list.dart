@@ -74,6 +74,10 @@ class SongsList extends ConsumerStatefulWidget {
   /// instead of only the currently loaded page.
   final Future<List<Song>> Function()? resolveQueue;
 
+  /// A last row after the songs (e.g. a page switcher). The header then
+  /// counts [totalCount] instead of the rows shown.
+  final Widget? footer;
+
   const SongsList({
     super.key,
     required this.songs,
@@ -89,6 +93,7 @@ class SongsList extends ConsumerStatefulWidget {
     this.onEndReached,
     this.onRefresh,
     this.resolveQueue,
+    this.footer,
   });
 
   @override
@@ -136,7 +141,11 @@ class _SongsListState extends ConsumerState<SongsList> {
   static const int _skeletonRows = 6;
 
   int get _rowCount =>
-      widget.songs.length + (widget.loading ? _skeletonRows : 0);
+      widget.songs.length +
+      (widget.loading ? _skeletonRows : 0) +
+      (_hasFooter ? 1 : 0);
+
+  bool get _hasFooter => widget.footer != null && !widget.loading;
 
   // Rows from this index on were skeletons until the last part arrived and
   // fade in when they are built.
@@ -307,7 +316,7 @@ class _SongsListState extends ConsumerState<SongsList> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
-            '${widget.loading ? (widget.totalCount ?? widget.songs.length) : widget.songs.length} ${l10n.songs}',
+            '${widget.loading || widget.footer != null ? (widget.totalCount ?? widget.songs.length) : widget.songs.length} ${l10n.songs}',
             style: AppFonts.jostStyle(color: Colors.grey, fontSize: 13),
           ),
           if (widget.showEnrichmentIndicator)
@@ -398,7 +407,8 @@ class _SongsListState extends ConsumerState<SongsList> {
       // sliver one real instance to measure once instead of
       // re-measuring each row as it scrolls into view - this is
       // the list a fast fling scroll actually has to keep up with.
-      prototypeItem: _buildPrototypeRow(l10n),
+      // A footer row has its own height, so it opts out.
+      prototypeItem: _hasFooter ? null : _buildPrototypeRow(l10n),
       itemBuilder: (context, index) => _buildRow(index, l10n),
     );
   }
@@ -423,6 +433,7 @@ class _SongsListState extends ConsumerState<SongsList> {
         if (mounted) widget.onEndReached?.call();
       });
     }
+    if (_hasFooter && index == widget.songs.length) return widget.footer!;
     if (index >= widget.songs.length) {
       return AppSkeleton(child: SongRowSkeleton(index: index));
     }
@@ -467,7 +478,7 @@ class _SongsListState extends ConsumerState<SongsList> {
         mainAxisExtent: 64,
         crossAxisSpacing: 24,
       ),
-      itemCount: widget.songs.length,
+      itemCount: widget.songs.length + (_hasFooter ? 1 : 0),
       itemBuilder: (context, index) => _buildRow(index, l10n),
     );
   }

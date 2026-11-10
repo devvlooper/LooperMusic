@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:looper_player/core/services/storage/local_json_store.dart';
+import 'package:looper_player/features/online/data/stream_resolver.dart';
 
 enum OnlineQuality { high, normal, low }
 
@@ -17,11 +18,13 @@ class OnlineSettings {
     this.cachePlayed = true,
     this.cachePlayedOnMobile = true,
     this.preload = true,
-    this.preloadOnMobile = false,
+    this.preloadOnMobile = true,
     this.cacheLimitMB = 5120,
     this.preferLocal = true,
     this.downloadDir,
     this.downloadQuality = OnlineQuality.high,
+    this.contentRegion,
+    this.contentLanguage,
   });
 
   /// Master switch: off hides every online surface ("local only").
@@ -50,6 +53,12 @@ class OnlineSettings {
   /// Quality picked when downloading online songs.
   final OnlineQuality downloadQuality;
 
+  /// ISO 3166-1 alpha-2 content country code (null = Auto from device).
+  final String? contentRegion;
+
+  /// Content language code (null = Auto from app).
+  final String? contentLanguage;
+
   OnlineSettings copyWith({
     bool? enabled,
     bool? disclaimerAccepted,
@@ -63,6 +72,8 @@ class OnlineSettings {
     bool? preferLocal,
     String? downloadDir,
     OnlineQuality? downloadQuality,
+    String? Function()? contentRegion,
+    String? Function()? contentLanguage,
   }) => OnlineSettings(
     enabled: enabled ?? this.enabled,
     disclaimerAccepted: disclaimerAccepted ?? this.disclaimerAccepted,
@@ -76,6 +87,10 @@ class OnlineSettings {
     preferLocal: preferLocal ?? this.preferLocal,
     downloadDir: downloadDir ?? this.downloadDir,
     downloadQuality: downloadQuality ?? this.downloadQuality,
+    contentRegion: contentRegion != null ? contentRegion() : this.contentRegion,
+    contentLanguage: contentLanguage != null
+        ? contentLanguage()
+        : this.contentLanguage,
   );
 
   Map<String, dynamic> toJson() => {
@@ -91,10 +106,18 @@ class OnlineSettings {
     'preferLocal': preferLocal,
     'downloadDir': downloadDir,
     'downloadQuality': downloadQuality.name,
+    if (contentRegion != null) 'contentRegion': contentRegion,
+    if (contentLanguage != null) 'contentLanguage': contentLanguage,
   };
 
   static OnlineQuality _q(Object? v, OnlineQuality d) =>
       OnlineQuality.values.where((q) => q.name == v).firstOrNull ?? d;
+
+  static String? _validateRegion(Object? v) {
+    if (v is! String) return null;
+    final clean = v.trim().toUpperCase();
+    return RegExp(r'^[A-Z]{2}$').hasMatch(clean) ? clean : null;
+  }
 
   factory OnlineSettings.fromJson(Map j) => OnlineSettings(
     enabled: j['enabled'] as bool? ?? false,
@@ -104,11 +127,13 @@ class OnlineSettings {
     cachePlayed: j['cachePlayed'] as bool? ?? true,
     cachePlayedOnMobile: j['cachePlayedOnMobile'] as bool? ?? true,
     preload: j['preload'] as bool? ?? true,
-    preloadOnMobile: j['preloadOnMobile'] as bool? ?? false,
+    preloadOnMobile: j['preloadOnMobile'] as bool? ?? true,
     cacheLimitMB: j['cacheLimitMB'] as int? ?? 5120,
     preferLocal: j['preferLocal'] as bool? ?? true,
     downloadDir: j['downloadDir'] as String?,
     downloadQuality: _q(j['downloadQuality'], OnlineQuality.high),
+    contentRegion: _validateRegion(j['contentRegion']),
+    contentLanguage: j['contentLanguage'] as String?,
   );
 }
 
@@ -118,6 +143,9 @@ class OnlineSettingsNotifier extends Notifier<OnlineSettings> {
   /// Latest value for code without a Ref (resolver, cache).
   static OnlineSettings current = const OnlineSettings();
 
+  /// SIM/network country (Android), used by Auto region before the locale.
+  static String? deviceCountry;
+
   @override
   OnlineSettings build() {
     _load();
@@ -125,6 +153,13 @@ class OnlineSettingsNotifier extends Notifier<OnlineSettings> {
   }
 
   Future<void> _load() async {
+    if (Platform.isAndroid) {
+      try {
+        deviceCountry = await _networkChannel.invokeMethod<String>(
+          'deviceCountry',
+        );
+      } catch (_) {}
+    }
     final raw = await LocalJsonStore.read(_key);
     if (raw is Map) state = current = OnlineSettings.fromJson(raw);
   }
@@ -132,6 +167,20 @@ class OnlineSettingsNotifier extends Notifier<OnlineSettings> {
   Future<void> update(OnlineSettings Function(OnlineSettings) change) async {
     state = current = change(state);
     await LocalJsonStore.write(_key, state.toJson());
+  }
+
+  /// Sets content region with validation, clearing home cache and resetting visitor (Doc 21 §3.2).
+  Future<void> setContentRegion(String? region) async {
+    final clean =
+        region != null &&
+            RegExp(r'^[A-Z]{2}$').hasMatch(region.trim().toUpperCase())
+        ? region.trim().toUpperCase()
+        : null;
+    await update((s) => s.copyWith(contentRegion: () => clean));
+    await LocalJsonStore.delete('online_home_v1');
+    try {
+      await StreamResolver.instance.reset();
+    } catch (_) {}
   }
 }
 

@@ -130,14 +130,20 @@ class _ExpressiveSliderState extends ConsumerState<ExpressiveSlider> {
     widget.onSeekEnd?.call();
   }
 
+  /// Flat for the first 12% of the song (the "wave from start" setting being
+  /// off), then grows in over the next 6% instead of popping in at 12%.
+  static double _startRamp(double progress) =>
+      Curves.easeInOut.transform(((progress - 0.12) / 0.06).clamp(0.0, 1.0));
+
   /// The desktop (Linux) bar: fixed look, not affected by the progress bar
   /// style settings apart from the flat-bar toggle.
   Widget _buildLinuxSlider(double displayValue, double? secondaryTrackValue) {
     final disableSquiggle = ref.watch(
       settingsProvider.select((s) => s.disableSquiggle),
     );
-    final bool enableWave = widget.isPlaying && displayValue > 0.12;
-    final targetAmplitude = disableSquiggle ? 0.0 : (enableWave ? 2.0 : 0.0);
+    final targetAmplitude = disableSquiggle || !widget.isPlaying
+        ? 0.0
+        : 2.0 * _startRamp(displayValue);
     return SliderTheme(
       data: SliderTheme.of(context).copyWith(
         trackHeight: 3.0,
@@ -176,10 +182,11 @@ class _ExpressiveSliderState extends ConsumerState<ExpressiveSlider> {
     double? secondaryTrackValue,
     ProgressBarStyle style,
   ) {
-    final bool pastStart = style.waveFromStart || displayValue > 0.12;
     final bool showWave =
-        style.wave && pastStart && (widget.isPlaying || style.freezeWhenPaused);
-    final double targetAmplitude = showWave ? style.waveHeight : 0.0;
+        style.wave && (widget.isPlaying || style.freezeWhenPaused);
+    final double targetAmplitude = showWave
+        ? style.waveHeight * (style.waveFromStart ? 1.0 : _startRamp(displayValue))
+        : 0.0;
     final Color inactive = Colors.white.withValues(
       alpha: style.inactiveOpacity,
     );

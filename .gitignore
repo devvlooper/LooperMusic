@@ -91,3 +91,6 @@ docs/
 .claude/
 brag-output/
 
+AGENT_HANDOFF.md
+.gemini/
+.superpowers/

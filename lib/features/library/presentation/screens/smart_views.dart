@@ -12,24 +12,38 @@ import 'package:looper_player/features/library/presentation/widgets/songs/songs_
 import 'package:looper_player/features/online/data/account_data_sync.dart';
 import 'package:looper_player/features/online/data/online_downloader.dart';
 import 'package:looper_player/features/online/data/online_settings.dart';
+import 'package:looper_player/features/online/data/parsers.dart';
 import 'package:looper_player/features/online/presentation/online_providers.dart';
 import 'package:looper_player/features/online/presentation/online_widgets.dart';
+import 'package:looper_player/features/settings/presentation/providers/settings_notifier.dart';
 import 'package:looper_player/l10n/app_localizations.dart';
+import 'package:looper_player/ui/widgets/common/filter_pill.dart';
 import 'package:looper_player/ui/widgets/common/app_loading_indicator.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 enum PagedQueryKind { favorites, history, downloads }
+
+/// Which songs Favorites / History show, like the playlist screen's chips.
+enum SongSource { all, onDevice, youtube }
 
 class PagedSongs {
   final List<Song> items;
   final int total;
   final bool loadingMore;
 
+  /// Favorites / History show one page at a time; downloads scroll on.
+  final int page;
+  final SongSource source;
+
   const PagedSongs({
     required this.items,
     required this.total,
     this.loadingMore = false,
+    this.page = 0,
+    this.source = SongSource.all,
   });
+
+  int get pageCount => (total / PagedSongsNotifier.pageSize).ceil();
 
   PagedSongs copyWith({
     List<Song>? items,
@@ -40,6 +54,8 @@ class PagedSongs {
         items: items ?? this.items,
         total: total ?? this.total,
         loadingMore: loadingMore ?? this.loadingMore,
+        page: page,
+        source: source,
       );
 }
 
@@ -57,6 +73,10 @@ class PagedSongsNotifier extends AsyncNotifier<PagedSongs> {
   Timer? _debounce;
   bool _disposed = false;
   List<String> _downloadDirs = const [];
+  SongSource _source = SongSource.all;
+  int _page = 0;
+
+  bool get _paged => kind != PagedQueryKind.downloads;
 
   QueryBuilder<Song, Song, QAfterFilterCondition> _filterQuery({
     String? search,
@@ -71,6 +91,11 @@ class PagedSongsNotifier extends AsyncNotifier<PagedSongs> {
         _downloadDirs.isEmpty ? const ['\u0000none'] : _downloadDirs,
         (q, dir) => q.pathStartsWith(dir.endsWith('/') ? dir : '$dir/'),
       ),
+    };
+    q = switch (_source) {
+      SongSource.all => q,
+      SongSource.onDevice => q.and().not().pathStartsWith('yt:'),
+      SongSource.youtube => q.and().pathStartsWith('yt:'),
     };
     if (search != null && search.trim().isNotEmpty) {
       final term = search.trim();
@@ -95,6 +120,62 @@ class PagedSongsNotifier extends AsyncNotifier<PagedSongs> {
     };
   }
 
+  /// Signed-in account favorites / history not already in the local list,
+  /// shown after the local songs.
+  Future<List<Song>> _onlineExtras() async {
+    if (_source == SongSource.onDevice ||
+        !ref.read(isOnlineConnectedProvider)) {
+      return const [];
+    }
+    final online = switch (kind) {
+      PagedQueryKind.favorites => await AccountDataSync.getAccountFavorites(),
+      PagedQueryKind.history => await AccountDataSync.getAccountHistory(),
+      PagedQueryKind.downloads => const <OnlineSong>[],
+    };
+    if (online.isEmpty) return const [];
+    final seen = {
+      for (final t in await _filterQuery().titleProperty().findAll())
+        t.toLowerCase(),
+    };
+    return [
+      for (final s in online)
+        if (seen.add(s.title.toLowerCase()))
+          s.toSong()..isFavorite = kind == PagedQueryKind.favorites,
+    ];
+  }
+
+  /// The current page (Favorites / History) or the first [limit] rows
+  /// (downloads).
+  Future<PagedSongs> _load({int limit = pageSize}) async {
+    if (kind == PagedQueryKind.downloads) {
+      _downloadDirs = (await DownloadFolders.all()).toList();
+    }
+    final localTotal = await _filterQuery().count();
+    final extra = await _onlineExtras();
+    final total = localTotal + extra.length;
+    if (!_paged) {
+      final items = await _sortedQuery().limit(limit).findAll();
+      return PagedSongs(items: items, total: total, source: _source);
+    }
+    _page = _page.clamp(0, math.max(0, (total - 1) ~/ pageSize));
+    final start = _page * pageSize;
+    final local = start < localTotal
+        ? await _sortedQuery().offset(start).limit(pageSize).findAll()
+        : <Song>[];
+    final items = [
+      ...local,
+      ...extra
+          .skip(math.max(0, start - localTotal))
+          .take(pageSize - local.length),
+    ];
+    return PagedSongs(
+      items: items,
+      total: total,
+      page: _page,
+      source: _source,
+    );
+  }
+
   @override
   Future<PagedSongs> build() async {
     ref.onDispose(() {
@@ -112,49 +193,15 @@ class PagedSongsNotifier extends AsyncNotifier<PagedSongs> {
       });
     });
 
-    if (kind == PagedQueryKind.downloads) {
-      _downloadDirs = (await DownloadFolders.all()).toList();
-    }
-    final total = await _filterQuery().count();
-    final items = await _sortedQuery().limit(pageSize).findAll();
-
-    // In unified mode, merge cloud favorites / history if connected
-    final isConnected = ref.watch(isOnlineConnectedProvider);
-    if (isConnected) {
-      if (kind == PagedQueryKind.favorites) {
-        final onlineFavorites = await AccountDataSync.getAccountFavorites();
-        final seen = {for (final s in items) s.title.toLowerCase(): s};
-        final extra = [
-          for (final s in onlineFavorites)
-            if (!seen.containsKey(s.title.toLowerCase()))
-              s.toSong()..isFavorite = true,
-        ];
-        return PagedSongs(
-          items: [...items, ...extra],
-          total: total + extra.length,
-          loadingMore: false,
-        );
-      } else if (kind == PagedQueryKind.history) {
-        final onlineHistory = await AccountDataSync.getAccountHistory();
-        final seen = {for (final s in items) s.title.toLowerCase(): s};
-        final extra = [
-          for (final s in onlineHistory)
-            if (!seen.containsKey(s.title.toLowerCase())) s.toSong(),
-        ];
-        return PagedSongs(
-          items: [...items, ...extra],
-          total: total + extra.length,
-          loadingMore: false,
-        );
-      }
-    }
-
-    return PagedSongs(items: items, total: total, loadingMore: false);
+    // Reload when the account connects / disconnects (cloud extras).
+    ref.watch(isOnlineConnectedProvider);
+    return _load();
   }
 
   Future<void> loadMore() async {
     final current = state.value;
-    if (current == null ||
+    if (_paged ||
+        current == null ||
         current.loadingMore ||
         current.items.length >= current.total) {
       return;
@@ -179,77 +226,30 @@ class PagedSongsNotifier extends AsyncNotifier<PagedSongs> {
   }
 
   Future<void> refresh() async {
-    if (kind == PagedQueryKind.downloads) {
-      _downloadDirs = (await DownloadFolders.all()).toList();
-    }
-    final current = state.value;
-    final limit = math.max(pageSize, current?.items.length ?? pageSize);
-    final total = await _filterQuery().count();
-    final items = await _sortedQuery().limit(limit).findAll();
-
-    final isConnected = ref.read(isOnlineConnectedProvider);
-    if (isConnected) {
-      if (kind == PagedQueryKind.favorites) {
-        final onlineFavorites = await AccountDataSync.getAccountFavorites();
-        final seen = {for (final s in items) s.title.toLowerCase(): s};
-        final extra = [
-          for (final s in onlineFavorites)
-            if (!seen.containsKey(s.title.toLowerCase()))
-              s.toSong()..isFavorite = true,
-        ];
-        state = AsyncData(
-          PagedSongs(
-            items: [...items, ...extra],
-            total: total + extra.length,
-            loadingMore: false,
-          ),
-        );
-        return;
-      } else if (kind == PagedQueryKind.history) {
-        final onlineHistory = await AccountDataSync.getAccountHistory();
-        final seen = {for (final s in items) s.title.toLowerCase(): s};
-        final extra = [
-          for (final s in onlineHistory)
-            if (!seen.containsKey(s.title.toLowerCase())) s.toSong(),
-        ];
-        state = AsyncData(
-          PagedSongs(
-            items: [...items, ...extra],
-            total: total + extra.length,
-            loadingMore: false,
-          ),
-        );
-        return;
-      }
-    }
-
-    state = AsyncData(
-      PagedSongs(items: items, total: total, loadingMore: false),
-    );
+    final loaded = state.value?.items.length ?? pageSize;
+    final page = _page, source = _source;
+    final next = await _load(limit: math.max(pageSize, loaded));
+    // A newer page / filter change already replaced this result.
+    if (_disposed || page != _page || source != _source) return;
+    state = AsyncData(next);
   }
 
+  Future<void> goToPage(int page) async {
+    _page = page;
+    await refresh();
+  }
+
+  Future<void> setSource(SongSource source) async {
+    if (source == _source) return;
+    _source = source;
+    _page = 0;
+    await refresh();
+  }
+
+  /// Every song of the current filter, for the play queue.
   Future<List<Song>> fetchAll({String? search}) async {
     final local = await _sortedQuery(search: search).findAll();
-    if (!ref.read(isOnlineConnectedProvider)) return local;
-    if (kind == PagedQueryKind.favorites) {
-      final onlineFavorites = await AccountDataSync.getAccountFavorites();
-      final seen = {for (final s in local) s.title.toLowerCase(): s};
-      return [
-        ...local,
-        for (final s in onlineFavorites)
-          if (!seen.containsKey(s.title.toLowerCase()))
-            s.toSong()..isFavorite = true,
-      ];
-    } else if (kind == PagedQueryKind.history) {
-      final onlineHistory = await AccountDataSync.getAccountHistory();
-      final seen = {for (final s in local) s.title.toLowerCase(): s};
-      return [
-        ...local,
-        for (final s in onlineHistory)
-          if (!seen.containsKey(s.title.toLowerCase())) s.toSong(),
-      ];
-    }
-    return local;
+    return [...local, ...await _onlineExtras()];
   }
 }
 
@@ -268,92 +268,161 @@ final recentlyPlayedScreenProvider =
       );
 });
 
-class FavoritesView extends ConsumerWidget {
+class FavoritesView extends StatelessWidget {
   const FavoritesView({super.key});
 
   @override
+  Widget build(BuildContext context) => _PagedSongsView(
+        kind: PagedQueryKind.favorites,
+        emptyIcon: LucideIcons.heart,
+        emptyText: AppLocalizations.of(context)!.noFavoritesYet,
+      );
+}
+
+class RecentlyPlayedView extends StatelessWidget {
+  const RecentlyPlayedView({super.key});
+
+  @override
+  Widget build(BuildContext context) => _PagedSongsView(
+        kind: PagedQueryKind.history,
+        emptyIcon: LucideIcons.clock,
+        emptyText: AppLocalizations.of(context)!.noHistoryYet,
+      );
+}
+
+/// Favorites / History: source chips on top (while online music is on),
+/// one page of songs, and a page switcher at the end of the list.
+class _PagedSongsView extends ConsumerWidget {
+  const _PagedSongsView({
+    required this.kind,
+    required this.emptyIcon,
+    required this.emptyText,
+  });
+
+  final PagedQueryKind kind;
+  final IconData emptyIcon;
+  final String emptyText;
+
+  @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = AppLocalizations.of(context)!;
-    final pagedAsync = ref.watch(pagedSongsProvider(PagedQueryKind.favorites));
+    final provider = pagedSongsProvider(kind);
+    final pagedAsync = ref.watch(provider);
+    final notifier = ref.read(provider.notifier);
+    final showChips = ref.watch(onlineActiveProvider);
+    final accent = ref.watch(settingsProvider).accent;
 
     return pagedAsync.when(
-      data: (paged) => paged.items.isEmpty
-          ? _buildEmpty(context, LucideIcons.heart, l10n.noFavoritesYet)
-          : SongsList(
-              songs: paged.items,
-              totalCount: paged.total,
-              loading: paged.loadingMore,
-              onEndReached: () => ref
-                  .read(pagedSongsProvider(PagedQueryKind.favorites).notifier)
-                  .loadMore(),
-              onRefresh: () => ref
-                  .read(pagedSongsProvider(PagedQueryKind.favorites).notifier)
-                  .refresh(),
-              resolveQueue: () => ref
-                  .read(pagedSongsProvider(PagedQueryKind.favorites).notifier)
-                  .fetchAll(),
+      data: (paged) {
+        final list = paged.items.isEmpty
+            ? _buildEmpty(context, emptyIcon, emptyText)
+            : SongsList(
+                // New page: fresh list scrolled to the top.
+                key: ValueKey('${paged.source}-${paged.page}'),
+                songs: paged.items,
+                totalCount: paged.total,
+                onRefresh: notifier.refresh,
+                resolveQueue: notifier.fetchAll,
+                footer: paged.pageCount > 1
+                    ? _PageBar(
+                        page: paged.page,
+                        pageCount: paged.pageCount,
+                        onPage: notifier.goToPage,
+                      )
+                    : null,
+              );
+        if (!showChips) return list;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    for (final (source, label) in const [
+                      (SongSource.all, 'All'),
+                      (SongSource.onDevice, 'On Device'),
+                      (SongSource.youtube, 'YouTube Music'),
+                    ]) ...[
+                      FilterPill(
+                        label: label,
+                        isSelected: paged.source == source,
+                        accent: accent,
+                        onTap: () => notifier.setSource(source),
+                      ),
+                      const SizedBox(width: 8),
+                    ],
+                  ],
+                ),
+              ),
             ),
+            Expanded(child: list),
+          ],
+        );
+      },
       loading: () => const AppLoadingIndicator(),
       error: (e, s) => Center(child: Text(context.l10n.errorWithDetails('$e'))),
     );
   }
+}
 
-  Widget _buildEmpty(BuildContext context, IconData icon, String text) {
-    return Center(
-      child: Column(
+class _PageBar extends StatelessWidget {
+  const _PageBar({
+    required this.page,
+    required this.pageCount,
+    required this.onPage,
+  });
+
+  final int page;
+  final int pageCount;
+  final ValueChanged<int> onPage;
+
+  @override
+  Widget build(BuildContext context) {
+    void go(int p) {
+      AppHaptics.selection();
+      onPage(p);
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, size: 64, color: Colors.grey.withValues(alpha: 0.2)),
-          const SizedBox(height: 16),
-          Text(text),
+          IconButton(
+            icon: const Icon(LucideIcons.chevronLeft, size: 20),
+            tooltip: 'Previous page',
+            onPressed: page > 0 ? () => go(page - 1) : null,
+          ),
+          const SizedBox(width: 8),
+          Text(
+            'Page ${page + 1} of $pageCount',
+            style: AppFonts.jostStyle(color: Colors.white70, fontSize: 13),
+          ),
+          const SizedBox(width: 8),
+          IconButton(
+            icon: const Icon(LucideIcons.chevronRight, size: 20),
+            tooltip: 'Next page',
+            onPressed: page < pageCount - 1 ? () => go(page + 1) : null,
+          ),
         ],
       ),
     );
   }
 }
 
-class RecentlyPlayedView extends ConsumerWidget {
-  const RecentlyPlayedView({super.key});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = AppLocalizations.of(context)!;
-    final pagedAsync = ref.watch(pagedSongsProvider(PagedQueryKind.history));
-
-    return pagedAsync.when(
-      data: (paged) => paged.items.isEmpty
-          ? _buildEmpty(context, LucideIcons.clock, l10n.noHistoryYet)
-          : SongsList(
-              songs: paged.items,
-              totalCount: paged.total,
-              loading: paged.loadingMore,
-              onEndReached: () => ref
-                  .read(pagedSongsProvider(PagedQueryKind.history).notifier)
-                  .loadMore(),
-              onRefresh: () => ref
-                  .read(pagedSongsProvider(PagedQueryKind.history).notifier)
-                  .refresh(),
-              resolveQueue: () => ref
-                  .read(pagedSongsProvider(PagedQueryKind.history).notifier)
-                  .fetchAll(),
-            ),
-      loading: () => const AppLoadingIndicator(),
-      error: (e, s) => Center(child: Text(context.l10n.errorWithDetails('$e'))),
-    );
-  }
-
-  Widget _buildEmpty(BuildContext context, IconData icon, String text) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, size: 64, color: Colors.grey.withValues(alpha: 0.2)),
-          const SizedBox(height: 16),
-          Text(text),
-        ],
-      ),
-    );
-  }
+Widget _buildEmpty(BuildContext context, IconData icon, String text) {
+  return Center(
+    child: Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(icon, size: 64, color: Colors.grey.withValues(alpha: 0.2)),
+        const SizedBox(height: 16),
+        Text(text),
+      ],
+    ),
+  );
 }
 
 /// Whether Library shows "Downloads": always while online music is on (so
@@ -478,19 +547,6 @@ class DownloadsView extends ConsumerWidget {
       },
       loading: () => const AppLoadingIndicator(),
       error: (e, s) => Center(child: Text(context.l10n.errorWithDetails('$e'))),
-    );
-  }
-
-  Widget _buildEmpty(BuildContext context, IconData icon, String text) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, size: 64, color: Colors.grey.withValues(alpha: 0.2)),
-          const SizedBox(height: 16),
-          Text(text),
-        ],
-      ),
     );
   }
 }

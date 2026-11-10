@@ -219,14 +219,12 @@ class _AndroidExpandedPlayerState extends ConsumerState<AndroidExpandedPlayer>
         ? 0.62
         : settings.musicDarkness;
     final motionSettings = ref.watch(animatedArtworkSettingsProvider);
-    final motionArt =
-        ref.watch(animatedArtworkForSongProvider(song)).asData?.value;
-    final hasMotion = motionSettings.immersiveBackground &&
-        motionSettings.mode != AnimatedArtworkMode.never &&
-        motionArt != null &&
-        motionArt.hasMotion &&
-        (motionArt.bestTallMedia != null || motionArt.bestSquareMedia != null);
-    final showArtBackground = (useBlur && song.artPath != null) || hasMotion;
+    // Immersive: portrait shows the art full width at the top (motion art
+    // when the song has it); the background stays as without it.
+    final immersive =
+        motionSettings.immersiveBackground &&
+        motionSettings.mode != AnimatedArtworkMode.never;
+    final showArtBackground = useBlur && song.artPath != null;
 
     // In landscape the player is two panes (see PlayerLandscapeLayout); portrait
     // keeps the original single column.
@@ -1176,6 +1174,102 @@ class _AndroidExpandedPlayerState extends ConsumerState<AndroidExpandedPlayer>
       ),
     );
 
+    // Immersive portrait top: art from the screen top to the title row,
+    // with the top bar, lyric line and title over it.
+    Widget buildImmersiveTop() => Stack(
+      fit: StackFit.expand,
+      children: [
+        PositionReporter(
+          ancestorKey: _playerRootKey,
+          onPositionChanged: (rect) {
+            // Constrain to a square viewport based on width so morphing art stays 1:1.
+            ref.read(playerArtworkRectProvider.notifier).set(
+              Rect.fromLTWH(rect.left, rect.top, rect.width, rect.width),
+            );
+          },
+          child: GestureDetector(
+            onTap: () => _showLyrics(context),
+            onHorizontalDragEnd: (details) {
+              final v = details.primaryVelocity ?? 0;
+              if (v.abs() < 300) return;
+              AppHaptics.light();
+              final playback = ref.read(playbackProvider.notifier);
+              v < 0 ? playback.skipNext() : playback.skipPrevious();
+            },
+            // Hidden while the Fluid Player's morphing art stands in for it.
+            child: ValueListenableBuilder<double>(
+              valueListenable: expandProgress,
+              builder: (context, progress, child) {
+                final double opacity = !enableSlide
+                    ? 1.0
+                    : ((progress - 0.90) / 0.10).clamp(0.0, 1.0);
+                return Opacity(
+                  opacity: opacity,
+                  child: child,
+                );
+              },
+              child: RepaintBoundary(
+                child: !enableSlide
+                    ? Hero(
+                        tag: 'album_art',
+                        flightShuttleBuilder: artworkFlightShuttle,
+                        child: ImmersiveHeroArt(
+                          key: ValueKey(song.id),
+                          song: song,
+                          fadeHeight: 160 * k,
+                        ),
+                      )
+                    : ImmersiveHeroArt(
+                        key: ValueKey(song.id),
+                        song: song,
+                        fadeHeight: 160 * k,
+                      ),
+              ),
+            ),
+          ),
+        ),
+        SafeArea(
+          bottom: false,
+          child: capWidth(
+            Column(
+              children: [
+                fadeWithSlide(
+                  scaled(buildTopBar(const EdgeInsets.fromLTRB(16, 8, 16, 0))),
+                  FluidSectionMotion.topBar,
+                ),
+                const Spacer(),
+                if (settings.playerLyricLine)
+                  Consumer(
+                    builder: (context, ref, _) {
+                      if (ref.watch(playerLyricLinesProvider).isEmpty) {
+                        return const SizedBox.shrink();
+                      }
+                      return LayoutBuilder(
+                        builder: (context, box) => SizedBox(
+                          height: PlayerLyricLine.rowHeight * k,
+                          child: fadeWithSlide(
+                            PlayerLyricLine(
+                              width: box.maxWidth,
+                              scale: k,
+                              edgeInset: 32 * k,
+                              onTap: () => _showLyrics(context),
+                            ),
+                            FluidSectionMotion.songInfo,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                scaled(
+                  fadeWithSlide(buildSongInfo(32), FluidSectionMotion.songInfo),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+
     final child = Scaffold(
       key: _playerRootKey,
       // In the Fluid Player the surface fill is a layer below that fades in
@@ -1199,7 +1293,9 @@ class _AndroidExpandedPlayerState extends ConsumerState<AndroidExpandedPlayer>
             ),
           // Skipped with the gradient on: the panel's background is already
           // opaque then, and this fill would paint over the gradient.
-          if (enableSlide && !showArtBackground && !settings.enablePlayerGradient)
+          if (enableSlide &&
+              !showArtBackground &&
+              !settings.enablePlayerGradient)
             Positioned.fill(
               child: fadeWithSlide(
                 ColoredBox(color: Theme.of(context).colorScheme.surface),
@@ -1218,11 +1314,15 @@ class _AndroidExpandedPlayerState extends ConsumerState<AndroidExpandedPlayer>
                 },
                 child: showArtBackground
                     ? SizedBox.expand(
-                        key: ValueKey(('art', song.id, hasMotion)),
+                        key: ValueKey(('art', song.id)),
                         child: Stack(
                           fit: StackFit.expand,
                           children: [
-                            BlurredBackgroundArt(song: song, zoom: 1.08),
+                            BlurredBackgroundArt(
+                              song: song,
+                              zoom: 1.08,
+                              motion: false,
+                            ),
                             ColoredBox(
                               color: Colors.black.withValues(
                                 alpha: musicDarkness,
@@ -1300,124 +1400,137 @@ class _AndroidExpandedPlayerState extends ConsumerState<AndroidExpandedPlayer>
             )
           else
             SafeArea(
-              child: capWidth(
-                Column(
-                  children: [
+              top: !immersive,
+              child: Column(
+                children: [
+                  if (immersive)
+                    Expanded(child: buildImmersiveTop())
+                  else ...[
                     // Top Bar
-                    fadeWithSlide(
-                      scaled(
-                        buildTopBar(const EdgeInsets.fromLTRB(16, 8, 16, 0)),
+                    capWidth(
+                      fadeWithSlide(
+                        scaled(
+                          buildTopBar(const EdgeInsets.fromLTRB(16, 8, 16, 0)),
+                        ),
+                        FluidSectionMotion.topBar,
                       ),
-                      FluidSectionMotion.topBar,
                     ),
 
                     // Large Album Art. The largest square that fits: a
                     // Column + AspectRatio here always took the full width, so
                     // on short (16:9) windows the controls overflowed below.
                     Expanded(
-                      child: Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 20 * k),
-                        child: !settings.playerLyricLine
-                            ? LayoutBuilder(
-                                builder: (context, box) => Center(
-                                  child: SizedBox.square(
-                                    dimension: math.min(
-                                      box.maxWidth,
-                                      box.maxHeight,
+                      child: capWidth(
+                        Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 20 * k),
+                          child: !settings.playerLyricLine
+                              ? LayoutBuilder(
+                                  builder: (context, box) => Center(
+                                    child: SizedBox.square(
+                                      dimension: math.min(
+                                        box.maxWidth,
+                                        box.maxHeight,
+                                      ),
+                                      child: buildPortraitArtwork(),
                                     ),
-                                    child: buildPortraitArtwork(),
                                   ),
-                                ),
-                              )
-                            : Consumer(
-                                builder: (context, ref, _) {
-                                  final hasLine = ref
-                                      .watch(playerLyricLinesProvider)
-                                      .isNotEmpty;
-                                  // The cover makes room for the line as it
-                                  // appears instead of jumping.
-                                  return TweenAnimationBuilder<double>(
-                                    tween: Tween(end: hasLine ? 1.0 : 0.0),
-                                    duration: const Duration(milliseconds: 320),
-                                    curve: Curves.easeOutCubic,
-                                    builder: (context, reveal, _) => LayoutBuilder(
-                                      builder: (context, box) {
-                                        final room =
-                                            PlayerLyricLine.rowHeight *
-                                            k *
-                                            reveal;
-                                        final dimension = math.max(
-                                          0.0,
-                                          math.min(
-                                            box.maxWidth,
-                                            box.maxHeight - room,
-                                          ),
-                                        );
-                                        return Center(
-                                          child: Column(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              SizedBox.square(
-                                                dimension: dimension,
-                                                child: buildPortraitArtwork(),
-                                              ),
-                                              SizedBox(
-                                                width: dimension,
-                                                height: room,
-                                                child: reveal <= 0
-                                                    ? null
-                                                    : OverflowBox(
-                                                        alignment:
-                                                            Alignment.topCenter,
-                                                        maxHeight:
-                                                            PlayerLyricLine
-                                                                .rowHeight *
-                                                            k,
-                                                        child: Opacity(
-                                                          opacity: reveal,
-                                                          child: fadeWithSlide(
-                                                            PlayerLyricLine(
-                                                              width: dimension,
-                                                              scale: k,
-                                                              // Title starts 32 in
-                                                              // (scaled); the cover
-                                                              // 20 plus its centring.
-                                                              edgeInset:
-                                                                  32 * k -
-                                                                  (20 * k +
-                                                                      (box.maxWidth -
-                                                                              dimension) /
-                                                                          2),
-                                                              onTap: () =>
-                                                                  _showLyrics(
-                                                                    context,
-                                                                  ),
+                                )
+                              : Consumer(
+                                  builder: (context, ref, _) {
+                                    final hasLine = ref
+                                        .watch(playerLyricLinesProvider)
+                                        .isNotEmpty;
+                                    // The cover makes room for the line as it
+                                    // appears instead of jumping.
+                                    return TweenAnimationBuilder<double>(
+                                      tween: Tween(end: hasLine ? 1.0 : 0.0),
+                                      duration: const Duration(
+                                        milliseconds: 320,
+                                      ),
+                                      curve: Curves.easeOutCubic,
+                                      builder: (context, reveal, _) => LayoutBuilder(
+                                        builder: (context, box) {
+                                          final room =
+                                              PlayerLyricLine.rowHeight *
+                                              k *
+                                              reveal;
+                                          final dimension = math.max(
+                                            0.0,
+                                            math.min(
+                                              box.maxWidth,
+                                              box.maxHeight - room,
+                                            ),
+                                          );
+                                          return Center(
+                                            child: Column(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                SizedBox.square(
+                                                  dimension: dimension,
+                                                  child: buildPortraitArtwork(),
+                                                ),
+                                                SizedBox(
+                                                  width: dimension,
+                                                  height: room,
+                                                  child: reveal <= 0
+                                                      ? null
+                                                      : OverflowBox(
+                                                          alignment: Alignment
+                                                              .topCenter,
+                                                          maxHeight:
+                                                              PlayerLyricLine
+                                                                  .rowHeight *
+                                                              k,
+                                                          child: Opacity(
+                                                            opacity: reveal,
+                                                            child: fadeWithSlide(
+                                                              PlayerLyricLine(
+                                                                width:
+                                                                    dimension,
+                                                                scale: k,
+                                                                // Title starts 32 in
+                                                                // (scaled); the cover
+                                                                // 20 plus its centring.
+                                                                edgeInset:
+                                                                    32 * k -
+                                                                    (20 * k +
+                                                                        (box.maxWidth -
+                                                                                dimension) /
+                                                                            2),
+                                                                onTap: () =>
+                                                                    _showLyrics(
+                                                                      context,
+                                                                    ),
+                                                              ),
+                                                              FluidSectionMotion
+                                                                  .songInfo,
                                                             ),
-                                                            FluidSectionMotion
-                                                                .songInfo,
                                                           ),
                                                         ),
-                                                      ),
-                                              ),
-                                            ],
-                                          ),
-                                        );
-                                      },
-                                    ),
-                                  );
-                                },
-                              ),
+                                                ),
+                                              ],
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                    );
+                                  },
+                                ),
+                        ),
                       ),
                     ),
+                  ],
 
+                  capWidth(
                     scaled(
                       Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          fadeWithSlide(
-                            buildSongInfo(32),
-                            FluidSectionMotion.songInfo,
-                          ),
+                          if (!immersive)
+                            fadeWithSlide(
+                              buildSongInfo(32),
+                              FluidSectionMotion.songInfo,
+                            ),
                           const SizedBox(height: 32),
                           fadeWithSlide(
                             buildSeekBar(28),
@@ -1447,8 +1560,8 @@ class _AndroidExpandedPlayerState extends ConsumerState<AndroidExpandedPlayer>
                         ],
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
         ],

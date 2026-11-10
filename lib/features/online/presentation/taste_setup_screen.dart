@@ -22,39 +22,99 @@ const _genres = [
   'Pop', 'Hip-hop', 'Rock', 'Electronic', 'R&B', 'Indie', 'Jazz',
   'Classical', 'Metal', 'Country', 'Latin', 'K-pop', 'Bollywood', 'Punjabi',
   'Lo-fi', 'Reggae', 'Blues', 'Folk', 'Soul', 'Afrobeats', 'EDM', 'Devotional',
-  'Acoustic', 'Ambient', 'Funk', 'House', 'Techno', 'Punk', 'Disco', 'Synthwave',
+  'Acoustic',
+  'Ambient',
+  'Funk',
+  'House',
+  'Techno',
+  'Punk',
+  'Disco',
+  'Synthwave',
   'Soundtracks', 'Sufi',
   // Expanded 35+ familiar genres, moods, and styles
-  'Dance', 'Alternative', 'Hard Rock', 'Classic Rock', 'Indie Rock', 'Indie Pop',
+  'Dance',
+  'Alternative',
+  'Hard Rock',
+  'Classic Rock',
+  'Indie Rock',
+  'Indie Pop',
   'Trap', 'Old School Hip-Hop', 'Drill', 'Deep House', 'Dubstep', 'Drum & Bass',
-  'Trance', 'Heavy Metal', 'Nu-Metal', 'Acoustic Pop', 'Chill & Relax', 'Workout',
+  'Trance',
+  'Heavy Metal',
+  'Nu-Metal',
+  'Acoustic Pop',
+  'Chill & Relax',
+  'Workout',
   'Focus & Study', 'Sleep', 'Party', '80s Retro', '90s Hits', '2000s Nostalgia',
   'Ghazals', 'Bhangra', 'Telugu', 'Tamil', 'Kannada', 'Malayalam', 'Reggaeton',
-  'Bachata', 'Salsa', 'Anime & J-Rock', 'J-Pop', 'C-Pop', 'Gospel', 'Piano & Instrumental',
+  'Bachata',
+  'Salsa',
+  'Anime & J-Rock',
+  'J-Pop',
+  'C-Pop',
+  'Gospel',
+  'Piano & Instrumental',
   'Chillhop', 'Post-Punk', 'Grunge', 'Progressive Rock', 'Ska',
 ];
 
 /// Sub-genres or similar genres to expand dynamically when a genre is picked.
 const Map<String, List<String>> _similarGenres = {
-  'Rock': ['Hard Rock', 'Alternative Rock', 'Classic Rock', 'Indie Rock', 'Grunge', 'Progressive Rock'],
-  'Hip-hop': ['Trap', 'Old School Hip-Hop', 'Drill', 'Boom Bap', 'Conscious Rap'],
+  'Rock': [
+    'Hard Rock',
+    'Alternative Rock',
+    'Classic Rock',
+    'Indie Rock',
+    'Grunge',
+    'Progressive Rock',
+  ],
+  'Hip-hop': [
+    'Trap',
+    'Old School Hip-Hop',
+    'Drill',
+    'Boom Bap',
+    'Conscious Rap',
+  ],
   'Pop': ['Dance Pop', 'Synthpop', 'Indie Pop', 'Electropop', 'Teen Pop'],
-  'Electronic': ['House', 'Techno', 'Dubstep', 'Drum & Bass', 'Trance', 'Deep House'],
+  'Electronic': [
+    'House',
+    'Techno',
+    'Dubstep',
+    'Drum & Bass',
+    'Trance',
+    'Deep House',
+  ],
   'EDM': ['Progressive House', 'Future Bass', 'Electro House', 'Hardstyle'],
-  'Metal': ['Heavy Metal', 'Nu-Metal', 'Death Metal', 'Thrash Metal', 'Power Metal'],
+  'Metal': [
+    'Heavy Metal',
+    'Nu-Metal',
+    'Death Metal',
+    'Thrash Metal',
+    'Power Metal',
+  ],
   'R&B': ['Contemporary R&B', 'Neo-Soul', 'Quiet Storm', 'Alternative R&B'],
   'Jazz': ['Smooth Jazz', 'Bebop', 'Fusion', 'Vocal Jazz', 'Bossa Nova'],
   'Classical': ['Baroque', 'Romantic', 'Orchestral', 'Contemporary Classical'],
   'Country': ['Contemporary Country', 'Bluegrass', 'Country Pop', 'Americana'],
   'Latin': ['Reggaeton', 'Bachata', 'Salsa', 'Latin Pop', 'Cumbia'],
   'K-pop': ['K-R&B', 'K-Hip Hop', 'K-Indie', 'K-Rock'],
-  'Bollywood': ['Bollywood Romantic', 'Bollywood Dance', 'Retro Bollywood', 'Sufi Bollywood', 'Ghazals'],
+  'Bollywood': [
+    'Bollywood Romantic',
+    'Bollywood Dance',
+    'Retro Bollywood',
+    'Sufi Bollywood',
+    'Ghazals',
+  ],
   'Punjabi': ['Punjabi Pop', 'Bhangra', 'Punjabi Hip-hop', 'Punjabi Folk'],
   'Indie': ['Indie Folk', 'Dream Pop', 'Shoegaze', 'Post-Punk'],
   'Lo-fi': ['Lo-fi Beats', 'Chillhop', 'Study Beats', 'Sleep Lo-fi'],
   'Reggae': ['Roots Reggae', 'Dub', 'Dancehall', 'Ska'],
   'Blues': ['Delta Blues', 'Chicago Blues', 'Blues Rock', 'Electric Blues'],
-  'Folk': ['Contemporary Folk', 'Traditional Folk', 'Folk Rock', 'Acoustic Folk'],
+  'Folk': [
+    'Contemporary Folk',
+    'Traditional Folk',
+    'Folk Rock',
+    'Acoustic Folk',
+  ],
   'Soul': ['Southern Soul', 'Motown', 'Northern Soul', 'Neo-Soul'],
   'Afrobeats': ['Amapiano', 'Afro-pop', 'Highlife'],
   'House': ['Deep House', 'Tech House', 'Progressive House'],
@@ -69,44 +129,90 @@ const Map<String, List<String>> _similarGenres = {
   'Acoustic': ['Acoustic Pop', 'Acoustic Rock', 'Fingerstyle Guitar'],
   'Funk': ['P-Funk', 'Funk Rock', 'Boogie'],
   'Dance': ['Dance Pop', 'Club Dance', 'Eurodance', 'Electro Pop', 'Nu-Disco'],
-  'Alternative': ['Alternative Rock', 'Indie Alternative', 'Grunge', 'Post-Grunge', 'Emo'],
+  'Alternative': [
+    'Alternative Rock',
+    'Indie Alternative',
+    'Grunge',
+    'Post-Grunge',
+    'Emo',
+  ],
   'Alternative Rock': ['Post-Grunge', 'Britpop', 'Shoegaze', 'Modern Rock'],
   'Hard Rock': ['Arena Rock', 'Glam Metal', 'Blues Rock', 'Stoner Rock'],
-  'Classic Rock': ['Psychedelic Rock', 'Southern Rock', 'Heartland Rock', 'Folk Rock'],
+  'Classic Rock': [
+    'Psychedelic Rock',
+    'Southern Rock',
+    'Heartland Rock',
+    'Folk Rock',
+  ],
   'Indie Rock': ['Garage Rock', 'Post-Punk Revival', 'Math Rock', 'Indie Pop'],
   'Indie Pop': ['Chamber Pop', 'Twee Pop', 'Dream Pop', 'Bedroom Pop'],
   'Trap': ['Southern Trap', 'Melodic Trap', 'Cloud Rap', 'Latin Trap'],
-  'Old School Hip-Hop': ['Golden Age Hip Hop', 'East Coast Hip Hop', 'West Coast Rap', 'G-Funk'],
+  'Old School Hip-Hop': [
+    'Golden Age Hip Hop',
+    'East Coast Hip Hop',
+    'West Coast Rap',
+    'G-Funk',
+  ],
   'Drill': ['UK Drill', 'Chicago Drill', 'Brooklyn Drill'],
   'Deep House': ['Melodic Deep House', 'Soulful House', 'Vocal Deep House'],
   'Dubstep': ['Brostep', 'Melodic Dubstep', 'Riddim', 'Tearout'],
   'Drum & Bass': ['Liquid DnB', 'Jump Up', 'Neurofunk', 'Jungle'],
-  'Trance': ['Uplifting Trance', 'Psytrance', 'Progressive Trance', 'Vocal Trance'],
+  'Trance': [
+    'Uplifting Trance',
+    'Psytrance',
+    'Progressive Trance',
+    'Vocal Trance',
+  ],
   'Heavy Metal': ['Speed Metal', 'Groove Metal', 'Doom Metal', 'Power Metal'],
   'Nu-Metal': ['Rap Metal', 'Alternative Metal', 'Industrial Metal'],
   'Acoustic Pop': ['Singer-Songwriter', 'Folk Pop', 'Unplugged', 'Coffeehouse'],
   'Chill & Relax': ['Chillout', 'Downtempo', 'Ambient Chill', 'Lounge'],
   'Workout': ['Cardio Pop', 'Workout EDM', 'Gym Hip Hop', 'High Energy'],
-  'Focus & Study': ['Brain Food', 'Study Lo-fi', 'Classical Focus', 'Deep Concentration'],
+  'Focus & Study': [
+    'Brain Food',
+    'Study Lo-fi',
+    'Classical Focus',
+    'Deep Concentration',
+  ],
   'Sleep': ['Sleep Ambient', 'White Noise', 'Peaceful Piano', 'Nature Sounds'],
   'Party': ['Club Bangers', 'Party Anthems', 'Festival Hits', 'Mashups'],
-  '80s Retro': ['80s Synthpop', '80s New Wave', '80s Hair Metal', '80s Pop Hits'],
+  '80s Retro': [
+    '80s Synthpop',
+    '80s New Wave',
+    '80s Hair Metal',
+    '80s Pop Hits',
+  ],
   '90s Hits': ['90s Dance', '90s R&B', '90s Alt Rock', '90s Pop'],
   '2000s Nostalgia': ['2000s Pop', '2000s Hip Hop', '2000s Emo', '2000s R&B'],
   'Ghazals': ['Classic Ghazal', 'Modern Ghazal', 'Sufi Ghazal'],
   'Bhangra': ['Modern Bhangra', 'Desi Hip Hop', 'Folk Bhangra'],
-  'Telugu': ['Tollywood Hits', 'Telugu Melody', 'Telugu Folk', 'Telugu Mass Beats'],
+  'Telugu': [
+    'Tollywood Hits',
+    'Telugu Melody',
+    'Telugu Folk',
+    'Telugu Mass Beats',
+  ],
   'Tamil': ['Kollywood Hits', 'Tamil Melody', 'Tamil Kuthu', 'Tamil Indie'],
   'Kannada': ['Chandanavana Hits', 'Kannada Melody', 'Kannada Folk'],
   'Malayalam': ['Mollywood Hits', 'Malayalam Melody', 'Malayalam Indie'],
   'Reggaeton': ['Old School Reggaeton', 'Perreo', 'Urbano Latino'],
   'Bachata': ['Bachata Sensual', 'Traditional Bachata', 'Urban Bachata'],
   'Salsa': ['Salsa Dura', 'Salsa Romantica', 'Timba'],
-  'Anime & J-Rock': ['Anime Openings', 'J-Rock Hits', 'Vocaloid', 'Japanese City Pop'],
+  'Anime & J-Rock': [
+    'Anime Openings',
+    'J-Rock Hits',
+    'Vocaloid',
+    'Japanese City Pop',
+  ],
   'J-Pop': ['City Pop', 'J-Pop Idol', 'Shibuya-kei', 'J-Dance'],
   'C-Pop': ['Mandopop', 'Cantopop', 'Chinese Hip Hop'],
   'Gospel': ['Contemporary Gospel', 'Urban Gospel', 'Praise & Worship'],
-  'Piano & Instrumental': ['Solo Piano', 'Cinematic Strings', 'Neo-Classical', 'Film Scores'],
+  'Piano & Instrumental': [
+    'Solo Piano',
+    'Cinematic Strings',
+    'Neo-Classical',
+    'Film Scores',
+  ],
   'Chillhop': ['Jazzhop', 'Chill Beats', 'Instrumental Hip Hop'],
   'Post-Punk': ['Gothic Rock', 'Darkwave', 'Coldwave', 'No Wave'],
   'Grunge': ['Seattle Sound', 'Riot Grrrl', 'Sludge Rock'],
@@ -117,17 +223,60 @@ const Map<String, List<String>> _similarGenres = {
 /// Universal pool of familiar household-name artists to ensure initial list
 /// is instantly recognizable and easy to pick from.
 const _familiarArtistSeeds = [
-  'Taylor Swift', 'The Weeknd', 'Drake', 'Eminem', 'Billie Eilish',
-  'Ed Sheeran', 'Ariana Grande', 'Coldplay', 'Bruno Mars', 'Dua Lipa',
-  'Justin Bieber', 'Post Malone', 'Kendrick Lamar', 'Imagine Dragons', 'Queen',
-  'BTS', 'Bad Bunny', 'Arijit Singh', 'Diljit Dosanjh', 'Shreya Ghoshal',
-  'AP Dhillon', 'Sidhu Moose Wala', 'Pritam', 'A.R. Rahman', 'Karan Aujla',
-  'Anirudh Ravichander', 'Lana Del Rey', 'Arctic Monkeys', 'Linkin Park', 'Nirvana',
-  'David Guetta', 'Calvin Harris', 'Avicii', 'Alan Walker', 'Travis Scott',
-  'Olivia Rodrigo', 'Harry Styles', 'SZA', 'Katy Perry', 'Lady Gaga',
-  'Shakira', 'Maroon 5', 'Adele', 'Beyoncé', 'Rihanna', 'Michael Jackson',
-  'Charlie Puth', 'Shawn Mendes', 'Daft Punk', 'Twenty One Pilots',
-  'Marshmello', 'Martin Garrix', 'Kygo', 'Kanye West',
+  'Taylor Swift',
+  'The Weeknd',
+  'Drake',
+  'Eminem',
+  'Billie Eilish',
+  'Ed Sheeran',
+  'Ariana Grande',
+  'Coldplay',
+  'Bruno Mars',
+  'Dua Lipa',
+  'Justin Bieber',
+  'Post Malone',
+  'Kendrick Lamar',
+  'Imagine Dragons',
+  'Queen',
+  'BTS',
+  'Bad Bunny',
+  'Arijit Singh',
+  'Diljit Dosanjh',
+  'Shreya Ghoshal',
+  'AP Dhillon',
+  'Sidhu Moose Wala',
+  'Pritam',
+  'A.R. Rahman',
+  'Karan Aujla',
+  'Anirudh Ravichander',
+  'Lana Del Rey',
+  'Arctic Monkeys',
+  'Linkin Park',
+  'Nirvana',
+  'David Guetta',
+  'Calvin Harris',
+  'Avicii',
+  'Alan Walker',
+  'Travis Scott',
+  'Olivia Rodrigo',
+  'Harry Styles',
+  'SZA',
+  'Katy Perry',
+  'Lady Gaga',
+  'Shakira',
+  'Maroon 5',
+  'Adele',
+  'Beyoncé',
+  'Rihanna',
+  'Michael Jackson',
+  'Charlie Puth',
+  'Shawn Mendes',
+  'Daft Punk',
+  'Twenty One Pilots',
+  'Marshmello',
+  'Martin Garrix',
+  'Kygo',
+  'Kanye West',
 ];
 
 /// First-run interest profile: genres, then artists. Every pick is saved as
@@ -174,24 +323,35 @@ class _TasteSetupScreenState extends ConsumerState<TasteSetupScreen> {
     final counts = <String, int>{};
     for (final v in await read()) {
       final k = v?.trim();
-      if (k != null && k.isNotEmpty) counts.update(k, (c) => c + 1, ifAbsent: () => 1);
+      if (k != null && k.isNotEmpty) {
+        counts.update(k, (c) => c + 1, ifAbsent: () => 1);
+      }
     }
     final sorted = counts.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
     return sorted.take(n).map((e) => e.key).toList();
   }
 
+  /// Top genres from the user's own songs. On first setup they arrive
+  /// picked, like the library's top artists do on the next step.
   Future<void> _loadLocalGenres() async {
-    final g = await _topLocal(
-      () => DbService.isar.songs
+    final g = await _topLocal(() async {
+      final tags = await DbService.isar.songs
           .filter()
           .not()
           .pathStartsWith('yt:')
           .genreProperty()
-          .findAll(),
-      6,
-    );
-    if (mounted) setState(() => _localGenres = g);
+          .findAll();
+      // One tag often holds several genres: "Pop; Dance" or "Rock/Indie".
+      return [for (final t in tags) ...?t?.split(RegExp(r'[;/,|]'))];
+    }, 6);
+    if (!mounted) return;
+    setState(() => _localGenres = g);
+    if (ref.read(tasteProvider).genres.isEmpty) {
+      for (final genre in g) {
+        await ref.read(tasteProvider.notifier).toggleGenre(genre);
+      }
+    }
   }
 
   /// Artists start from the user: their library's top artists arrive
@@ -405,11 +565,7 @@ class _TasteSetupScreenState extends ConsumerState<TasteSetupScreen> {
     if (mounted) Navigator.of(context).pop();
   }
 
-  Widget _buildArtistCard(
-    OnlineCollection a,
-    Taste taste,
-    Color accent,
-  ) {
+  Widget _buildArtistCard(OnlineCollection a, Taste taste, Color accent) {
     final picked = taste.hasArtist(a.title);
     final isExpanded =
         _activeSimilarArtist?.title.toLowerCase() == a.title.toLowerCase();
@@ -419,7 +575,9 @@ class _TasteSetupScreenState extends ConsumerState<TasteSetupScreen> {
       onTap: () {
         AppHaptics.selection();
         final willBePicked = !picked;
-        ref.read(tasteProvider.notifier).toggleArtist(
+        ref
+            .read(tasteProvider.notifier)
+            .toggleArtist(
               TasteArtist(
                 a.title,
                 browseId: a.browseId,
@@ -486,10 +644,7 @@ class _TasteSetupScreenState extends ConsumerState<TasteSetupScreen> {
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.04),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: accent.withValues(alpha: 0.3),
-          width: 1,
-        ),
+        border: Border.all(color: accent.withValues(alpha: 0.3), width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -534,8 +689,11 @@ class _TasteSetupScreenState extends ConsumerState<TasteSetupScreen> {
                     }),
                     child: const Padding(
                       padding: EdgeInsets.all(4),
-                      child:
-                          Icon(LucideIcons.x, size: 16, color: Colors.white54),
+                      child: Icon(
+                        LucideIcons.x,
+                        size: 16,
+                        color: Colors.white54,
+                      ),
                     ),
                   ),
               ],
@@ -585,7 +743,9 @@ class _TasteSetupScreenState extends ConsumerState<TasteSetupScreen> {
                       borderRadius: BorderRadius.circular(10),
                       onTap: () {
                         AppHaptics.selection();
-                        ref.read(tasteProvider.notifier).toggleArtist(
+                        ref
+                            .read(tasteProvider.notifier)
+                            .toggleArtist(
                               TasteArtist(
                                 a.title,
                                 browseId: a.browseId,
@@ -629,8 +789,9 @@ class _TasteSetupScreenState extends ConsumerState<TasteSetupScreen> {
                             style: AppFonts.jostStyle(
                               color: Colors.white,
                               fontSize: 12,
-                              fontWeight:
-                                  picked ? FontWeight.w600 : FontWeight.normal,
+                              fontWeight: picked
+                                  ? FontWeight.w600
+                                  : FontWeight.normal,
                             ),
                           ),
                         ],
@@ -674,9 +835,7 @@ class _TasteSetupScreenState extends ConsumerState<TasteSetupScreen> {
             fontWeight: FontWeight.bold,
           ),
         ),
-        actions: [
-          TextButton(onPressed: _finish, child: Text(l10n.tasteSkip)),
-        ],
+        actions: [TextButton(onPressed: _finish, child: Text(l10n.tasteSkip))],
       ),
       body: _step == 0
           ? SingleChildScrollView(
@@ -740,10 +899,11 @@ class _TasteSetupScreenState extends ConsumerState<TasteSetupScreen> {
                             final displayed = q.isEmpty
                                 ? _artists
                                 : _artists
-                                    .where((a) => a.title
-                                        .toLowerCase()
-                                        .contains(q))
-                                    .toList();
+                                      .where(
+                                        (a) =>
+                                            a.title.toLowerCase().contains(q),
+                                      )
+                                      .toList();
 
                             if (displayed.isEmpty && !_loadingArtists) {
                               return Center(
@@ -780,16 +940,20 @@ class _TasteSetupScreenState extends ConsumerState<TasteSetupScreen> {
                               // Top grid up to end of row containing selected artist
                               slivers.add(
                                 SliverPadding(
-                                  padding:
-                                      const EdgeInsets.fromLTRB(12, 4, 12, 0),
+                                  padding: const EdgeInsets.fromLTRB(
+                                    12,
+                                    4,
+                                    12,
+                                    0,
+                                  ),
                                   sliver: SliverGrid(
                                     gridDelegate:
                                         SliverGridDelegateWithFixedCrossAxisCount(
-                                      crossAxisCount: crossAxisCount,
-                                      childAspectRatio: 0.75,
-                                      mainAxisSpacing: 8,
-                                      crossAxisSpacing: 8,
-                                    ),
+                                          crossAxisCount: crossAxisCount,
+                                          childAspectRatio: 0.75,
+                                          mainAxisSpacing: 8,
+                                          crossAxisSpacing: 8,
+                                        ),
                                     delegate: SliverChildBuilderDelegate(
                                       (_, i) => _buildArtistCard(
                                         displayed[i],
@@ -825,11 +989,11 @@ class _TasteSetupScreenState extends ConsumerState<TasteSetupScreen> {
                                     sliver: SliverGrid(
                                       gridDelegate:
                                           SliverGridDelegateWithFixedCrossAxisCount(
-                                        crossAxisCount: crossAxisCount,
-                                        childAspectRatio: 0.75,
-                                        mainAxisSpacing: 8,
-                                        crossAxisSpacing: 8,
-                                      ),
+                                            crossAxisCount: crossAxisCount,
+                                            childAspectRatio: 0.75,
+                                            mainAxisSpacing: 8,
+                                            crossAxisSpacing: 8,
+                                          ),
                                       delegate: SliverChildBuilderDelegate(
                                         (_, i) => _buildArtistCard(
                                           displayed[rowEnd + i],
@@ -858,11 +1022,11 @@ class _TasteSetupScreenState extends ConsumerState<TasteSetupScreen> {
                                   sliver: SliverGrid(
                                     gridDelegate:
                                         SliverGridDelegateWithFixedCrossAxisCount(
-                                      crossAxisCount: crossAxisCount,
-                                      childAspectRatio: 0.75,
-                                      mainAxisSpacing: 8,
-                                      crossAxisSpacing: 8,
-                                    ),
+                                          crossAxisCount: crossAxisCount,
+                                          childAspectRatio: 0.75,
+                                          mainAxisSpacing: 8,
+                                          crossAxisSpacing: 8,
+                                        ),
                                     delegate: SliverChildBuilderDelegate(
                                       (_, i) => _buildArtistCard(
                                         displayed[i],
@@ -882,11 +1046,11 @@ class _TasteSetupScreenState extends ConsumerState<TasteSetupScreen> {
                                   sliver: SliverGrid(
                                     gridDelegate:
                                         SliverGridDelegateWithFixedCrossAxisCount(
-                                      crossAxisCount: crossAxisCount,
-                                      childAspectRatio: 0.75,
-                                      mainAxisSpacing: 8,
-                                      crossAxisSpacing: 8,
-                                    ),
+                                          crossAxisCount: crossAxisCount,
+                                          childAspectRatio: 0.75,
+                                          mainAxisSpacing: 8,
+                                          crossAxisSpacing: 8,
+                                        ),
                                     delegate: SliverChildBuilderDelegate(
                                       (_, i) => _buildArtistCard(
                                         displayed[i],

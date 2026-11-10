@@ -118,7 +118,7 @@ class ImportExportService {
       // 7. Native Share
       await Share.shareXFiles([
         XFile(file.path),
-      ], subject: 'Looper Player Backup');
+      ], subject: 'Looper Music Backup');
       LoggerHelper.write(
         'ImportExportService: Shared backup file successfully.',
       );

@@ -478,6 +478,18 @@ class MainActivity : FlutterActivity() {
                 } catch (e: Exception) {
                     result.success(false)
                 }
+            } else if (call.method == "deviceCountry") {
+                // SIM country, then network country: the real region even when
+                // the phone language is e.g. English (US). Needs no permission.
+                try {
+                    val tm = getSystemService(Context.TELEPHONY_SERVICE)
+                        as android.telephony.TelephonyManager
+                    val iso = tm.simCountryIso?.takeIf { it.length == 2 }
+                        ?: tm.networkCountryIso?.takeIf { it.length == 2 }
+                    result.success(iso?.uppercase())
+                } catch (e: Exception) {
+                    result.success(null)
+                }
             } else {
                 result.notImplemented()
             }

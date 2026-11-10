@@ -83,12 +83,55 @@ class LyricsProviderInfo {
       wordCapable: true,
       letterCapable: true,
     ),
+    LyricsProviderInfo(
+      'BETTERLYRICS',
+      'BetterLyrics',
+      AppLinks.betterLyricsWeb,
+      wordCapable: true,
+      letterCapable: true,
+    ),
+    LyricsProviderInfo(
+      'SIMPMUSIC',
+      'SimpMusic',
+      AppLinks.simpMusicWeb,
+      wordCapable: true,
+    ),
+    LyricsProviderInfo(
+      'PAXSENIX',
+      'PaxSenix',
+      AppLinks.paxsenixWeb,
+      wordCapable: true,
+      letterCapable: true,
+    ),
+    LyricsProviderInfo(
+      'BINILYRICS',
+      'BiniLyrics',
+      AppLinks.biniLyricsWeb,
+      wordCapable: true,
+    ),
+    LyricsProviderInfo(
+      'UNISON',
+      'Unison',
+      AppLinks.unisonWeb,
+      wordCapable: true,
+    ),
+    LyricsProviderInfo(
+      'BETTERLYRICS_QQ',
+      'BetterLyrics (QQ)',
+      AppLinks.betterLyricsQqWeb,
+      wordCapable: true,
+    ),
     LyricsProviderInfo('LRCLIB', 'LRCLIB', AppLinks.lrclibWeb),
     LyricsProviderInfo(
       'YTMUSIC',
       'YouTube Music',
       AppLinks.youtubeMusicWeb,
       plainOnly: true,
+    ),
+    LyricsProviderInfo(
+      'YT_CAPTIONS',
+      'YouTube Captions',
+      AppLinks.youtubeMusicWeb,
     ),
     LyricsProviderInfo('GENIUS', 'Genius', AppLinks.geniusWeb, plainOnly: true),
     LyricsProviderInfo(
@@ -109,7 +152,14 @@ class LyricsProviderInfo {
       AppLinks.lyricfindWeb,
       plainOnly: true,
     ),
+    LyricsProviderInfo(
+      'LYRICSOVH',
+      'lyrics.ovh',
+      AppLinks.lyricsOvhWeb,
+      plainOnly: true,
+    ),
   ];
+
 
   /// By [id], a `[source:]` tag or a [label] - any letter case.
   static LyricsProviderInfo? of(String? name) {

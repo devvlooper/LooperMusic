@@ -32,13 +32,19 @@
   "appDetailsCreator": "Application details, creator, and design team info",
   "appearance": "Appearance",
   "appInfoPrivacy": "APP INFO & PRIVACY",
-  "appTitle": "Looper Player",
+  "appTitle": "Looper Music",
   "artist": "Artist",
   "artists": "Artists",
   "artistsRowDesc": "Horizontal shelf of artists",
   "ascending": "Ascending",
   "audioCrossfade": "Audio Crossfade",
   "audioCrossfadeDesc": "When one song ends and the next begins, the current track fades out while the next track fades in at the same time. This gives a continuous, DJ-like flow.",
+  "crossfadeDuration": "Crossfade Duration",
+  "crossfadeDurationDesc": "Duration of the overlapping transition between songs",
+  "smartTransitions": "Smart Transitions",
+  "smartTransitionsDesc": "Aligns transitions to cue points, skips silent intros/outros, and prevents cutting off active lyrics",
+  "beatMixing": "Beat Mixing (Experimental)",
+  "beatMixingDesc": "Matches tempos and phase aligns beats for seamless DJ-style blending between compatible tracks",
   "audioFocusDenied": "Playback paused: Audio focus denied by system",
   "audioPlayback": "Audio & Playback",
   "audioPlaybackDesc": "Crossfade, silence gap, and fading settings",
@@ -52,7 +58,7 @@
   "clearQueue": "Clear",
   "connectDevice": "CONNECT DEVICE",
   "corePurpose": "Core Purpose",
-  "corePurposeDesc": "Looper Player is an offline-first, high-fidelity audio player designed for music enthusiasts who want absolute control over their local library, gapless playback, and fluid, synchronized lyrics scrolling.",
+  "corePurposeDesc": "Looper Music is an offline-first, high-fidelity audio player designed for music enthusiasts who want absolute control over their local library, gapless playback, and fluid, synchronized lyrics scrolling.",
   "create": "Create",
   "createPlaylist": "Create Playlist",
   "creatorAndMaintainer": "Creator and Maintainer",
@@ -404,7 +410,7 @@
   "hapticStrengthHigh": "High",
   "viewAll": "View All",
   "visitOfficialRepository": "Visit official repository on GitHub",
-  "welcomeAboutDesc": "Looper Player is a next-generation Music-OS built for premium offline audio playback. Features real-time dynamic lyrics generation, advanced audio session management with call mute handling, adaptive background theming, and multi-format music library support. Fully optimized for maximum battery efficiency.",
+  "welcomeAboutDesc": "Looper Music is a next-generation Music-OS built for premium offline audio playback. Features real-time dynamic lyrics generation, advanced audio session management with call mute handling, adaptive background theming, and multi-format music library support. Fully optimized for maximum battery efficiency.",
   "welcomeAllFilesDesc": "Highly recommended for professional scanning to locate songs in non-standard directories (Downloads, Telegram, custom folders).",
   "welcomeInstructionConnectDesc": "Plug your phone or device into a personal computer using a standard USB data cable.",
   "welcomeInstructionDownloadDesc": "Alternatively, download files directly using a web browser or other downloader utility on the device itself.",
@@ -422,9 +428,9 @@
   "supportPromptMessage": "Enjoying Looper? Help keep it free by supporting us on Ko-fi.",
   "supportPromptAction": "Support",
   "supportUs": "Support Us",
-  "supportUsDesc": "Help keep Looper Player alive & open-source",
+  "supportUsDesc": "Help keep Looper Music alive & open-source",
   "supportDevelopment": "Support the Development",
-  "supportDevelopmentDesc": "Looper Player is 100% free and open-source. If you enjoy using it, please consider supporting the creator with a donation. Every contribution helps keep the project active!",
+  "supportDevelopmentDesc": "Looper Music is 100% free and open-source. If you enjoy using it, please consider supporting the creator with a donation. Every contribution helps keep the project active!",
   "useCustomFont": "Use Custom Font",
   "useCustomFontDesc": "Use Jost or other custom fonts. Otherwise, DM Sans is used.",
   "selectFontFamily": "Select Font Family",
@@ -805,7 +811,7 @@
   "excludedFolders": "Excluded Folders",
   "excludedFoldersSearchDesc": "Skip specific folders when scanning",
   "clearLibraryData": "Clear library data",
-  "looperPlayerVersion": "Looper Player Version",
+  "looperPlayerVersion": "Looper Music Version",
   "versionLabel": "Version {version}",
   "@versionLabel": {
     "placeholders": {
@@ -1174,7 +1180,7 @@
     }
   },
   "chooseInternalStorageFolder": "Please choose a folder on this device's internal storage or SD card.",
-  "appCrashedTitle": "Looper Player Crashed",
+  "appCrashedTitle": "Looper Music Crashed",
   "appCrashedDesc": "An unexpected initialization error occurred. A diagnostic crash report has been generated.",
   "appCrashedDetails": "An error occurred during app database or service initialization. This can happen if storage access is restricted or database files are corrupted.",
   "crashReportSaved": "Diagnostic crash report saved to application support folder.",
@@ -1193,7 +1199,7 @@
   "updateAvailableTitle": "Update Available!",
   "visit": "VISIT",
   "updateDownloaded": "Update downloaded",
-  "restartToInstallUpdate": "Restart Looper Player to install it.",
+  "restartToInstallUpdate": "Restart Looper Music to install it.",
   "restart": "RESTART",
   "backupImportedSummary": "Backup imported: Merged {favorites} favorites, {stats} play stats, synced {playlists} playlists",
   "@backupImportedSummary": {
@@ -1665,5 +1671,109 @@
   "clearAnimatedArtworkCache": "Clear motion artwork cache",
   "animatedArtworkCacheCleared": "Motion artwork cache cleared",
   "linkAnimatedArtwork": "Link animated artwork",
-  "linkAnimatedArtworkPrompt": "Enter Apple Music album or playlist URL"
+  "linkAnimatedArtworkPrompt": "Enter Apple Music album or playlist URL",
+  "onlineRadioStation": "Radio station",
+  "onlineMixSongRadio": "Radio based on this song",
+  "onlineMixArtistRadio": "Artist radio",
+  "onlineMixPersonal": "Made for you",
+  "onlineMixPlaylistRadio": "Radio based on this playlist",
+  "onlineGuestPrivacyNote": "Guest mode uses a few of your most played song names to search YouTube Music. Nothing else leaves your phone.",
+  "onlineGuestQuickPicks": "Quick picks from your library",
+  "onlineGuestRadio": "Radio: based on {song}",
+  "@onlineGuestRadio": {
+    "placeholders": {
+      "song": {
+        "type": "String"
+      }
+    }
+  },
+  "onlineGuestBecause": "Because you listen to {artist}",
+  "@onlineGuestBecause": {
+    "placeholders": {
+      "artist": {
+        "type": "String"
+      }
+    }
+  },
+  "onlineGuestSimilar": "Similar to {artist}",
+  "@onlineGuestSimilar": {
+    "placeholders": {
+      "artist": {
+        "type": "String"
+      }
+    }
+  },
+  "onlineGuestMoreFrom": "More from {artist}",
+  "@onlineGuestMoreFrom": {
+    "placeholders": {
+      "artist": {
+        "type": "String"
+      }
+    }
+  },
+  "onlineGuestTrending": "Trending in {genre}",
+  "@onlineGuestTrending": {
+    "placeholders": {
+      "genre": {
+        "type": "String"
+      }
+    }
+  },
+  "onlineContentRegion": "Content region",
+  "onlineContentRegionDesc": "Changes charts, trending and suggestions. Song availability still depends on where you are.",
+  "onlineContentRegionAuto": "Auto ({country})",
+  "@onlineContentRegionAuto": {
+    "placeholders": {
+      "country": {
+        "type": "String"
+      }
+    }
+  },
+  "onlineContentRegionSearch": "Search country or region",
+  "ambientGlow": "Ambient glow",
+  "ambientGlowDesc": "Soft moving reflection of the cover around the player",
+  "headphoneCorrection": "Headphone correction",
+  "headphoneCorrectionDesc": "AutoEQ parametric headphone correction profiles",
+  "autoEqBass": "Bass",
+  "autoEqTilt": "Tilt",
+  "autoEqChooseHeadphones": "Choose headphones…",
+  "autoEqUseForDevice": "Use for this device",
+  "autoEqSavedDevices": "Saved devices",
+  "autoEqSearchHeadphones": "Search headphone models",
+  "autoEqDownloadIndex": "Download headphone profiles index",
+  "autoEqNoProfile": "None",
+  "autoEqSpeakerDisabled": "Disabled on phone speaker",
+  "autoEqForget": "Forget",
+  "autoEqCredit": "Profiles: AutoEQ by Jaakko Pasanen (MIT)",
+  "autoEqNoSavedDevices": "No saved devices",
+  "autoEqIndexDownloading": "Downloading index…",
+  "reorderHome": "Reorder Home",
+  "reorderHomeDragHint": "Hold and drag a row",
+  "reorderHomeHint": "Or hold an empty spot on Home for 5 seconds, then hold and drag rows.",
+  "onlineFeedRow": "Online picks",
+  "onlineFeedRowDesc": "Moods and the top online shelves",
+  "onlineMoreRow": "More from online",
+  "onlineMoreRowDesc": "The rest of the online shelves",
+  "artistsForYouRowDesc": "Online artists picked for your taste",
+  "reorderMoveUp": "Move up",
+  "reorderMoveDown": "Move down",
+  "reorderRowA11yHint": "Double-tap and hold to move",
+  "bluetoothCodec": "Bluetooth Codec",
+  "qualityBlockersTitle": "Active Blockers",
+  "qualityTurnBlockersOff": "Turn these off",
+  "qualityTurnBlockersOn": "Turn these back on",
+  "eqMono": "Mono Audio (Single Earbud)",
+  "eqReplayGainTitle": "Volume Normalization (ReplayGain)",
+  "eqReplayGainPreamp": "Normalization Preamp",
+  "onlineSetupTitle": "Stream music online too?",
+  "onlineSetupNoSongsTitle": "No music found? Stream it instead",
+  "onlineSetupYes": "YES, TURN IT ON",
+  "onlineSetupSkip": "SKIP FOR NOW",
+  "onlineSetupStreamInstead": "STREAM MUSIC ONLINE",
+  "onlineSetupLastOneTitle": "Last one",
+  "onlineSetupLastOneDesc": "Turn off anything you don't like. You can change these later in Settings.",
+  "onlineSetupNext": "NEXT",
+  "onlineSetupDoneTitle": "You're good to go",
+  "nowPlayingArtworkMotion": "Now playing artwork motion",
+  "nowPlayingArtworkMotionDesc": "Animate the album cover on the now playing screen when available"
 }

@@ -7,14 +7,24 @@ import 'package:mpv_audio_kit/mpv_audio_kit.dart';
 import 'dart:math' as math;
 import '../../utils/logger_helper.dart';
 import 'package:looper_player/core/utils/l10n.dart';
+import 'package:looper_player/features/playback/presentation/providers/playback/transition_director.dart';
 part 'audio_dsp.dart';
 part 'player_setup.dart';
 
 class AudioService {
-  late final Player player;
+  late final Player _playerA;
+  late final Player _playerB;
+  late final TransitionDirector transitionDirector;
+
+  Player get player => transitionDirector.activePlayer;
+  Player get idlePlayer => transitionDirector.idlePlayer;
+
   List<double>? _lastEqualizerGains;
   bool _equalizerEnabled = false;
   String? _customFilterString;
+  bool _monoEnabled = false;
+  List<String> _autoEqFilters = const [];
+  double _onlineLoudnessGain = 0.0;
   String? _lastArtPath;
   MediaSessionArtwork _lastArtwork = MediaSessionArtwork.embedded;
   String? _publishedMediaMetadataKey;
@@ -119,112 +129,64 @@ class AudioService {
   late final Future<void> ready;
 
   AudioService() {
-    LoggerHelper.write('AudioService: Constructing Player...');
-    player = Player();
+    LoggerHelper.write('AudioService: Constructing dual Players for Crossmix...');
+    _playerA = Player();
+    _playerB = Player();
+    transitionDirector = TransitionDirector(playerA: _playerA, playerB: _playerB);
     ready = _initPlayer();
 
     // ── EQ deferred-apply on FILE_LOADED ────────────────────────────────────────
-    // `player.open()` sends a loadfile command and returns before mpv
-    // fires FILE_LOADED. At that point `playlist.items` is still empty,
-    // so calling `setEqualizerGains()` immediately after `open()` hits the
-    // empty-guard and bails — the EQ is never applied.
-    //
-    // Fix: set `_pendingEqApply = true` before `open()`, then watch the
-    // playlist stream. The first time items becomes non-empty (= FILE_LOADED
-    // has fired and the filter chain is live) we apply the pending EQ.
-    player.stream.playlist.listen((playlist) {
-      if (_pendingEqApply && playlist.items.isNotEmpty) {
-        _pendingEqApply = false;
-        if (_lastEqualizerGains != null) {
-          setEqualizerGains(
-            _lastEqualizerGains!,
-            _equalizerEnabled,
-            customFilter: _customFilterString,
-          );
+    void setupEqListener(Player p) {
+      p.stream.playlist.listen((playlist) {
+        if (_pendingEqApply && playlist.items.isNotEmpty) {
+          _pendingEqApply = false;
+          if (_lastEqualizerGains != null) {
+            setEqualizerGains(
+              _lastEqualizerGains!,
+              _equalizerEnabled,
+              customFilter: _customFilterString,
+            );
+          }
         }
-      }
-    });
+      });
+    }
+
+    setupEqListener(_playerA);
+    setupEqListener(_playerB);
 
     _attachMediaSessionListeners();
   }
 
+  Future<void> _configurePlayer(Player p) async {
+    try {
+      await p.setRawProperty('volume-max', '150');
+    } catch (_) {}
+
+    try {
+      await p.setRawProperty('audio-buffer', '0.2');
+    } catch (_) {}
+
+    try {
+      await p.setRawProperty('demuxer-lavf-analyzeduration', '1.0');
+    } catch (_) {}
+
+    try {
+      await p.setRawProperty('demuxer-lavf-probesize', '10000000');
+    } catch (_) {}
+
+    try {
+      await p.setRawProperty('audio-pitch-correction', 'yes');
+    } catch (_) {}
+
+    try {
+      await p.setRawProperty('hwdec', 'no');
+    } catch (_) {}
+  }
+
   Future<void> _initPlayer() async {
     LoggerHelper.write('AudioService: Initializing player properties...');
-    // ponytail: Let native mpv engine negotiate audio format, buffer sizes, and readahead limits.
-    // Overriding these manually (e.g. forcing float32 or 4s buffers) breaks playback and overflows
-    // demuxer packet queues on budget devices.
-
-    /*
-    try {
-      await player.setRawProperty('playback-time-update-interval', '0.015');
-      LoggerHelper.write('AudioService: Set update interval to 15ms.');
-    } catch (e) {
-      LoggerHelper.write('AudioService: Failed to set raw property update interval.', e);
-    }
-
-    try {
-      await player.setAudioFormat(Format.float32);
-    } catch (e) {
-      try {
-        await player.setRawProperty('audio-format', 'float');
-      } catch (_) {}
-    }
-    */
-
-    try {
-      await player.setRawProperty('volume-max', '150');
-    } catch (e) {}
-
-    try {
-      await player.setRawProperty('audio-buffer', '0.2');
-    } catch (e) {}
-
-    // No 'audio-stream-silence': it keeps the output streaming silence while
-    // paused, so Android and Bluetooth earbuds still see active playback
-    // and in-ear detection never sends PLAY when the buds go back in.
-
-    try {
-      await player.setRawProperty('demuxer-lavf-analyzeduration', '1.0');
-    } catch (e) {}
-
-    try {
-      await player.setRawProperty('demuxer-lavf-probesize', '10000000');
-    } catch (e) {}
-
-    /*
-    try {
-      await player.setRawProperty('audio-buffer', '4.0');
-    } catch (e) {}
-
-    try {
-      await player.setRawProperty('demuxer-readahead-secs', '20');
-    } catch (e) {}
-
-    try {
-      await player.setRawProperty('audio-stream-silence', 'yes');
-    } catch (e) {}
-
-    try {
-      await player.setRawProperty('gapless-audio', 'yes');
-    } catch (e) {}
-
-    try {
-      await player.setRawProperty('audio-normalize-downmix', 'yes');
-    } catch (e) {}
-
-    try {
-      await player.setRawProperty('replaygain-clip', 'yes');
-    } catch (e) {}
-    */
-
-    try {
-      await player.setRawProperty('audio-pitch-correction', 'no');
-    } catch (e) {}
-
-    try {
-      await player.setRawProperty('hwdec', 'no');
-    } catch (e) {}
-
+    await _configurePlayer(_playerA);
+    await _configurePlayer(_playerB);
     await _initMediaSession();
   }
 
@@ -246,7 +208,7 @@ class AudioService {
     // against.
     await player.setMediaSession(
       (current ?? const MediaSession()).copyWith(
-        appName: 'Looper Player',
+        appName: 'Looper Music',
         desktopEntry: 'looper_player',
         autoApplyPlaylistNavigation: false,
         actions: const {
@@ -303,19 +265,35 @@ class AudioService {
   Future<void> configureReplayGain({
     required int mode, // 0 = off, 1 = track, 2 = album
     required double preamp,
+    bool clip = true,
+    double fallback = 0.0,
   }) async {
     try {
       final rgMode = mode == 1
           ? ReplayGain.track
           : (mode == 2 ? ReplayGain.album : ReplayGain.no);
-      await player.setReplayGain(
-        ReplayGainSettings(
-          mode: rgMode,
-          preamp: preamp,
-          clip: true, // Limit peaks to prevent digital clipping
-        ),
+      final settings = ReplayGainSettings(
+        mode: rgMode,
+        preamp: preamp,
+        clip: clip,
+        fallback: fallback,
       );
+      await player.setReplayGain(settings);
+      if (idlePlayer.state.playlist.items.isNotEmpty) {
+        try {
+          await idlePlayer.setReplayGain(settings);
+        } catch (_) {}
+      }
     } catch (e) {}
+  }
+
+  Future<void> setOnlineLoudnessGain(double gain) async {
+    _onlineLoudnessGain = gain;
+    if (!_filtersInitialized || player.state.playlist.items.isEmpty) return;
+    try {
+      // The preamp is in the limiter; volume-gain is only this cut.
+      await player.setVolumeGain(_onlineLoudnessGain);
+    } catch (_) {}
   }
 
   // --- Multi-track Audio Stream Handling ---
@@ -459,6 +437,9 @@ class AudioService {
 
     // Ignore a slow artwork result when a newer track has already started.
     if (generation != _mediaMetadataGeneration) return;
+    // A crossfade swap may be moving the session between players.
+    await transitionDirector.sessionReady;
+    if (generation != _mediaMetadataGeneration) return;
 
     try {
       await player.setMediaSession(
@@ -469,7 +450,7 @@ class AudioService {
           artwork: resolvedArtwork,
           duration: duration,
           isFavorite: isFavorite,
-          appName: 'Looper Player',
+          appName: 'Looper Music',
           desktopEntry: 'looper_player',
           autoApplyPlaylistNavigation: false,
           actions: const {
@@ -512,7 +493,9 @@ class AudioService {
     String? customFilter,
     InterruptionPolicy interruptionPolicy = InterruptionPolicy.pauseAndResume,
     String? userAgent,
+    double? onlineLoudnessGain,
   }) async {
+    _onlineLoudnessGain = onlineLoudnessGain ?? 0.0;
     if (userAgent != null) {
       // Online streams: googlevideo expects the issuing client's agent.
       try {
@@ -590,6 +573,7 @@ class AudioService {
   Future<void> resume() async {
     LoggerHelper.write('AudioService: resume() requested');
     await player.play();
+    await transitionDirector.sessionReady;
     final session = player.state.mediaSession;
     if (session != null) {
       await player.setMediaSession(session);
@@ -599,6 +583,19 @@ class AudioService {
   Future<void> seek(Duration duration) async {
     LoggerHelper.write('AudioService: seek() requested to position: $duration');
     await player.seek(duration);
+    if (_filtersInitialized &&
+        (_lastEqualizerGains?.length ?? 0) > 42 &&
+        _lastEqualizerGains![42] == 1.0) {
+      try {
+        await player.sendRawCommand(['af-command', 'aek_aecho', 'delays', '0']);
+        await player.sendRawCommand([
+          'af-command',
+          'aek_aecho',
+          'delays',
+          '40|60',
+        ]);
+      } catch (_) {}
+    }
   }
 
   Future<void> stop() async {
@@ -608,7 +605,9 @@ class AudioService {
 
   void dispose() {
     _liveEqThrottleTimer?.cancel();
-    player.dispose();
+    transitionDirector.dispose();
+    _playerA.dispose();
+    _playerB.dispose();
   }
 
   // --- Advanced DSP Settings Pipeline ---

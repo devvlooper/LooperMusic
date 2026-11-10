@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:ui';
 import 'package:flutter/material.dart' hide RepeatMode;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:looper_player/core/services/storage/db_service.dart';
@@ -102,21 +103,143 @@ class ForegroundAlbumArt extends ConsumerWidget {
     );
 
     final motionSettings = ref.watch(animatedArtworkSettingsProvider);
-    if (!motionSettings.animateAlbumCover ||
-        motionSettings.mode == AnimatedArtworkMode.never) {
-      return staticArt;
-    }
-
     final motionAsync = ref.watch(animatedArtworkForSongProvider(song));
     final mediaSource = motionAsync.asData?.value?.bestSquareMedia;
 
-    return AspectRatio(
+    final Widget artWidget;
+    if (!motionSettings.animateAlbumCover ||
+        motionSettings.mode == AnimatedArtworkMode.never) {
+      artWidget = staticArt;
+    } else {
+      artWidget = AspectRatio(
+        aspectRatio: 1.0,
+        child: AnimatedArtworkWidget(
+          mediaSource: mediaSource,
+          staticFallback: staticArt,
+          borderRadius: BorderRadius.circular(12),
+          fit: BoxFit.cover,
+        ),
+      );
+    }
+
+    if (!motionSettings.ambientGlow) {
+      return artWidget;
+    }
+
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final glowOpacity = isDark ? 0.55 : 0.35;
+
+    final staticGlow = AspectRatio(
       aspectRatio: 1.0,
-      child: AnimatedArtworkWidget(
-        mediaSource: mediaSource,
-        staticFallback: staticArt,
-        borderRadius: BorderRadius.circular(12),
+      child: OptimizedImage(
+        imagePath: song.artPath != null && !song.artPath!.startsWith('http')
+            ? song.artPath
+            : null,
+        imageUrl: song.artPath != null && song.artPath!.startsWith('http')
+            ? song.artPath
+            : null,
         fit: BoxFit.cover,
+        cacheWidth: 64,
+      ),
+    );
+
+    return Stack(
+      clipBehavior: Clip.none,
+      alignment: Alignment.center,
+      children: [
+        Positioned(
+          top: -24,
+          bottom: -24,
+          left: -24,
+          right: -24,
+          child: ImageFiltered(
+            imageFilter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+            child: Opacity(
+              opacity: glowOpacity,
+              child: mediaSource != null
+                  ? AnimatedArtworkWidget(
+                      mediaSource: mediaSource,
+                      staticFallback: staticGlow,
+                      fit: BoxFit.cover,
+                    )
+                  : staticGlow,
+            ),
+          ),
+        ),
+        artWidget,
+      ],
+    );
+  }
+}
+
+/// Immersive mode (portrait): the art edge to edge from the top of the
+/// screen down to the title row, fading out over the lyric line and title
+/// so the regular background shows below. Plays the song's motion art when
+/// it has one.
+class ImmersiveHeroArt extends ConsumerWidget {
+  final Song song;
+
+  /// Height of the fade at the bottom of the art.
+  final double fadeHeight;
+  const ImmersiveHeroArt({
+    required this.song,
+    required this.fadeHeight,
+    super.key,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final double dpr = MediaQuery.maybeDevicePixelRatioOf(context) ?? 2.0;
+    final String? art = song.artPath;
+    final Widget staticArt = SizedBox.expand(
+      child: OptimizedImage(
+        imagePath: art != null && !art.startsWith('http') ? art : null,
+        imageUrl: art != null && art.startsWith('http') ? art : null,
+        fit: BoxFit.cover,
+        cacheWidth: (MediaQuery.sizeOf(context).width * dpr).toInt(),
+      ),
+    );
+    final motion = ref
+        .watch(animatedArtworkForSongProvider(song))
+        .asData
+        ?.value;
+    final String? source = motion != null && motion.hasMotion
+        ? motion.bestTallMedia ?? motion.bestSquareMedia
+        : null;
+
+    return ShaderMask(
+      blendMode: BlendMode.dstIn,
+      shaderCallback: (rect) => LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: const [Colors.white, Colors.white, Colors.transparent],
+        stops: [
+          0.0,
+          rect.height <= 0
+              ? 0.0
+              : (1 - fadeHeight / rect.height).clamp(0.0, 1.0),
+          1.0,
+        ],
+      ).createShader(rect),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          AnimatedArtworkWidget(
+            mediaSource: source,
+            staticFallback: staticArt,
+            fit: BoxFit.cover,
+          ),
+          // Keeps the white top bar readable over bright art.
+          const DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment(0, -0.5),
+                colors: [Colors.black45, Colors.transparent],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

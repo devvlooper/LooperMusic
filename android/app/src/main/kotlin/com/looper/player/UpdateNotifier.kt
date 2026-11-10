@@ -32,7 +32,7 @@ object UpdateNotifier {
 
         manager.createNotificationChannel(
             NotificationChannel(CHANNEL_ID, "App updates", NotificationManager.IMPORTANCE_DEFAULT).apply {
-                description = "Tells you when a new version of Looper Player is available"
+                description = "Tells you when a new version of Looper Music is available"
             }
         )
 

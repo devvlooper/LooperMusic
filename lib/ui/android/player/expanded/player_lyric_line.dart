@@ -318,10 +318,8 @@ class _LineHandOff extends StatelessWidget {
   }
 }
 
-const String _lyricEllipsis = '\u2026';
-
-/// One lyric line, kept to one row in the lyrics alignment. A line too long
-/// for the cover is cut at the last word that fits and ends in "…".
+/// One lyric line, kept to one row in the lyrics alignment. A word-timed
+/// line too long for the cover slides along as it's sung; others end in "…".
 class _ActiveLyricLine extends ConsumerWidget {
   const _ActiveLyricLine({
     super.key,
@@ -351,13 +349,25 @@ class _ActiveLyricLine extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final Widget body;
     if (_wordTimed) {
-      final shown = fitLyricWords(
-        line,
-        style,
-        // Room for the sung words' lift and swell.
-        width - (style.fontSize ?? 17) * 0.6,
-        MediaQuery.textScalerOf(context),
-      );
+      final scaler = MediaQuery.textScalerOf(context);
+      // Room for the sung words' lift and swell.
+      final room = width - (style.fontSize ?? 17) * 0.6;
+      // Where each word ends along the line, measured once per line.
+      final wordEnds = <double>[];
+      var text = '';
+      for (final word in line.words) {
+        text += word.text;
+        final painter = TextPainter(
+          text: TextSpan(text: text, style: style),
+          textDirection: TextDirection.ltr,
+          textScaler: scaler,
+          maxLines: 1,
+        )..layout();
+        wordEnds.add(painter.width);
+        painter.dispose();
+      }
+      final fullWidth = wordEnds.isEmpty ? 0.0 : wordEnds.last;
+      final overflows = fullWidth > room;
       body = Consumer(
         builder: (context, ref, _) {
           final reported = ref.watch(
@@ -372,17 +382,40 @@ class _ActiveLyricLine extends ConsumerWidget {
                   reported > line.endTime + const Duration(seconds: 1)
               ? line.startTime
               : reported;
-          return WordSyncedLyricText(
-            line: shown,
+          final text = WordSyncedLyricText(
+            line: line,
             position: position,
             isPlaying: isPlaying,
             style: style,
             activeColor: style.color ?? Colors.white,
             unsungColor: unsungColor,
-            textAlign: align,
+            textAlign: overflows ? TextAlign.left : align,
             fontScale: (style.fontSize ?? 17) / 30,
             wipe: mode == LyricsSyncMode.char,
             showBackground: false,
+          );
+          if (!overflows) return text;
+          // Too long for one row: slide left word by word so the word
+          // being sung stays in view.
+          final sung = line.words.lastIndexWhere(
+            (w) => w.startTime <= position,
+          );
+          final x = sung < 0 ? 0.0 : wordEnds[sung];
+          // Slides a little past the end so the last word sits clear of
+          // the edge instead of flush against it.
+          final endPad = (style.fontSize ?? 17) * 1.5;
+          final shift = (x - room * 0.7).clamp(0.0, fullWidth - room + endPad);
+          return OverflowBox(
+            alignment: Alignment.centerLeft,
+            maxWidth: fullWidth + endPad + (style.fontSize ?? 17),
+            child: TweenAnimationBuilder<double>(
+              tween: Tween(end: -shift),
+              duration: const Duration(milliseconds: 450),
+              curve: Curves.easeOutCubic,
+              builder: (context, dx, child) =>
+                  Transform.translate(offset: Offset(dx, 0), child: child),
+              child: text,
+            ),
           );
         },
       );
@@ -414,9 +447,10 @@ class _ActiveLyricLine extends ConsumerWidget {
   }
 }
 
+const String _lyricEllipsis = '\u2026';
+
 /// [line] as is when it fits in [maxWidth]; otherwise its words up to the
-/// last whole word that fits with "…" after it. The "…" is timed over the
-/// words it stands for, so it fills while they are sung.
+/// last whole word that fits with "…" after it.
 LyricLine fitLyricWords(
   LyricLine line,
   TextStyle style,
@@ -449,7 +483,6 @@ LyricLine fitLyricWords(
     if (widthOf(text.trimRight() + _lyricEllipsis) > maxWidth) break;
     keep = i + 1;
   }
-  // Not even one word fits: cut that word's text short.
   if (keep == 0) keep = 1;
   final kept = [
     ...words.take(keep - 1),

@@ -25,6 +25,7 @@ import 'package:looper_player/core/services/storage/db_service.dart';
 import 'package:looper_player/features/settings/presentation/providers/settings_notifier.dart';
 import 'package:looper_player/features/playback/presentation/providers/lyrics/lyrics_notifier.dart';
 import 'package:looper_player/features/playback/presentation/providers/equalizer/equalizer_notifier.dart';
+import 'package:looper_player/core/services/audio/audio_normalization.dart';
 import 'package:metadata_god/metadata_god.dart';
 import 'package:isar_community/isar.dart';
 import 'dart:io';
@@ -39,6 +40,11 @@ import 'package:looper_player/features/online/data/online_settings.dart';
 import 'package:looper_player/features/online/data/online_playback.dart';
 import 'package:looper_player/features/online/data/recommendation_engine.dart';
 import 'package:looper_player/features/online/data/stream_resolver.dart';
+import 'package:looper_player/features/playback/domain/crossmix_models.dart';
+import 'package:looper_player/features/playback/data/crossmix/crossmix_settings.dart';
+import 'package:looper_player/features/playback/data/crossmix/cue_analyzer.dart';
+import 'package:looper_player/features/playback/data/crossmix/transition_planner.dart';
+import 'package:looper_player/features/playback/presentation/providers/playback/transition_director.dart';
 
 part 'playback_notifier.g.dart';
 part 'playback_state.dart';
@@ -48,12 +54,15 @@ part 'online_hooks.dart';
 
 @Riverpod(keepAlive: true)
 class Playback extends _$Playback {
-  late final Player player;
+  Player get player => ref.read(audioServiceProvider).player;
   List<Song> _playlist = [];
   List<Song> _originalPlaylist = [];
   int _currentIndex = -1;
   bool _isTransitioning = false;
-  int _activeCrossfadeId = 0;
+  int _loadGeneration = 0;
+  bool _isTransitionArming = false;
+  // The armed incoming song's YouTube loudness, applied at the swap.
+  double? _armedLoudnessDb;
 
   // Online streaming state (online_hooks.dart).
   bool _onlineStreamed = false;
@@ -118,7 +127,6 @@ class Playback extends _$Playback {
     if (Platform.isAndroid) {
       ref.read(androidAudioFocusManagerProvider);
     }
-    player = ref.read(audioServiceProvider).player;
     final audioSvc = ref.read(audioServiceProvider);
     audioSvc.onNext = skipNext;
     audioSvc.onPrevious = skipPrevious;
@@ -205,33 +213,38 @@ class Playback extends _$Playback {
     _updateWidgetState();
   }
 
-  Future<void> _init() async {
+  void _bindPlayerSubscriptions(Player p) {
+    for (final sub in _subscriptions) {
+      sub.cancel();
+    }
+    _subscriptions.clear();
+
     _subscriptions.add(
-      player.stream.error.listen((err) {
+      p.stream.error.listen((err) {
         LoggerHelper.write('Mpv Player Error: $err');
       }),
     );
 
     _subscriptions.add(
-      player.stream.log.listen((entry) {
+      p.stream.log.listen((entry) {
         LoggerHelper.write('Mpv Player Log: $entry');
       }),
     );
 
     _subscriptions.add(
-      player.stream.internalLog.listen((entry) {
+      p.stream.internalLog.listen((entry) {
         LoggerHelper.write('Mpv Player InternalLog: $entry');
       }),
     );
 
     _subscriptions.add(
-      player.stream.playing.listen((playing) {
+      p.stream.playing.listen((playing) {
         // Safety net: a faded pause leaves the fade gain at 0, so if mpv
         // starts playing through any path that didn't fade back in
         // (plugin auto-resume, repeat-one, ...) it would play silently.
         // Only while the fader is idle - a running fade owns the gain.
         if (playing &&
-            player.state.playWhenReady &&
+            p.state.playWhenReady &&
             !_fader.isFading &&
             _fader.factor < 1.0) {
           _fadeIn();
@@ -283,7 +296,7 @@ class Playback extends _$Playback {
     );
 
     _subscriptions.add(
-      player.stream.position.listen((position) {
+      p.stream.position.listen((position) {
         if (!state.isScrubbing) {
           // seek() already set state.position to the seek target the
           // instant it was called, before the native player actually
@@ -337,19 +350,20 @@ class Playback extends _$Playback {
           );
         }
         unawaited(_checkpointListenedTimeIfDue());
+        _checkCrossmixTransition(position);
       }),
     );
 
     _subscriptions.add(
-      player.stream.buffering.listen((_) => _updateBuffering()),
+      p.stream.buffering.listen((_) => _updateBuffering()),
     );
 
     _subscriptions.add(
-      player.stream.seeking.listen((_) => _updateBuffering()),
+      p.stream.seeking.listen((_) => _updateBuffering()),
     );
 
     _subscriptions.add(
-      player.stream.demuxerCacheState.listen((cacheState) {
+      p.stream.demuxerCacheState.listen((cacheState) {
         if (!state.isStreaming) return;
         if (cacheState.eofCached && !_eofCached) {
           _eofCached = true;
@@ -361,7 +375,7 @@ class Playback extends _$Playback {
     );
 
     _subscriptions.add(
-      player.stream.buffer.listen((buf) {
+      p.stream.buffer.listen((buf) {
         if (!state.isStreaming || _eofCached) return;
         final dur = state.duration;
         if (dur <= Duration.zero) return;
@@ -378,7 +392,7 @@ class Playback extends _$Playback {
     );
 
     _subscriptions.add(
-      player.stream.duration.listen((duration) {
+      p.stream.duration.listen((duration) {
         if (duration != Duration.zero) {
           state = state.copyWith(
             duration: duration,
@@ -389,12 +403,12 @@ class Playback extends _$Playback {
     );
 
     _subscriptions.add(
-      player.stream.completed.listen((completed) {
+      p.stream.completed.listen((completed) {
         debugPrint("======== COMPLETED ========");
         debugPrint("completed = $completed");
-        debugPrint("position  = ${player.state.position}");
-        debugPrint("duration  = ${player.state.duration}");
-        debugPrint("playlist completed = ${player.state.completed}");
+        debugPrint("position  = ${p.state.position}");
+        debugPrint("duration  = ${p.state.duration}");
+        debugPrint("playlist completed = ${p.state.completed}");
 
         if (!completed) {
           _completedResetSinceLoad = true;
@@ -412,6 +426,10 @@ class Playback extends _$Playback {
         _onTrackCompleted();
       }),
     );
+  }
+
+  Future<void> _init() async {
+    _bindPlayerSubscriptions(player);
 
     // Wait for settings to load
     await ref.read(settingsProvider.notifier).initialization;
@@ -699,9 +717,233 @@ class Playback extends _$Playback {
     });
   }
 
+  void _checkCrossmixTransition(Duration position) {
+    if (!state.isPlaying || state.isScrubbing) return;
+    final crossmixSettings = ref.read(crossmixSettingsProvider);
+    if (!crossmixSettings.crossfadeEnabled) return;
+
+    final director = ref.read(audioServiceProvider).transitionDirector;
+    if (director.isRunning) return;
+
+    final dur = state.duration;
+    if (dur <= Duration.zero) return;
+    final remaining = dur - position;
+
+    final crossfadeDuration = crossmixSettings.duration;
+    // Arming window: at [duration - crossfadeLength - 9s]
+    final armingThreshold = crossfadeDuration + const Duration(seconds: 9);
+
+    if (remaining <= armingThreshold && remaining > crossfadeDuration) {
+      if (!director.isArmed && !_isTransitionArming) {
+        unawaited(_armTransition(crossmixSettings, position));
+      }
+    }
+
+    if (director.isArmed && !director.isRunning) {
+      // Go/no-go at [crossfadeLength + 1.2s]
+      final goNoGoThreshold =
+          crossfadeDuration + const Duration(milliseconds: 1200);
+      if (remaining <= goNoGoThreshold) {
+        if (!director.checkGoNoGo()) {
+          LoggerHelper.write(
+            'Playback: Go/No-Go check failed. Cancelling crossmix.',
+          );
+          director.cancelArming();
+          return;
+        }
+      }
+
+      // Check if trigger point reached
+      final plan = director.currentPlan;
+      final triggerOffset =
+          plan?.outgoingTriggerOffset ?? (dur - crossfadeDuration);
+      if (position >= triggerOffset || remaining <= crossfadeDuration) {
+        _startCrossmix(director, plan);
+      }
+    }
+  }
+
+  Future<void> _armTransition(
+    CrossmixSettings settings,
+    Duration position,
+  ) async {
+    final nextIndex = _currentIndex + 1;
+    if (nextIndex >= _playlist.length && state.repeatMode != RepeatMode.all) {
+      return;
+    }
+    final nextSong = nextIndex < _playlist.length
+        ? _playlist[nextIndex]
+        : (_playlist.isNotEmpty ? _playlist.first : null);
+    if (nextSong == null || state.currentSong == null) return;
+
+    final isSleepTimerAtEnd = state.isSleepTimerActive &&
+        state.sleepTimerSongsRemaining != null &&
+        state.sleepTimerSongsRemaining! <= 1;
+
+    if (TransitionPlanner.shouldSkipCrossfade(
+      settings: settings,
+      currentSong: state.currentSong,
+      nextSong: nextSong,
+      isRepeatOne: state.repeatMode == RepeatMode.one,
+      isSleepTimerAtEnd: isSleepTimerAtEnd,
+    )) {
+      return;
+    }
+
+    _isTransitionArming = true;
+    final generation = _loadGeneration;
+
+    try {
+      CrossmixAnalysis? outAnalysis;
+      CrossmixAnalysis? inAnalysis;
+      if (settings.smartTransitions) {
+        outAnalysis = await CueAnalyzer.getOrAnalyze(state.currentSong!);
+        inAnalysis = await CueAnalyzer.getOrAnalyze(nextSong);
+      }
+
+      final lyrics = ref.read(lyricsProvider).parsedLines;
+      final plan = TransitionPlanner.planTransition(
+        outgoingSong: state.currentSong!,
+        incomingSong: nextSong,
+        settings: settings,
+        outgoingAnalysis: outAnalysis,
+        incomingAnalysis: inAnalysis,
+        outgoingLyrics: lyrics,
+      );
+
+      final director = ref.read(audioServiceProvider).transitionDirector;
+      await director.arm(
+        plan: plan,
+        generation: generation,
+        loadMedia: (idlePlayer) async {
+          final source = await _sourceFor(nextSong);
+          if (generation != _loadGeneration) return;
+
+          final metadata = {
+            'title': nextSong.title,
+            'artist': nextSong.artist ?? currentL10n().unknownArtist,
+            'album': nextSong.album ?? currentL10n().unknownAlbum,
+            if (nextSong.artPath != null) 'artPath': nextSong.artPath!,
+            if (nextSong.duration != null) 'duration': nextSong.duration!,
+          };
+
+          final media = Media(
+            source.path,
+            extras: {
+              'title': metadata['title']!,
+              'artist': metadata['artist']!,
+              'album': metadata['album']!,
+              if (metadata['artPath'] != null) 'artPath': metadata['artPath']!,
+              if (metadata['duration'] != null)
+                'duration': metadata['duration']!,
+            },
+          );
+
+          if (source.userAgent != null) {
+            try {
+              await idlePlayer.setRawProperty('user-agent', source.userAgent!);
+            } catch (_) {}
+          }
+
+          _armedLoudnessDb = source.loudnessDb;
+          await idlePlayer.open(media, play: false);
+          if (plan.incomingStartOffset > Duration.zero) {
+            await idlePlayer.seek(plan.incomingStartOffset);
+          }
+        },
+      );
+    } catch (e) {
+      LoggerHelper.write('Playback: Failed to arm transition: $e');
+    } finally {
+      _isTransitionArming = false;
+    }
+  }
+
+  void _startCrossmix(TransitionDirector director, TransitionPlan? plan) {
+    final nextIndex = _currentIndex + 1;
+    final nextSong = (nextIndex < _playlist.length)
+        ? _playlist[nextIndex]
+        : (_playlist.isNotEmpty ? _playlist.first : null);
+    if (nextSong == null) return;
+
+    director.startTransition(
+      generation: _loadGeneration,
+      customDuration: plan?.overlapDuration,
+      onSwapCallback: () {
+        _currentIndex = nextIndex < _playlist.length ? nextIndex : 0;
+        if (_manualQueueCount > 0) _manualQueueCount--;
+
+        _pauseListenSegment();
+        unawaited(_flushListenedTime());
+
+        state = state.copyWith(
+          currentSong: nextSong,
+          duration: nextSong.duration != null
+              ? Duration(milliseconds: nextSong.duration!)
+              : Duration.zero,
+          position: plan?.incomingStartOffset ?? Duration.zero,
+        );
+
+        _updateNotification(forceFresh: true);
+        ref.read(lyricsProvider.notifier).fetchForSong(nextSong);
+        ref.read(equalizerProvider.notifier).onSongChanged(nextSong);
+        final audio = ref.read(audioServiceProvider);
+        unawaited(
+          _applyNormalization(
+            nextSong,
+            _armedLoudnessDb,
+          ).then(audio.setOnlineLoudnessGain),
+        );
+
+        // The director flipped roles before this callback: `player` is now
+        // the incoming song's player.
+        _bindPlayerSubscriptions(audio.player);
+      },
+      onCompleteCallback: () {
+        _isTransitioning = false;
+        _saveQueueState();
+      },
+    );
+  }
+
+  /// Per-song volume normalization (doc 25 §3.2): ReplayGain for local
+  /// files, YouTube loudness for online songs. Returns the online gain.
+  Future<double> _applyNormalization(Song song, double? loudnessDb) async {
+    final eqState = ref.read(equalizerProvider);
+    final audio = ref.read(audioServiceProvider);
+    if (song.isOnline) {
+      await audio.configureReplayGain(mode: 0, preamp: 0.0);
+      return eqState.replayGainMode != 0
+          ? AudioNormalization.computeOnlineLoudnessGain(loudnessDb)
+          : 0.0;
+    }
+    if (eqState.replayGainMode != 0) {
+      final albumMode = AudioNormalization.isAlbumInOrder(
+        song: song,
+        playlist: _playlist,
+        currentIndex: _currentIndex,
+        isShuffle: state.isShuffle,
+      );
+      await audio.configureReplayGain(
+        mode: albumMode ? 2 : 1,
+        preamp: eqState.replayGainPreamp,
+      );
+    } else {
+      await audio.configureReplayGain(mode: 0, preamp: 0.0);
+    }
+    return 0.0;
+  }
+
   /// [immediate] skips the wait for the UI position to catch up with the
   /// end - used when the end was deferred past a load and is long settled.
   void _onTrackCompleted({bool immediate = false}) {
+    // The outgoing song ran out before the fade's swap: finish the hand-over
+    // instead of loading the next song a second time.
+    final director = ref.read(audioServiceProvider).transitionDirector;
+    if (director.isRunning) {
+      director.completeHandoverImmediately();
+      return;
+    }
     _isTransitioning = true;
     _songCompletionTimer?.cancel();
 
@@ -783,7 +1025,7 @@ class Playback extends _$Playback {
       }
     }
 
-    final crossfadeId = ++_activeCrossfadeId;
+    final loadId = ++_loadGeneration;
     _isTransitioning = true;
     _pendingCompletion = false;
     _completedResetSinceLoad = !player.state.completed;
@@ -791,7 +1033,7 @@ class Playback extends _$Playback {
     try {
       await _playDirect(
         song,
-        crossfadeId,
+        loadId,
         play: play,
         initialPosition: initialPosition,
         sourcePlaylistId: sourcePlaylistId,
@@ -799,16 +1041,16 @@ class Playback extends _$Playback {
     } catch (e) {
       if (song.isOnline) {
         // Resolution already retried inside its budget; skip with a message.
-        if (crossfadeId == _activeCrossfadeId) {
+        if (loadId == _loadGeneration) {
           unawaited(Future.microtask(() => _onOnlineFailure(song, e)));
         }
         return;
       }
-      if (crossfadeId == _activeCrossfadeId) {
+      if (loadId == _loadGeneration) {
         try {
           await _playDirect(
             song,
-            crossfadeId,
+            loadId,
             play: play,
             initialPosition: initialPosition,
             sourcePlaylistId: sourcePlaylistId,
@@ -827,7 +1069,7 @@ class Playback extends _$Playback {
         }
       } else {}
     } finally {
-      if (crossfadeId == _activeCrossfadeId) {
+      if (loadId == _loadGeneration) {
         int attempts = 0;
 
         while (!_pendingCompletion &&
@@ -905,7 +1147,7 @@ class Playback extends _$Playback {
 
     // Online songs resolve to a local twin, a cached file or a stream URL.
     final source = await _sourceFor(song);
-    if (crossfadeId != _activeCrossfadeId) return;
+    if (crossfadeId != _loadGeneration) return;
 
     _eofCached = false;
     _pendingSeek = null;
@@ -916,6 +1158,11 @@ class Playback extends _$Playback {
       isStreaming: source.streamed,
       isBuffering: false,
       buffer: Duration.zero,
+    );
+
+    final onlineLoudnessGain = await _applyNormalization(
+      song,
+      source.loudnessDb,
     );
 
     await ref
@@ -929,6 +1176,7 @@ class Playback extends _$Playback {
           customFilter: customFilter,
           interruptionPolicy: _getInterruptionPolicy(),
           userAgent: source.userAgent,
+          onlineLoudnessGain: onlineLoudnessGain,
         );
     if (song.isOnline) _onlineFailStreak = 0;
 
@@ -944,17 +1192,17 @@ class Playback extends _$Playback {
       // and pause playback right after it started.
     }
 
-    if (shouldFade && crossfadeId == _activeCrossfadeId) {
+    if (shouldFade && crossfadeId == _loadGeneration) {
       unawaited(_fader.fadeTo(1.0, Duration(milliseconds: fadeLength)));
     }
 
-    if (crossfadeId != _activeCrossfadeId) return;
+    if (crossfadeId != _loadGeneration) return;
 
     _updateWidgetState(); // Update home screen widgets instantly with the new song metadata
 
     if (Platform.isLinux || Platform.isWindows || Platform.isMacOS) {
       await windowManager.setTitle(
-        'Looper Player - ${song.title} - ${song.artist ?? currentL10n().unknownArtist}',
+        'Looper Music - ${song.title} - ${song.artist ?? currentL10n().unknownArtist}',
       );
     }
 
@@ -1275,6 +1523,10 @@ class Playback extends _$Playback {
   }
 
   Future<void> stop() async {
+    final director = ref.read(audioServiceProvider).transitionDirector;
+    if (director.isArmed || director.isRunning) {
+      director.cancelArming();
+    }
     _silenceTimer?.cancel();
     _songCompletionTimer?.cancel();
     _pauseListenSegment();
@@ -1308,6 +1560,7 @@ class Playback extends _$Playback {
   /// In-app pause (button, widget, sleep-timer-free paths): fade out, then
   /// pause mpv - unless a play tap superseded the fade in the meantime.
   Future<void> _pauseFromUser() async {
+    ref.read(audioServiceProvider).transitionDirector.pauseTransition();
     _silenceTimer?.cancel();
     _songCompletionTimer?.cancel();
     _bufferingDebounceTimer?.cancel();
@@ -1370,6 +1623,7 @@ class Playback extends _$Playback {
   /// [mpvAlreadyPlaying] is true when mpv_audio_kit already un-paused mpv
   /// on the OS's behalf, in which case only the volume needs restoring.
   Future<void> _resumeCurrent({required bool mpvAlreadyPlaying}) async {
+    ref.read(audioServiceProvider).transitionDirector.resumeTransition();
     _pausedForRouteChange = false;
     // About to (re)start playback: restore whatever interruption policy the
     // settings actually dictate, undoing any disarm from a previous manual
@@ -1525,6 +1779,26 @@ class Playback extends _$Playback {
   Future<void> skipNext({bool isManual = true}) async {
     if (_playlist.isEmpty) return;
 
+    final director = ref.read(audioServiceProvider).transitionDirector;
+    if (director.isRunning) {
+      director.completeHandoverImmediately();
+      return;
+    }
+
+    if (isManual && state.isPlaying) {
+      final crossmixSettings = ref.read(crossmixSettingsProvider);
+      if (crossmixSettings.crossfadeEnabled) {
+        director.handleUserSkip(executeSkip: _executeSkipNext);
+        return;
+      }
+    }
+
+    await _executeSkipNext();
+  }
+
+  Future<void> _executeSkipNext() async {
+    if (_playlist.isEmpty) return;
+
     final nextIndex = _currentIndex + 1;
     if (nextIndex >= _playlist.length) {
       if (state.repeatMode != RepeatMode.all) {
@@ -1566,6 +1840,12 @@ class Playback extends _$Playback {
 
   Future<void> skipPrevious({bool force = false}) async {
     if (_playlist.isEmpty) return;
+    final director = ref.read(audioServiceProvider).transitionDirector;
+    if (director.isRunning) {
+      director.completeHandoverImmediately();
+    } else if (director.isArmed) {
+      director.cancelArming();
+    }
     if (!force && state.position.inSeconds > 3) {
       await seek(Duration.zero);
       return;
@@ -1662,15 +1942,29 @@ class Playback extends _$Playback {
     ref.read(settingsProvider.notifier).updateVolume(volume);
   }
 
-  /// The one place mpv's volume is written: user volume x fade gain, or
+  /// The one place mpv's volume is written: user volume (quadratic curve v^2
+  /// for natural human ear loudness perception, doc 25 §3.8) x fade gain, or
   /// silence while scrubbing.
   void _applyVolume() {
-    player.setVolume(
-      state.isScrubbing ? 0 : state.volume * _fader.factor * 100,
+    final double curvedVolume = state.volume * state.volume;
+    final effective = state.isScrubbing ? 0.0 : curvedVolume * _fader.factor;
+    ref.read(audioServiceProvider).transitionDirector.setMasterVolume(
+      effective,
     );
   }
 
   Future<void> seek(Duration position) async {
+    final director = ref.read(audioServiceProvider).transitionDirector;
+    if (director.isRunning) {
+      // Before the swap the UI still shows the old song, so its position
+      // means nothing for the new one: finish the hand-over only.
+      final swapped = director.hasSwapped;
+      director.completeHandoverImmediately();
+      if (!swapped) return;
+    } else if (director.isArmed) {
+      director.cancelArming();
+    }
+
     _songCompletionTimer?.cancel();
     _lastSeekTime = DateTime.now();
 

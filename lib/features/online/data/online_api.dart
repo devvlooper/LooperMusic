@@ -50,20 +50,31 @@ abstract final class OnlineApi {
         await _it.music('music/get_search_suggestions', {'input': input}),
       );
 
-  /// YouTube's own "up next" radio for a song (the song itself excluded).
-  static Future<List<OnlineSong>> radio(
-    String videoId, {
+  /// YouTube radio / mix station for any playlist id (RDAMVM, RDAMPL, RDEM, RDAO, RDTMAK).
+  static Future<List<OnlineSong>> radioPlaylist(
+    String playlistId, {
+    String? videoId,
     bool automatic = false,
   }) async {
     final rows = parseRadio(
       await _it.music('next', {
-        'videoId': videoId,
-        'playlistId': 'RDAMVM$videoId',
+        'playlistId': playlistId,
+        'videoId': ?videoId,
         'isAudioOnly': true,
       }, automatic: automatic),
     );
-    return rows.where((s) => s.videoId != videoId).toList();
+    if (videoId != null) {
+      return rows.where((s) => s.videoId != videoId).toList();
+    }
+    return rows;
   }
+
+  /// YouTube's own "up next" radio for a song (the song itself excluded).
+  static Future<List<OnlineSong>> radio(
+    String videoId, {
+    bool automatic = false,
+  }) async =>
+      radioPlaylist('RDAMVM$videoId', videoId: videoId, automatic: automatic);
 
   /// Album, year, credits and type of one song (for downloads' tags).
   static Future<OnlineSong?> details(String videoId) async => parseSongDetails(

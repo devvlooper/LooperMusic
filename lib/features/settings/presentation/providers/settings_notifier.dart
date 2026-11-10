@@ -3,6 +3,7 @@ import 'package:isar_community/isar.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../../../core/services/haptics/app_haptics.dart';
 import '../../../../core/services/storage/db_service.dart';
+import '../../../../core/services/storage/local_json_store.dart';
 
 import '../../../library/data/services/artwork_downloader_service.dart';
 import '../../../../core/theme/app_fonts.dart';
@@ -15,13 +16,15 @@ import '../../domain/progress_bar_style.dart';
 import 'package:flutter/painting.dart' show Color;
 import 'package:looper_player/core/utils/artwork_colors.dart' show boostChroma;
 import 'package:looper_player/core/utils/ui_utils.dart' show UiUtils;
+import 'package:looper_player/ui/android/tabs/home/home_order.dart'
+    show withHomeRowIds;
 
 part 'settings_notifier.g.dart';
 
 /// The app accent as drawn: the saved colour made more vibrant by the
 /// "Accent Vibrancy" slider. Use [accent] wherever the accent is painted.
 extension AppAccent on AppSettings {
-  static const double defaultVibrancy = 0.05;
+  static const double defaultVibrancy = 1.0;
 
   /// 0..1. Desktop has no slider, so it draws the saved colour as is.
   double get accentVibrancyValue {
@@ -182,7 +185,7 @@ class Settings extends _$Settings {
       }
       if (!settings.activeLyricsIntensityDefaultMigrated) {
         final double v = settings.activeLyricsIntensity;
-        if (v.isNaN || v == 0.0) settings.activeLyricsIntensity = 0.35;
+        if (v.isNaN || v == 0.0) settings.activeLyricsIntensity = 0.7;
         settings.activeLyricsIntensityDefaultMigrated = true;
         needsSave = true;
       }
@@ -193,16 +196,25 @@ class Settings extends _$Settings {
         settings.lyricsProviderWordSyncMigrated = true;
         needsSave = true;
       }
-      if (settings.homeSectionOrder.isEmpty) {
-        settings.homeSectionOrder = [
-          'quick_picks',
-          'playlists',
-          'songs',
-          'albums',
-          'artists',
-          'genres',
-          'recent',
+      // Every lyrics service is on now; switch back on the ones that used to
+      // start off. One time, so a later deliberate switch-off sticks.
+      if (await LocalJsonStore.read('lyrics_all_on_v1') != true) {
+        const formerlyOff = {
+          'PAXSENIX',
+          'BINILYRICS',
+          'UNISON',
+          'BETTERLYRICS_QQ',
+          'YT_CAPTIONS',
+        };
+        settings.lyricsProvidersOff = [
+          for (final id in settings.lyricsProvidersOff)
+            if (!formerlyOff.contains(id.toUpperCase())) id,
         ];
+        await LocalJsonStore.write('lyrics_all_on_v1', true);
+        needsSave = true;
+      }
+      if (settings.homeSectionOrder.isEmpty) {
+        settings.homeSectionOrder = [...AppSettings.defaultHomeSectionOrder];
         needsSave = true;
       } else if (!settings.homeSectionOrder.contains('recent')) {
         // Migration: append the newly added Recent section to existing
@@ -212,6 +224,12 @@ class Settings extends _$Settings {
       }
       if (!settings.homeSectionOrder.contains('playlists')) {
         settings.homeSectionOrder = [...settings.homeSectionOrder, 'playlists'];
+        needsSave = true;
+      }
+      // Quick picks and the online rows joined the order (docs/online/27).
+      final withRows = withHomeRowIds(settings.homeSectionOrder);
+      if (withRows.length != settings.homeSectionOrder.length) {
+        settings.homeSectionOrder = withRows;
         needsSave = true;
       }
       if (settings.globalEqualizerGains.length < 48) {
@@ -240,21 +258,13 @@ class Settings extends _$Settings {
         ..showHomeGenres = true
         ..showHomeRecent = true
         ..showHomePlaylists = true
-        ..homeSectionOrder = [
-          'quick_picks',
-          'playlists',
-          'songs',
-          'albums',
-          'artists',
-          'genres',
-          'recent',
-        ]
-        ..homeDarkness = 0.72
+        ..homeSectionOrder = [...AppSettings.defaultHomeSectionOrder]
+        ..homeDarkness = 0.35
         ..desktopBackgroundDarkness =
             AppSettings.defaultDesktopBackgroundDarkness
         ..songsDarkness = 0.72
         ..libraryDarkness = 0.72
-        ..musicDarkness = 0.62
+        ..musicDarkness = 0.39
         ..lyricsDarkness = 0.35
         ..showQualityBadge = true
         ..enablePlayerGradient = true
@@ -397,15 +407,7 @@ class Settings extends _$Settings {
       ..showHomePlaylists = s.showHomePlaylists
       ..homeSectionOrder = List.from(
         s.homeSectionOrder.isEmpty
-            ? [
-                'quick_picks',
-                'playlists',
-                'songs',
-                'albums',
-                'artists',
-                'genres',
-                'recent',
-              ]
+            ? AppSettings.defaultHomeSectionOrder
             : s.homeSectionOrder,
       )
       ..enableSlideGesture = s.enableSlideGesture

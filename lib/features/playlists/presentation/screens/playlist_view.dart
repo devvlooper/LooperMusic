@@ -18,6 +18,7 @@ import 'package:looper_player/features/online/data/parsers.dart';
 import 'package:looper_player/features/online/presentation/online_providers.dart';
 import 'package:looper_player/features/online/presentation/online_widgets.dart';
 import 'package:looper_player/features/settings/presentation/providers/settings_notifier.dart';
+import 'package:looper_player/ui/widgets/common/filter_pill.dart';
 import 'package:looper_player/ui/widgets/common/optimized_image.dart';
 
 part 'playlist_view.g.dart';
@@ -177,21 +178,21 @@ class _PlaylistViewState extends ConsumerState<PlaylistView> {
                       scrollDirection: Axis.horizontal,
                       child: Row(
                         children: [
-                          _buildFilterChip(
+                          FilterPill(
                             label: 'All (${playlists.length + onlinePlaylists.length})',
                             isSelected: _filter == _PlaylistSourceFilter.all,
                             accent: accent,
                             onTap: () => setState(() => _filter = _PlaylistSourceFilter.all),
                           ),
                           const SizedBox(width: 8),
-                          _buildFilterChip(
+                          FilterPill(
                             label: 'On Device (${playlists.length})',
                             isSelected: _filter == _PlaylistSourceFilter.onDevice,
                             accent: accent,
                             onTap: () => setState(() => _filter = _PlaylistSourceFilter.onDevice),
                           ),
                           const SizedBox(width: 8),
-                          _buildFilterChip(
+                          FilterPill(
                             label: 'YouTube Music (${onlinePlaylists.length})',
                             isSelected: _filter == _PlaylistSourceFilter.youtube,
                             accent: accent,
@@ -245,43 +246,6 @@ class _PlaylistViewState extends ConsumerState<PlaylistView> {
         child: FloatingActionButton(
           onPressed: () => _showCreateDialog(context, ref),
           child: const Icon(LucideIcons.plus),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildFilterChip({
-    required String label,
-    required bool isSelected,
-    required Color accent,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(20),
-      onTap: () {
-        AppHaptics.selection();
-        onTap();
-      },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? accent.withValues(alpha: 0.22)
-              : Colors.white.withValues(alpha: 0.05),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: isSelected ? accent : Colors.white12,
-            width: 1,
-          ),
-        ),
-        child: Text(
-          label,
-          style: AppFonts.jostStyle(
-            color: isSelected ? Colors.white : Colors.white70,
-            fontSize: 13,
-            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-          ),
         ),
       ),
     );

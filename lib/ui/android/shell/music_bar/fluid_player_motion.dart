@@ -93,19 +93,27 @@ class FluidPlayerGeometry {
   double progressVelocity(double pixelsPerSecondDy) =>
       -pixelsPerSecondDy / travel;
 
-  /// Rect of the morphing album art: from the mini bar's 50dp thumbnail
+  /// Rect of the morphing album art: from the mini bar's 50dp (or 40dp compact) thumbnail
   /// (riding the panel) to the expanded player's artwork rect.
-  Rect morphArtRect(double p, Rect expandedArt, {double stretch = 0.0}) {
+  Rect morphArtRect(
+    double p,
+    Rect expandedArt, {
+    double stretch = 0.0,
+    bool compact = false,
+  }) {
     final Rect panel = panelRect(p, stretch: stretch);
-    final double size = lerpDouble(50.0, expandedArt.width, p)!;
+    final double miniSize = compact ? 40.0 : 50.0;
+    final double miniTop = compact ? 8.0 : 11.0;
+    final double size = lerpDouble(miniSize, expandedArt.width, p)!;
     final double left = panel.left + 12.0 + (expandedArt.left - 12.0) * p;
-    final double top = panel.top + 11.0 + (expandedArt.top - 11.0) * p;
+    final double top = panel.top + miniTop + (expandedArt.top - miniTop) * p;
     return Rect.fromLTWH(left, top, size, size);
   }
 
-  /// Corner radius of the morphing art: the mini thumbnail's 32 to the
-  /// expanded artwork's 12.
-  static double morphArtRadius(double p) => lerpDouble(32.0, 12.0, p)!;
+  /// Corner radius of the morphing art: the mini thumbnail's 32 (or 26 compact)
+  /// to the expanded artwork's 12.
+  static double morphArtRadius(double p, {bool compact = false}) =>
+      lerpDouble(compact ? 26.0 : 32.0, 12.0, p)!;
 
   Offset miniOrigin(double p, {double stretch = 0.0}) =>
       panelRect(p, stretch: stretch).topLeft;

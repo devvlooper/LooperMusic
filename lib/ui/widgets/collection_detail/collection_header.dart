@@ -100,6 +100,58 @@ extension _CollectionHeader on CollectionDetailView {
     );
   }
 
+  /// Artist pages: a full-bleed banner (motion art when there is some)
+  /// with [info] over its faded bottom, like the online artist page.
+  Widget _buildArtistHero(
+    BuildContext context,
+    WidgetRef ref, {
+    required String? art,
+    required String? imageUrl,
+    required Widget info,
+  }) {
+    final banner =
+        ref.watch(animatedArtworkForArtistProvider(title)).asData?.value;
+    final mediaSrc = banner?.bestWideMedia;
+    final still = OptimizedImage(
+      imagePath: banner?.stillUrl == null ? art : null,
+      imageUrl: banner?.stillUrl ?? imageUrl,
+      fit: BoxFit.cover,
+      width: double.infinity,
+      height: double.infinity,
+      placeholder: ColoredBox(color: Colors.white.withValues(alpha: 0.05)),
+    );
+    return SizedBox(
+      height: 360,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          mediaSrc != null
+              ? AnimatedArtworkWidget(
+                  mediaSource: mediaSrc,
+                  staticFallback: still,
+                  fit: BoxFit.cover,
+                )
+              : still,
+          DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.black.withValues(alpha: 0.15),
+                  Colors.black.withValues(alpha: 0.45),
+                  Theme.of(context).colorScheme.surface,
+                ],
+                stops: const [0.0, 0.55, 1.0],
+              ),
+            ),
+          ),
+          Positioned(left: 16, right: 16, bottom: 16, child: info),
+        ],
+      ),
+    );
+  }
+
   Widget _buildInfo(
     BuildContext context,
     WidgetRef ref,
@@ -175,12 +227,9 @@ extension _CollectionHeader on CollectionDetailView {
           ],
         ),
         const SizedBox(height: 16),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          clipBehavior: Clip.none,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.start,
-            children: [
+        Builder(
+          builder: (context) {
+            final buttons = <Widget>[
               PremiumSection(
                 borderRadius: BorderRadius.circular(12),
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -339,8 +388,24 @@ extension _CollectionHeader on CollectionDetailView {
                   ),
                 ),
               ],
-            ],
-          ),
+            ];
+            Widget row(Iterable<Widget> children) => SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              clipBehavior: Clip.none,
+              child: Row(children: [...children]),
+            );
+            // Artist pages: play / shuffle / sort, then follow / explore /
+            // edit on a second row so nothing runs off screen.
+            if (!isArtist || buttons.length <= 6) return row(buttons);
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                row(buttons.take(5)),
+                const SizedBox(height: 8),
+                row(buttons.skip(6)),
+              ],
+            );
+          },
         ),
       ],
     );

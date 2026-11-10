@@ -1,7 +1,7 @@
 output: dist/
 targets:
   linux:
-    app_name: Looper Player
+    app_name: Looper Music
     bundle_name: looper_player
     executable_name: looper_player
     icon: assets/branding/linux_icon.png

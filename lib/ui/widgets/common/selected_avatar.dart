@@ -1,3 +1,4 @@
+import 'package:looper_player/features/online/presentation/online_providers.dart';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -48,6 +49,11 @@ bool _isRasterAvatar(String fileName) {
 bool _isAvatarFile(String fileName) =>
     fileName.toLowerCase().endsWith('.svg') || _isRasterAvatar(fileName);
 
+/// The LOOPER PLAYER wordmark logo, and the same with PLAYER redrawn as
+/// MUSIC, shown in its place while online music is on.
+const wordmarkLogoAsset = 'logo_full.svg';
+const onlineLogoAsset = 'logo_full_music.svg';
+
 /// Every avatar image (SVG, PNG, JPG or WebP) currently bundled under
 /// [avatarAssetDir] (filenames only), discovered from Flutter's asset
 /// manifest instead of a hardcoded list - adding or removing a file from
@@ -60,6 +66,8 @@ Future<List<String>> avatarAssets(Ref ref) async {
       .listAssets()
       .where((path) => path.startsWith(avatarAssetDir) && _isAvatarFile(path))
       .map((path) => path.substring(avatarAssetDir.length))
+      // Shown in place of the default logo while online is on, not a choice.
+      .where((name) => name != onlineLogoAsset)
       .toList();
   files.sort((a, b) {
     if (a == defaultAvatarAsset) return -1;
@@ -229,8 +237,11 @@ class SelectedAvatar extends ConsumerWidget {
       ),
     );
     final accent = dynamicColor ? Theme.of(context).colorScheme.primary : null;
+    // The wordmark reads LOOPER MUSIC while online music is on.
+    final online =
+        assetFileName == wordmarkLogoAsset && ref.watch(onlineActiveProvider);
     return AvatarIcon(
-      assetFileName: assetFileName,
+      assetFileName: online ? onlineLogoAsset : assetFileName,
       accent: accent,
       size: size,
       maxWidth: maxWidth,

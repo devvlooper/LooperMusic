@@ -41,13 +41,13 @@ final class PlaybackProvider
   }
 }
 
-String _$playbackHash() => r'5cad0448316d6b86c0ff57a70ae0e3e4b4a8d797';
+String _$playbackHash() => r'da2cd1c4903086d66395d64bf421a40bd8ba542f';
 
 abstract class _$Playback extends $Notifier<PlaybackState> {
   PlaybackState build();
   @$mustCallSuper
   @override
-  void runBuild() {
+  WhenComplete runBuild() {
     final ref = this.ref as $Ref<PlaybackState, PlaybackState>;
     final element =
         ref.element
@@ -57,6 +57,6 @@ abstract class _$Playback extends $Notifier<PlaybackState> {
               Object?,
               Object?
             >;
-    element.handleCreate(ref, build);
+    return element.handleCreate(ref, build);
   }
 }

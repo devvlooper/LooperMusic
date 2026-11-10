@@ -118,7 +118,7 @@ void main(List<String> args) async {
           center: position == null,
           skipTaskbar: false,
           titleBarStyle: TitleBarStyle.hidden,
-          title: 'Looper Player',
+          title: 'Looper Music',
           backgroundColor: const Color(0xFF121214),
         );
         await windowManager.waitUntilReadyToShow(windowOptions, () async {
@@ -285,7 +285,7 @@ class MyApp extends ConsumerWidget {
         navigatorObservers: AppAmbitReporter.navigatorObservers,
         scaffoldMessengerKey: scaffoldMessengerKey,
         debugShowCheckedModeBanner: false,
-        title: 'Looper Player',
+        title: 'Looper Music',
         color: Colors.transparent,
         scrollBehavior: const LooperScrollBehavior(),
         theme: ThemeData(

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:looper_player/core/services/storage/local_json_store.dart';
 import 'package:looper_player/core/utils/logger_helper.dart';
 import 'package:looper_player/features/online/data/online_api.dart';
@@ -30,22 +31,32 @@ class ResolverCacheEntry {
     required this.resolvedAt,
   });
 
-  bool get isExpired =>
-      DateTime.now().difference(resolvedAt) > const Duration(days: 30);
+  bool get isNegative =>
+      videoId.isEmpty && (artistBrowseId == null || artistBrowseId!.isEmpty);
+
+  bool get isExpired {
+    final age = DateTime.now().difference(resolvedAt);
+    return isNegative
+        ? age > const Duration(days: 7)
+        : age > const Duration(days: 30);
+  }
 
   Map<String, dynamic> toJson() => {
-        'v': videoId,
-        if (artistBrowseId != null) 'b': artistBrowseId,
-        'r': radioPlaylistId,
-        'at': resolvedAt.millisecondsSinceEpoch,
-      };
+    'v': videoId,
+    if (artistBrowseId != null) 'b': artistBrowseId,
+    'r': radioPlaylistId,
+    'at': resolvedAt.millisecondsSinceEpoch,
+  };
 
   factory ResolverCacheEntry.fromJson(Map<String, dynamic> json) =>
       ResolverCacheEntry(
         videoId: json['v'] as String? ?? '',
         artistBrowseId: json['b'] as String?,
-        radioPlaylistId: json['r'] as String? ??
-            (json['v'] != null ? 'RDAMVM${json['v']}' : ''),
+        radioPlaylistId:
+            json['r'] as String? ??
+            (((json['v'] as String?)?.isNotEmpty ?? false)
+                ? 'RDAMVM${json['v']}'
+                : ''),
         resolvedAt: DateTime.fromMillisecondsSinceEpoch(
           json['at'] as int? ?? 0,
         ),
@@ -58,26 +69,29 @@ class ResolverCacheEntry {
 /// See docs/online/23-guest-mode-offline-seeded-recommendations.md.
 class OfflineOnlineResolver {
   static const _tag = 'OfflineOnlineResolver';
-  static const _cacheStoreKey = 'guest_offline_online_resolver_cache_v1';
+  static const _cacheStoreKey = 'guest_resolver_cache_v2';
 
   static final Map<String, ResolverCacheEntry> _memoryCache = {};
   static bool _loaded = false;
 
-  // Regex patterns per Section 4.1 of the specification
+  // Regex patterns per Section 5.1 of specification (fixes B1, B2)
   static final _tagBracketPattern = RegExp(
-    r'\s*[\(\[\{][^\)\]\}]*\b(official|music\s+video|video|audio|lyrics?|remastered|explicit|320kbps|flac|hd|hq|4k|mv|audio\s+track)\b[^\)\]\}]*[\)\]\}]',
+    r'\s*[\(\[\{][^\)\]\}]*\b(official|music\s+video|video|audio|lyrics?|'
+    r'visuali[sz]er|remaster(ed)?(\s+\d{4})?|explicit|clean|hd|hq|4k|mv|'
+    r'\d{3}\s?kbps|flac|mp3)\b[^\)\]\}]*[\)\]\}]',
     caseSensitive: false,
   );
 
-  static final _trackNumberPattern = RegExp(r'^\d+\s*[-.]\s*');
+  static final _trackNumberPattern = RegExp(r'^\d{1,3}(?:\s*[-.]\s+|\s+-\s+)');
 
   static final _fileExtensionPattern = RegExp(
-    r'\.(mp3|flac|m4a|wav|opus|ogg|aac|alac)$',
+    r'\.(mp3|flac|m4a|wav|opus|ogg|aac|alac|wma)$',
     caseSensitive: false,
   );
 
+  // Word separators need whitespace on both sides; punctuation separators do not (fixes B1).
   static final _multiArtistDelimiter = RegExp(
-    r'\s*(?:feat\.?|ft\.?|featuring|&|,|/|vs\.?|x)\s+',
+    r'\s+(?:feat\.?|ft\.?|featuring|x|vs\.?)\s+|\s*[,;&]\s*|\s+/\s+',
     caseSensitive: false,
   );
 
@@ -87,7 +101,6 @@ class OfflineOnlineResolver {
     title = title.replaceAll(_fileExtensionPattern, '');
     title = title.replaceAll(_trackNumberPattern, '');
     title = title.replaceAll(_tagBracketPattern, '');
-    // Clean up leftover double spaces or punctuation
     title = title.replaceAll(RegExp(r'\s+'), ' ').trim();
     return title.isEmpty ? rawTitle.trim() : title;
   }
@@ -97,11 +110,11 @@ class OfflineOnlineResolver {
     if (rawArtist == null) return '';
     var artist = rawArtist.trim();
     if (artist.isEmpty) return '';
-    // Strip file extensions or track numbers if dirty
     artist = artist.replaceAll(_fileExtensionPattern, '');
     artist = artist.replaceAll(_trackNumberPattern, '');
     artist = artist.replaceAll(_tagBracketPattern, '');
 
+    // ponytail: bands with & or , in the name split, upgrade with an exceptions list if users report it
     final parts = artist.split(_multiArtistDelimiter);
     final primary = parts.first.replaceAll(RegExp(r'\s+'), ' ').trim();
     return primary.isEmpty ? artist : primary;
@@ -109,7 +122,6 @@ class OfflineOnlineResolver {
 
   /// Sanitizes raw offline metadata into a clean title and primary artist.
   static CleanEntity cleanEntity(String rawTitle, String? rawArtist) {
-    // If the title itself contains "Artist - Title", separate them if artist is blank
     var title = cleanTitle(rawTitle);
     var artist = cleanArtist(rawArtist);
 
@@ -128,24 +140,44 @@ class OfflineOnlineResolver {
   static String cacheKey(String title, String artist) =>
       '${title.trim().toLowerCase()}|${artist.trim().toLowerCase()}';
 
-  /// Ensures persisted cache is loaded into memory.
+  /// Ensures persisted cache is loaded into memory, pruning expired entries (capped at 500).
   static Future<void> initCache() async {
     if (_loaded) return;
     try {
       final raw = await LocalJsonStore.read(_cacheStoreKey);
       if (raw is Map) {
+        final entries = <MapEntry<String, ResolverCacheEntry>>[];
         for (final e in raw.entries) {
           if (e.value is Map) {
-            _memoryCache[e.key.toString()] = ResolverCacheEntry.fromJson(
+            final entry = ResolverCacheEntry.fromJson(
               (e.value as Map).cast<String, dynamic>(),
             );
+            if (!entry.isExpired) {
+              entries.add(MapEntry(e.key.toString(), entry));
+            }
           }
         }
+        // Cap at 500 newest entries
+        if (entries.length > 500) {
+          entries.sort(
+            (a, b) => b.value.resolvedAt.compareTo(a.value.resolvedAt),
+          );
+          entries.length = 500;
+        }
+        _memoryCache.clear();
+        _memoryCache.addEntries(entries);
       }
       _loaded = true;
     } catch (e) {
       LoggerHelper.write('$_tag: initCache failed', e);
     }
+  }
+
+  /// Clears negative resolver entries on refresh so songs get another try (Doc 23 §8).
+  static Future<void> clearNegativeCache() async {
+    await initCache();
+    _memoryCache.removeWhere((_, entry) => entry.isNegative);
+    await _persistCache();
   }
 
   /// Saves memory cache to persistent storage.
@@ -163,19 +195,117 @@ class OfflineOnlineResolver {
     }
   }
 
-  /// Resolves an offline song to YouTube Music videoId and radio playlist ID.
+  /// Bounded worker pool preserving input order (fixes B3, §5.4).
+  static Future<List<R>> mapPool<T, R>(
+    List<T> items,
+    int n,
+    Future<R?> Function(T) f,
+  ) async {
+    final out = List<R?>.filled(items.length, null);
+    var next = 0;
+    Future<void> worker() async {
+      while (next < items.length) {
+        final i = next++;
+        try {
+          out[i] = await f(items[i]);
+        } catch (_) {}
+      }
+    }
+
+    await Future.wait([
+      for (var w = 0; w < math.min(n, items.length); w++) worker(),
+    ]);
+    return out.whereType<R>().toList();
+  }
+
+  static String _normalizeForMatch(String s) => s
+      .toLowerCase()
+      .replaceAll(RegExp(r'[\(\[\{][^\)\]\}]*[\)\]\}]'), '')
+      .replaceAll(RegExp(r'[^\w\s]'), '')
+      .replaceAll(RegExp(r'\s+'), ' ')
+      .trim();
+
+  static double _jaccardOverlap(String a, String b) {
+    final setA = a.split(' ').where((s) => s.isNotEmpty).toSet();
+    final setB = b.split(' ').where((s) => s.isNotEmpty).toSet();
+    if (setA.isEmpty || setB.isEmpty) return 0.0;
+    final intersection = setA.intersection(setB).length;
+    final union = setA.union(setB).length;
+    return union == 0 ? 0.0 : intersection / union;
+  }
+
+  /// Evaluates candidates against local metadata (fixes B4, §5.3).
+  /// Excludes podcasts, prioritizes ATV > OMV, verifies title overlap/Jaccard,
+  /// verifies artist containment, and enforces duration <= 10s difference.
+  static OnlineSong? pickBestMatch({
+    required List<OnlineSong> candidates,
+    required String localTitle,
+    required String localArtist,
+    int? localDurationMs,
+  }) {
+    // 1. Exclude podcasts, order: ATV > OMV > anything else (§5.3)
+    final filtered =
+        candidates.where((s) => s.videoType != videoTypePodcast).toList()
+          ..sort((a, b) {
+            int priority(OnlineSong s) {
+              if (s.videoType == videoTypeAlbum) return 0;
+              if (s.videoType == 'MUSIC_VIDEO_TYPE_OMV') return 1;
+              return 2;
+            }
+
+            return priority(a).compareTo(priority(b));
+          });
+
+    final normLocalTitle = _normalizeForMatch(localTitle);
+    final normLocalArtist = _normalizeForMatch(localArtist);
+
+    for (final cand in filtered) {
+      // 2. Title verification: one contains other or Jaccard token overlap >= 0.6
+      final normCandTitle = _normalizeForMatch(cand.title);
+      final titlePass =
+          normCandTitle.contains(normLocalTitle) ||
+          normLocalTitle.contains(normCandTitle) ||
+          _jaccardOverlap(normCandTitle, normLocalTitle) >= 0.6;
+      if (!titlePass) continue;
+
+      // 3. Artist verification: candidate artist contains primary artist or reverse
+      if (normLocalArtist.isNotEmpty) {
+        final normCandArtist = _normalizeForMatch(cand.artist ?? '');
+        final artistPass =
+            normCandArtist.contains(normLocalArtist) ||
+            normLocalArtist.contains(normCandArtist);
+        if (!artistPass) continue;
+      }
+
+      // 4. Duration verification: within 10s if both known
+      if (localDurationMs != null &&
+          localDurationMs > 0 &&
+          cand.durationMs != null &&
+          cand.durationMs! > 0) {
+        if ((cand.durationMs! - localDurationMs).abs() > 10000) continue;
+      }
+
+      return cand;
+    }
+    return null;
+  }
+
+  /// Resolves an offline song to YouTube Music videoId and radio playlist ID
+  /// with match verification and negative caching (fixes B4, B5, §5.3).
   static Future<TasteSeed?> resolveSong(
     String rawTitle,
     String? rawArtist, {
+    int? durationMs,
     double score = 1.0,
   }) async {
     await initCache();
     final clean = cleanEntity(rawTitle, rawArtist);
     if (clean.title.isEmpty) return null;
 
-    final key = cacheKey(clean.title, clean.primaryArtist);
+    final key = 'song|${cacheKey(clean.title, clean.primaryArtist)}';
     final cached = _memoryCache[key];
     if (cached != null && !cached.isExpired) {
+      if (cached.isNegative) return null;
       return TasteSeed(
         title: clean.title,
         artist: clean.primaryArtist,
@@ -189,13 +319,22 @@ class OfflineOnlineResolver {
     try {
       final query = '${clean.title} ${clean.primaryArtist}'.trim();
       final (songs, _) = await OnlineApi.searchSongs(query, automatic: true);
-      if (songs.isEmpty) return null;
+      if (songs.isEmpty) {
+        _recordNegativeSong(key);
+        return null;
+      }
 
-      // Prefer album audio or official release over UGC fan uploads if possible
-      final match = songs.firstWhere(
-        (s) => s.videoType != videoTypeFanUpload,
-        orElse: () => songs.first,
+      final match = pickBestMatch(
+        candidates: songs,
+        localTitle: clean.title,
+        localArtist: clean.primaryArtist,
+        localDurationMs: durationMs,
       );
+
+      if (match == null) {
+        _recordNegativeSong(key);
+        return null;
+      }
 
       final entry = ResolverCacheEntry(
         videoId: match.videoId,
@@ -220,7 +359,17 @@ class OfflineOnlineResolver {
     }
   }
 
-  /// Resolves an artist to YouTube Music browseId.
+  static void _recordNegativeSong(String key) {
+    _memoryCache[key] = ResolverCacheEntry(
+      videoId: '',
+      artistBrowseId: null,
+      radioPlaylistId: '',
+      resolvedAt: DateTime.now(),
+    );
+    unawaited(_persistCache());
+  }
+
+  /// Resolves an artist to YouTube Music browseId with exact match verification (fixes B6).
   static Future<String?> resolveArtistBrowseId(String rawArtist) async {
     await initCache();
     final clean = cleanArtist(rawArtist);
@@ -228,8 +377,8 @@ class OfflineOnlineResolver {
 
     final key = 'artist|${clean.toLowerCase()}';
     final cached = _memoryCache[key];
-    if (cached != null && !cached.isExpired && cached.artistBrowseId != null) {
-      return cached.artistBrowseId;
+    if (cached != null && !cached.isExpired) {
+      return cached.isNegative ? null : cached.artistBrowseId;
     }
 
     try {
@@ -238,66 +387,51 @@ class OfflineOnlineResolver {
         CollectionKind.artist,
         automatic: true,
       );
-      final artistCol = collections.firstWhere(
-        (c) => c.kind == CollectionKind.artist,
-        orElse: () => collections.isNotEmpty &&
-                collections.first.kind == CollectionKind.artist
-            ? collections.first
-            : collections.firstWhere((_) => true,
-                orElse: () => const OnlineCollection(
-                      browseId: '',
-                      title: '',
-                      kind: CollectionKind.artist,
-                    )),
-      );
 
-      if (artistCol.browseId.isNotEmpty) {
+      final normClean = _normalizeForMatch(clean);
+      final match = collections.where((c) {
+        return c.kind == CollectionKind.artist &&
+            _normalizeForMatch(c.title) == normClean;
+      }).firstOrNull;
+
+      if (match != null && match.browseId.isNotEmpty) {
         _memoryCache[key] = ResolverCacheEntry(
           videoId: '',
-          artistBrowseId: artistCol.browseId,
+          artistBrowseId: match.browseId,
           radioPlaylistId: '',
           resolvedAt: DateTime.now(),
         );
         unawaited(_persistCache());
-        return artistCol.browseId;
+        return match.browseId;
       }
+
+      // Negative cache on miss (fixes B5, B6)
+      _memoryCache[key] = ResolverCacheEntry(
+        videoId: '',
+        artistBrowseId: null,
+        radioPlaylistId: '',
+        resolvedAt: DateTime.now(),
+      );
+      unawaited(_persistCache());
     } catch (e) {
       LoggerHelper.write('$_tag: resolveArtistBrowseId failed for $clean', e);
     }
     return null;
   }
 
-  /// Resolves a batch of seeds with concurrency throttled to [maxConcurrent] (default: 3).
+  /// Resolves a batch of seeds with concurrency throttled via mapPool (fixes B3).
+  /// Caps seeds per rebuild: at most 5 song searches and 2 artist searches (§2 Rule 1).
   static Future<List<TasteSeed>> resolveSeeds(
     List<TasteSeed> seeds, {
     int maxConcurrent = 3,
   }) async {
-    final results = <TasteSeed>[];
-    final pool = <Future<void>>[];
-
-    for (final seed in seeds) {
-      if (seed.videoId != null) {
-        results.add(seed);
-        continue;
-      }
-
-      final task = resolveSong(seed.title, seed.artist, score: seed.score)
-          .then((resolved) {
-        if (resolved != null) {
-          results.add(resolved);
-        }
-      });
-      pool.add(task);
-
-      if (pool.length >= maxConcurrent) {
-        await Future.any(pool);
-        pool.removeWhere((f) => f == task); // ponytail: simple concurrency pool
-      }
-    }
-
-    await Future.wait(pool);
-    // Maintain descending score order
-    results.sort((a, b) => b.score.compareTo(a.score));
+    final capped = seeds.take(5).toList();
+    final results = await mapPool<TasteSeed, TasteSeed>(capped, maxConcurrent, (
+      seed,
+    ) async {
+      if (seed.videoId != null) return seed;
+      return resolveSong(seed.title, seed.artist, score: seed.score);
+    });
     return results;
   }
 }

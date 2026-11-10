@@ -3,8 +3,9 @@ import 'package:http/http.dart' as http;
 import 'package:looper_player/core/utils/logger_helper.dart';
 import 'package:looper_player/features/playback/domain/lyric_models.dart';
 
-import 'lyrics_providers/ytmusic_client.dart';
 import 'lyrics_providers/amll_client.dart';
+import 'lyrics_providers/betterlyrics_client.dart';
+import 'lyrics_providers/binilyrics_client.dart';
 import 'lyrics_providers/kugou_client.dart';
 import 'lyrics_providers/lrc_red_client.dart';
 import 'lyrics_providers/lyricify_client.dart';
@@ -12,6 +13,11 @@ import 'lyrics_providers/lyrics_http.dart';
 import 'lyrics_providers/lyrics_plus_client.dart';
 import 'lyrics_providers/musixmatch_client.dart';
 import 'lyrics_providers/netease_client.dart';
+import 'lyrics_providers/paxsenix_client.dart';
+import 'lyrics_providers/simpmusic_client.dart';
+import 'lyrics_providers/unison_client.dart';
+import 'lyrics_providers/yt_captions_client.dart';
+import 'lyrics_providers/ytmusic_client.dart';
 
 class LyricsResponse {
   final String? lyrics;
@@ -214,6 +220,9 @@ class LyricsService {
       'KUGOU' => KuGouClient.fetch,
       'MUSIXMATCH' => MusixmatchClient.fetch,
       'LYRICIFY' => LyricifyClient.fetch,
+      'BETTERLYRICS' => BetterLyricsClient.fetch,
+      'BINILYRICS' => BiniLyricsClient.fetch,
+      'UNISON' => UnisonClient.fetch,
       _ => null,
     };
     if (client != null) {
@@ -227,6 +236,32 @@ class LyricsService {
     }
 
     switch (provider.toUpperCase()) {
+      case 'BETTERLYRICS_QQ':
+        final lrc = await BetterLyricsClient.fetch(
+          title: trackName,
+          artist: artistName,
+          album: albumName,
+          durationSeconds: durationSeconds,
+          isQq: true,
+        );
+        return lrc == null ? null : LyricsResponse(syncedLyrics: lrc);
+      case 'SIMPMUSIC':
+        final lrc = await SimpMusicClient.fetch(
+          videoId: videoId,
+          durationSeconds: durationSeconds,
+        );
+        return lrc == null ? null : LyricsResponse(syncedLyrics: lrc);
+      case 'PAXSENIX':
+        final lrc = await PaxSenixClient.fetch(
+          title: trackName,
+          artist: artistName,
+          album: albumName,
+          durationSeconds: durationSeconds,
+        );
+        return lrc == null ? null : LyricsResponse(syncedLyrics: lrc);
+      case 'YT_CAPTIONS':
+        final lrc = await YtCaptionsClient.fetch(videoId: videoId);
+        return lrc == null ? null : LyricsResponse(syncedLyrics: lrc);
       case 'YTMUSIC':
         final text = await YtMusicLyricsClient.fetch(
           title: trackName,
@@ -243,6 +278,8 @@ class LyricsService {
         return _fetchLyricsMintLyrics(trackName, artistName);
       case 'LYRICFIND':
         return _fetchLyricFindLyrics(trackName, artistName);
+      case 'LYRICSOVH':
+        return _fetchLyricsOvh(trackName, artistName);
       case 'LRCLIB':
       default:
         return _fetchLrcLibLyrics(
@@ -297,6 +334,32 @@ class LyricsService {
       LoggerHelper.write(
         'LyricsService: LRCLIB request timed out or unavailable',
       );
+    }
+    return null;
+  }
+
+  // --- lyrics.ovh: free JSON API, plain text only ---
+  Future<LyricsResponse?> _fetchLyricsOvh(
+    String trackName,
+    String artistName,
+  ) async {
+    try {
+      final url = Uri(
+        scheme: 'https',
+        host: 'api.lyrics.ovh',
+        pathSegments: ['v1', _sanitize(artistName), _sanitize(trackName)],
+      );
+      final response = await http.get(url).timeout(const Duration(seconds: 5));
+      if (!LyricsHttp.ok(response.statusCode)) return null;
+      final text = (jsonDecode(response.body)['lyrics'] as String?)
+          ?.replaceAll('\r\n', '\n')
+          .trim();
+      return text == null || text.isEmpty
+          ? null
+          : LyricsResponse(plainLyrics: text);
+    } catch (_) {
+      LyricsHttp.failed();
+      LoggerHelper.write('LyricsService: lyrics.ovh fetch error');
     }
     return null;
   }

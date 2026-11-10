@@ -186,7 +186,7 @@ class AppSettings {
   double? progressInactiveOpacity;
   bool progressWaveFromStart = false;
   bool progressFreezeWhenPaused = false;
-  bool progressGrowThumbOnDrag = false;
+  bool progressGrowThumbOnDrag = true;
 
   // Now Playing artwork visualizer, see ArtworkVisualizerType. Null means
   // none / the default intensity / artwork colors.
@@ -203,9 +203,9 @@ class AppSettings {
   // which only gates the Dynamic Theming blur path (see app_bottom_sheet.dart).
   bool alwaysBlurSheets = true;
   bool enableInternet = true;
-  bool downloadArtwork = false;
+  bool downloadArtwork = true;
   bool includeSystemAndMessagingAudio = false;
-  bool keepBackgroundGradient = false;
+  bool keepBackgroundGradient = true;
   bool showQualityBadge = true;
   // Quality badge style (see QualityBadgeStyle); enum indices, null = default.
   int? qualityBadgeLook;
@@ -233,9 +233,9 @@ class AppSettings {
   String playerLyricLineTransition = 'cube';
   // Shows "Artist • Album" instead of just the artist under song titles
   // (lists, players, Home, Analyze, share card).
-  bool showAlbumNextToArtist = false;
+  bool showAlbumNextToArtist = true;
   // Quick Picks stay artist-only unless this is on too.
-  bool showAlbumInQuickPicks = false;
+  bool showAlbumInQuickPicks = true;
   // Master switch for every haptic (AppHaptics). Stored inverted so rows
   // saved before it existed read back as "haptics on".
   bool disableHaptics = false;
@@ -257,8 +257,11 @@ class AppSettings {
   bool showHomeRecent = true;
   // Null enables the new row for libraries created before this setting existed.
   bool? showHomePlaylists;
-  List<String> homeSectionOrder = [
+  static const defaultHomeSectionOrder = [
+    'online_feed',
     'quick_picks',
+    'online_artists',
+    'online_more',
     'playlists',
     'songs',
     'albums',
@@ -266,6 +269,7 @@ class AppSettings {
     'genres',
     'recent',
   ];
+  List<String> homeSectionOrder = [...defaultHomeSectionOrder];
   bool enableSlideGesture = false;
   bool stopOnTaskRemoved = true;
   bool persistQueue = false;
@@ -288,7 +292,7 @@ class AppSettings {
   // 0..1, makes the active lyric line's color more vibrant (0 = as is).
   // Default 35 %. Rows saved before this field existed come back as NaN -
   // treat as the default.
-  double activeLyricsIntensity = 0.35;
+  double activeLyricsIntensity = 0.7;
   // Opacity of the lyric lines around the playing one, 0.1 (most see-through)
   // to 1 (solid). Null = the default 35 %.
   double? inactiveLyricsOpacity;
@@ -311,12 +315,12 @@ class AppSettings {
   int collectionSortOptionIndex = 0;
 
   /// Artist pages list songs under album headers instead of one list.
-  bool artistGroupByAlbum = false;
+  bool artistGroupByAlbum = true;
 
-  double homeDarkness = 0.62;
-  double songsDarkness = 0.45;
-  double libraryDarkness = 0.62;
-  double musicDarkness = 0.62;
+  double homeDarkness = 0.35;
+  double songsDarkness = 0.72;
+  double libraryDarkness = 0.72;
+  double musicDarkness = 0.39;
   double lyricsDarkness = 0.35;
 
   /// Desktop only: darkness of the overlay on the window's artwork background.

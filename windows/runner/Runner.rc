@@ -90,11 +90,12 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "Looper" "\0"
-            VALUE "FileDescription", "Looper Player" "\0"
+            VALUE "FileDescription", "Looper Music" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "looper_player" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2026 Looper Player contributors" "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 Looper Music contributors" "\0"
             VALUE "OriginalFilename", "looper_player.exe" "\0"
+            // Kept as "Looper Player": path_provider builds the %APPDATA% data dir from this.
             VALUE "ProductName", "Looper Player" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END

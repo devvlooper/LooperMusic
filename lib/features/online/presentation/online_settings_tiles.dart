@@ -6,6 +6,8 @@ import 'package:looper_player/features/library/presentation/providers/library/li
 import 'package:looper_player/features/microg/domain/auth_state.dart';
 import 'package:looper_player/features/microg/presentation/providers/auth_provider.dart';
 import 'package:looper_player/features/microg/presentation/screens/account_management_screen.dart';
+import 'package:looper_player/features/online/data/content_regions.dart';
+import 'package:looper_player/features/online/data/innertube.dart';
 import 'package:looper_player/features/online/data/online_cache.dart';
 import 'package:looper_player/features/online/data/online_downloader.dart';
 import 'package:looper_player/features/online/data/online_settings.dart';
@@ -34,6 +36,7 @@ List<({String title, List<Widget> tiles})> onlineSettingsSections(
       _EnabledTile(),
       _AccountTile(),
       _RefreshTile(),
+      ContentRegionTile(),
       _TasteTile(),
       _PreferLocalTile(),
     ],
@@ -66,6 +69,7 @@ List<({String title, List<Widget> tiles})> onlineSettingsSections(
       _AnimatedArtworkModeTile(),
       _AnimateAlbumCoverTile(),
       _ImmersiveBackgroundTile(),
+      _AmbientGlowTile(),
       _AnimatedArtworkCacheLimitTile(),
       _ClearAnimatedArtworkCacheTile(),
     ],
@@ -106,22 +110,43 @@ class _EnabledTile extends ConsumerWidget {
       settingsProvider.select((s) => s.enableInternet),
     );
     final settings = ref.watch(onlineSettingsProvider);
-    return _Switch(
-      icon: LucideIcons.cloud,
-      title: l10n.onlineMusic,
-      subtitle: internet ? l10n.onlineEnabledDesc : l10n.onlineNeedsInternet,
-      value: settings.enabled,
-      onChanged: (v) {
-        if (v && !settings.disclaimerAccepted) {
-          _showDisclaimer(context, ref, l10n);
-        } else {
-          ref
-              .read(onlineSettingsProvider.notifier)
-              .update((s) => s.copyWith(enabled: v));
-          // Off stops running downloads; cached and saved files stay.
-          if (!v) ref.read(downloadsProvider.notifier).cancelAll();
-        }
-      },
+    final auth = ref.watch(authProvider);
+    final isGuest = auth.status != AuthStatus.signedIn;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _Switch(
+          icon: LucideIcons.cloud,
+          title: l10n.onlineMusic,
+          subtitle: internet
+              ? l10n.onlineEnabledDesc
+              : l10n.onlineNeedsInternet,
+          value: settings.enabled,
+          onChanged: (v) {
+            if (v && !settings.disclaimerAccepted) {
+              _showDisclaimer(context, ref, l10n);
+            } else {
+              ref
+                  .read(onlineSettingsProvider.notifier)
+                  .update((s) => s.copyWith(enabled: v));
+              // Off stops running downloads; cached and saved files stay.
+              if (!v) ref.read(downloadsProvider.notifier).cancelAll();
+            }
+          },
+        ),
+        if (settings.enabled && isGuest)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(72, 0, 16, 8),
+            child: Text(
+              l10n.onlineGuestPrivacyNote,
+              style: AppFonts.jostStyle(
+                color: Colors.white.withValues(alpha: 0.5),
+                fontSize: 11,
+              ),
+            ),
+          ),
+      ],
     );
   }
 
@@ -221,6 +246,230 @@ class _RefreshTile extends ConsumerWidget {
           ).showSnackBar(SnackBar(content: Text(l10n.onlineRefreshed)));
         }
       },
+    );
+  }
+}
+
+class ContentRegionTile extends ConsumerWidget {
+  const ContentRegionTile({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context)!;
+    final settings = ref.watch(onlineSettingsProvider);
+    final autoCountry = InnerTube.instance.country;
+    final region = settings.contentRegion;
+    final displaySubtitle = region == null
+        ? l10n.onlineContentRegionAuto(ContentRegions.nameFor(autoCountry))
+        : ContentRegions.nameFor(region);
+
+    return ListTile(
+      leading: const Icon(LucideIcons.globe, color: Colors.white70),
+      title: Text(l10n.onlineContentRegion, style: _title()),
+      subtitle: Text(displaySubtitle, style: _sub()),
+      trailing: const Icon(LucideIcons.chevronRight, color: Colors.white38),
+      onTap: () => _showRegionPicker(context, ref, l10n, autoCountry, region),
+    );
+  }
+
+  static void _showRegionPicker(
+    BuildContext context,
+    WidgetRef ref,
+    AppLocalizations l10n,
+    String autoCountry,
+    String? currentRegion,
+  ) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => _RegionPickerSheet(
+        autoCountry: autoCountry,
+        selectedRegion: currentRegion,
+        onSelected: (code) async {
+          Navigator.of(ctx).pop();
+          await ref
+              .read(onlineSettingsProvider.notifier)
+              .setContentRegion(code);
+          ref.read(onlineHomeProvider.notifier).refresh();
+        },
+      ),
+    );
+  }
+}
+
+class _RegionPickerSheet extends StatefulWidget {
+  const _RegionPickerSheet({
+    required this.autoCountry,
+    required this.selectedRegion,
+    required this.onSelected,
+  });
+
+  final String autoCountry;
+  final String? selectedRegion;
+  final ValueChanged<String?> onSelected;
+
+  @override
+  State<_RegionPickerSheet> createState() => _RegionPickerSheetState();
+}
+
+class _RegionPickerSheetState extends State<_RegionPickerSheet> {
+  final _searchController = TextEditingController();
+  String _filter = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final filtered = ContentRegions.all.where((r) {
+      if (_filter.isEmpty) return true;
+      final q = _filter.toLowerCase();
+      return r.name.toLowerCase().contains(q) ||
+          r.code.toLowerCase().contains(q);
+    }).toList();
+
+    return DraggableScrollableSheet(
+      initialChildSize: 0.7,
+      minChildSize: 0.4,
+      maxChildSize: 0.9,
+      expand: false,
+      builder: (context, scrollController) => Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 36,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.white24,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  l10n.onlineContentRegion,
+                  style: AppFonts.jostStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  l10n.onlineContentRegionDesc,
+                  style: AppFonts.jostStyle(
+                    color: Colors.white54,
+                    fontSize: 12,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _searchController,
+                  onChanged: (v) => setState(() => _filter = v.trim()),
+                  style: AppFonts.jostStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    prefixIcon: const Icon(
+                      LucideIcons.search,
+                      size: 18,
+                      color: Colors.white54,
+                    ),
+                    hintText: l10n.onlineContentRegionSearch,
+                    hintStyle: AppFonts.jostStyle(color: Colors.white38),
+                    filled: true,
+                    fillColor: Colors.white.withValues(alpha: 0.06),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 10,
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1, color: Colors.white12),
+          Expanded(
+            child: ListView(
+              controller: scrollController,
+              children: [
+                if (_filter.isEmpty)
+                  ListTile(
+                    leading: const Icon(
+                      LucideIcons.sparkles,
+                      color: Colors.white70,
+                    ),
+                    title: Text(
+                      l10n.onlineContentRegionAuto(
+                        ContentRegions.nameFor(widget.autoCountry),
+                      ),
+                      style: AppFonts.jostStyle(
+                        color: widget.selectedRegion == null
+                            ? Colors.blueAccent
+                            : Colors.white,
+                        fontWeight: widget.selectedRegion == null
+                            ? FontWeight.w600
+                            : FontWeight.w400,
+                      ),
+                    ),
+                    trailing: widget.selectedRegion == null
+                        ? const Icon(
+                            LucideIcons.check,
+                            color: Colors.blueAccent,
+                            size: 20,
+                          )
+                        : null,
+                    onTap: () => widget.onSelected(null),
+                  ),
+                for (final r in filtered)
+                  ListTile(
+                    title: Text(
+                      r.name,
+                      style: AppFonts.jostStyle(
+                        color: widget.selectedRegion == r.code
+                            ? Colors.blueAccent
+                            : Colors.white,
+                        fontWeight: widget.selectedRegion == r.code
+                            ? FontWeight.w600
+                            : FontWeight.w400,
+                      ),
+                    ),
+                    subtitle: Text(
+                      r.code,
+                      style: AppFonts.jostStyle(
+                        color: Colors.white38,
+                        fontSize: 11,
+                      ),
+                    ),
+                    trailing: widget.selectedRegion == r.code
+                        ? const Icon(
+                            LucideIcons.check,
+                            color: Colors.blueAccent,
+                            size: 20,
+                          )
+                        : null,
+                    onTap: () => widget.onSelected(r.code),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -622,6 +871,26 @@ class _ImmersiveBackgroundTile extends ConsumerWidget {
         ref
             .read(animatedArtworkSettingsProvider.notifier)
             .update((curr) => curr.copyWith(immersiveBackground: val));
+      },
+    );
+  }
+}
+
+class _AmbientGlowTile extends ConsumerWidget {
+  const _AmbientGlowTile();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final s = ref.watch(animatedArtworkSettingsProvider);
+    return _Switch(
+      icon: LucideIcons.sparkles,
+      title: 'Ambient Glow',
+      subtitle: 'Soft moving glow behind the player artwork',
+      value: s.ambientGlow,
+      onChanged: (val) {
+        ref
+            .read(animatedArtworkSettingsProvider.notifier)
+            .update((curr) => curr.copyWith(ambientGlow: val));
       },
     );
   }

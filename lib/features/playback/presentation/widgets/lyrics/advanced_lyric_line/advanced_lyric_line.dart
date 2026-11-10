@@ -90,7 +90,7 @@ class AdvancedLyricLine extends ConsumerWidget {
   /// below the line being sung.
   final int distance;
 
-  static const double defaultInactiveOpacity = 0.35,
+  static const double defaultInactiveOpacity = 0.51,
       minInactiveOpacity = 0.1,
       maxInactiveOpacity = 1.0;
 

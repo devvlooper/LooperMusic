@@ -64,7 +64,7 @@ class _OverlayLyricsWidgetState extends ConsumerState<OverlayLyricsWidget> {
                     }),
                   );
 
-                  String currentLine = "Looper Player";
+                  String currentLine = "Looper Music";
                   String nextLine = "";
 
                   if (lineIndex != -1) {

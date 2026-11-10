@@ -51,21 +51,17 @@ class ProgressBarStyle {
     this.inactiveOpacity = defaultInactiveOpacity,
     this.waveFromStart = false,
     this.freezeWhenPaused = false,
-    this.growThumbOnDrag = false,
+    this.growThumbOnDrag = true,
   });
 
-  static const double defaultThickness = 8;
-  static const double defaultWaveHeight = 2;
-  // The old fixed `squiggleWavelength: 6.0` fed sin(x / 6), i.e. one wave
-  // every 2 * pi * 6 dp.
-  static const double defaultWaveLength = 12 * math.pi;
+  static const double defaultThickness = 6;
+  static const double defaultWaveHeight = 4;
+  static const double defaultWaveLength = 45;
   static const double defaultWaveSpeed = 0.05;
   static const double defaultThumbWidth = 6;
   static const double defaultThumbHeight = 16;
-  // The old track shape hard-coded the gap as 0.75 * thumb width.
-  static const double defaultThumbGap = 4.5;
-  // Colors.white10.
-  static const double defaultInactiveOpacity = 0x1A / 0xFF;
+  static const double defaultThumbGap = 7.25;
+  static const double defaultInactiveOpacity = 0.23;
 
   static const ProgressBarStyle defaults = ProgressBarStyle();
 

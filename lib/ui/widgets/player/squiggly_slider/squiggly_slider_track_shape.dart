@@ -154,8 +154,11 @@ class SquigglySliderTrackShape extends SliderTrackShape
         leftTrackPaint,
       );
     } else {
+      // An animated phase counts whole wave cycles, so its wrap from 1 to 0
+      // is seamless at any wavelength (scaling it by the wavelength made the
+      // wave jump at each wrap unless the wavelength was a whole number).
       final phase =
-          squiggleWavelength * (this.phase?.value ?? squigglePhaseFactor);
+          this.phase?.value ?? squiggleWavelength * squigglePhaseFactor;
       final double heightCenter = (lt + lb) / 2;
       final double startX = ll + radius;
       final double endX = lr - radius;

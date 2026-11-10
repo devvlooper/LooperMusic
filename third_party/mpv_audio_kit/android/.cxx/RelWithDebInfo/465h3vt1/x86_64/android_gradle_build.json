@@ -1,0 +1,38 @@
+{
+  "buildFiles": [
+    "/home/hiteshsuthar/.pub-cache/hosted/pub.dev/mpv_audio_kit-0.4.9/android/src/main/cpp/CMakeLists.txt"
+  ],
+  "cleanCommandsComponents": [
+    [
+      "/home/hiteshsuthar/Android/Sdk/cmake/3.22.1/bin/ninja",
+      "-C",
+      "/home/hiteshsuthar/.pub-cache/hosted/pub.dev/mpv_audio_kit-0.4.9/android/.cxx/RelWithDebInfo/465h3vt1/x86_64",
+      "clean"
+    ]
+  ],
+  "buildTargetsCommandComponents": [
+    "/home/hiteshsuthar/Android/Sdk/cmake/3.22.1/bin/ninja",
+    "-C",
+    "/home/hiteshsuthar/.pub-cache/hosted/pub.dev/mpv_audio_kit-0.4.9/android/.cxx/RelWithDebInfo/465h3vt1/x86_64",
+    "{LIST_OF_TARGETS_TO_BUILD}"
+  ],
+  "libraries": {
+    "mpv_audio_kit_jni::@6890427a1f51a3e7e1df": {
+      "toolchain": "toolchain",
+      "abi": "x86_64",
+      "artifactName": "mpv_audio_kit_jni",
+      "output": "/home/hiteshsuthar/projects/looper_player/build/mpv_audio_kit/intermediates/cxx/RelWithDebInfo/465h3vt1/obj/x86_64/libmpv_audio_kit_jni.so",
+      "runtimeFiles": []
+    }
+  },
+  "toolchains": {
+    "toolchain": {
+      "cCompilerExecutable": "/home/hiteshsuthar/Android/Sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/linux-x86_64/bin/clang.lld",
+      "cppCompilerExecutable": "/home/hiteshsuthar/Android/Sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/linux-x86_64/bin/clang++.lld"
+    }
+  },
+  "cFileExtensions": [
+    "c"
+  ],
+  "cppFileExtensions": []
+}

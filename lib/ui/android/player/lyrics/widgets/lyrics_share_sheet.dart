@@ -218,7 +218,7 @@ class _LyricsShareSheetContentState
       );
       await Gal.putImageBytes(
         bytes,
-        album: 'Looper Player',
+        album: 'Looper Music',
         name: 'lyrics_${safeTitle}_${DateTime.now().millisecondsSinceEpoch}',
       );
       if (mounted) {

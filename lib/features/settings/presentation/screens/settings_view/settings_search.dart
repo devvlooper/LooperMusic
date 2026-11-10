@@ -466,6 +466,31 @@ extension _SettingsSearch on _SettingsViewState {
           widget: const FadeDurationSlider(),
         ),
 
+      SettingsSearchItem(
+        title: l10n.audioCrossfade,
+        subtitle: l10n.audioCrossfadeDesc,
+        category: '${l10n.playbackAndAudio} · ${l10n.sectionSound}',
+        widget: const CrossfadeTile(),
+      ),
+      SettingsSearchItem(
+        title: l10n.crossfadeDuration,
+        subtitle: l10n.crossfadeDurationDesc,
+        category: '${l10n.playbackAndAudio} · ${l10n.sectionSound}',
+        widget: const CrossfadeDurationSlider(),
+      ),
+      SettingsSearchItem(
+        title: l10n.smartTransitions,
+        subtitle: l10n.smartTransitionsDesc,
+        category: '${l10n.playbackAndAudio} · ${l10n.sectionSound}',
+        widget: const SmartTransitionsTile(),
+      ),
+      SettingsSearchItem(
+        title: l10n.beatMixing,
+        subtitle: l10n.beatMixingDesc,
+        category: '${l10n.playbackAndAudio} · ${l10n.sectionSound}',
+        widget: const BeatMixingTile(),
+      ),
+
       if (Platform.isAndroid) ...[
         SettingsSearchItem(
           title: l10n.manageAudioFocusTitle,

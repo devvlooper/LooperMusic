@@ -1,6 +1,7 @@
 name: Build and Release
 
 # Manual only. Empty release_tag = build only, no release.
+# Desktop builds are paused for now: pick linux/windows/all explicitly to run them.
 on:
   workflow_dispatch:
     inputs:
@@ -8,7 +9,7 @@ on:
         description: 'What to build'
         type: choice
         options: [all, android, linux, windows]
-        default: all
+        default: android
       release_tag:
         description: 'Release tag to publish to (empty = build only)'
         type: string
@@ -161,7 +162,7 @@ jobs:
               echo "::error::No $abi APK found in $dir (see listing above)"
               exit 1
             fi
-            cp "$src" "$out/looper-player-v${VERSION}-${abi}-release.apk"
+            cp "$src" "$out/looper-music-v${VERSION}-${abi}-release.apk"
           done
 
       - name: Verify APK Signatures
@@ -200,6 +201,7 @@ jobs:
     timeout-minutes: 60
     env:
       APPIMAGE_EXTRACT_AND_RUN: 1
+      APP_NAME: looper-music
       MAINTAINER: ${{ vars.LINUX_MAINTAINER || 'sthrnilshaaa <sthrnilshaaa@users.noreply.github.com>' }}
     steps:
       - name: Checkout repository
@@ -247,12 +249,12 @@ jobs:
         env:
           VERSION: ${{ needs.prepare.outputs.version }}
         run: |
-          ./package.sh linux --build
+          ./release.sh linux --build
           cd dist/linux
-          for f in "looper-player_${VERSION}_amd64.deb" \
-                   "looper-player-${VERSION}-1.x86_64.rpm" \
-                   "looper-player_${VERSION}_linux_x64.tar.gz" \
-                   "looper-player_${VERSION}_x86_64.AppImage"; do
+          for f in "looper-music_${VERSION}_amd64.deb" \
+                   "looper-music-${VERSION}-1.x86_64.rpm" \
+                   "looper-music_${VERSION}_linux_x64.tar.gz" \
+                   "looper-music_${VERSION}_x86_64.AppImage"; do
             if [ ! -f "$f" ]; then
               echo "::error::$f was not built"; ls -l; exit 1
             fi
@@ -317,11 +319,12 @@ jobs:
       - name: Build Windows Packages
         env:
           VERSION: ${{ needs.prepare.outputs.version }}
+          APP_NAME: looper-music
         run: |
-          ./package.sh windows --build
+          ./release.sh windows --build
           cd dist/windows
-          for f in "looper-player_${VERSION}_windows_x64.zip" \
-                   "looper-player_${VERSION}_windows_x64-setup.exe"; do
+          for f in "looper-music_${VERSION}_windows_x64.zip" \
+                   "looper-music_${VERSION}_windows_x64-setup.exe"; do
             if [ ! -f "$f" ]; then
               echo "::error::$f was not built"; ls -l; exit 1
             fi
@@ -440,7 +443,7 @@ jobs:
             notes=default-notes.md
             generate=--generate-notes
             cat > "$notes" <<EOF
-          ## Looper Player $TAG_NAME
+          ## Looper Music $TAG_NAME
 
           #### Downloads
           - **Android**: pick the APK for your phone (\`arm64-v8a\` for most phones) or the universal APK.
@@ -459,5 +462,5 @@ jobs:
 
           gh release create "$TAG_NAME" release-binaries/* \
             --target "$GITHUB_SHA" \
-            --title "Looper Player $TAG_NAME" \
+            --title "Looper Music $TAG_NAME" \
             --notes-file "$notes" $generate

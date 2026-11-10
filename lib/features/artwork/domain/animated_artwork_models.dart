@@ -19,12 +19,14 @@ class AnimatedArtworkSettings {
   final AnimatedArtworkMode mode;
   final bool immersiveBackground;
   final bool animateAlbumCover;
+  final bool ambientGlow;
   final int cacheLimitMB;
 
   const AnimatedArtworkSettings({
-    this.mode = AnimatedArtworkMode.wifiOnly,
+    this.mode = AnimatedArtworkMode.always,
     this.immersiveBackground = false,
     this.animateAlbumCover = true,
+    this.ambientGlow = false,
     this.cacheLimitMB = 300,
   });
 
@@ -32,31 +34,35 @@ class AnimatedArtworkSettings {
     AnimatedArtworkMode? mode,
     bool? immersiveBackground,
     bool? animateAlbumCover,
+    bool? ambientGlow,
     int? cacheLimitMB,
   }) {
     return AnimatedArtworkSettings(
       mode: mode ?? this.mode,
       immersiveBackground: immersiveBackground ?? this.immersiveBackground,
       animateAlbumCover: animateAlbumCover ?? this.animateAlbumCover,
+      ambientGlow: ambientGlow ?? this.ambientGlow,
       cacheLimitMB: cacheLimitMB ?? this.cacheLimitMB,
     );
   }
 
   Map<String, dynamic> toJson() => {
-        'mode': mode.name,
-        'immersiveBackground': immersiveBackground,
-        'animateAlbumCover': animateAlbumCover,
-        'cacheLimitMB': cacheLimitMB,
-      };
+    'mode': mode.name,
+    'immersiveBackground': immersiveBackground,
+    'animateAlbumCover': animateAlbumCover,
+    'ambientGlow': ambientGlow,
+    'cacheLimitMB': cacheLimitMB,
+  };
 
   factory AnimatedArtworkSettings.fromJson(Map<String, dynamic> json) {
     return AnimatedArtworkSettings(
       mode: AnimatedArtworkMode.values.firstWhere(
         (m) => m.name == json['mode'],
-        orElse: () => AnimatedArtworkMode.wifiOnly,
+        orElse: () => AnimatedArtworkMode.always,
       ),
       immersiveBackground: json['immersiveBackground'] as bool? ?? false,
       animateAlbumCover: json['animateAlbumCover'] as bool? ?? true,
+      ambientGlow: json['ambientGlow'] as bool? ?? false,
       cacheLimitMB: json['cacheLimitMB'] as int? ?? 300,
     );
   }
@@ -72,6 +78,11 @@ class AnimatedArtwork {
   final String? localPathTall;
   final int fetchedAt;
   final bool hasMotion;
+  // Artist banner only (doc 26 §3.2).
+  final String? urlWide;
+  final String? stillUrl;
+  final String? logoUrl;
+  final double? logoAspect;
 
   const AnimatedArtwork({
     required this.key,
@@ -83,24 +94,33 @@ class AnimatedArtwork {
     this.localPathTall,
     required this.fetchedAt,
     required this.hasMotion,
+    this.urlWide,
+    this.stillUrl,
+    this.logoUrl,
+    this.logoAspect,
   });
 
   bool get isExpired {
-    // Negative cache expires after 30 days. Positive cache lasts 90 days.
-    final ttlDays = hasMotion ? 90 : 30;
-    final expiresAt = fetchedAt + (ttlDays * 24 * 60 * 60 * 1000);
-    return DateTime.now().millisecondsSinceEpoch > expiresAt;
+    // Songs/albums: hit 90 days, miss 30 days. Artists: hit 24 h, miss 10 min.
+    final ttl = key.startsWith('artist:')
+        ? (hasMotion ? const Duration(hours: 24) : const Duration(minutes: 10))
+        : Duration(days: hasMotion ? 90 : 30);
+    return DateTime.now().millisecondsSinceEpoch >
+        fetchedAt + ttl.inMilliseconds;
   }
+
+  /// Artist header: wide video, else tall, else square.
+  String? get bestWideMedia => urlWide ?? bestTallMedia;
 
   String? get bestSquareMedia =>
       (localPathSquare != null && localPathSquare!.isNotEmpty)
-          ? localPathSquare
-          : urlSquare;
+      ? localPathSquare
+      : urlSquare;
 
   String? get bestTallMedia =>
       (localPathTall != null && localPathTall!.isNotEmpty)
-          ? localPathTall
-          : (urlTall ?? bestSquareMedia);
+      ? localPathTall
+      : (urlTall ?? bestSquareMedia);
 
   AnimatedArtwork copyWith({
     String? key,
@@ -123,20 +143,28 @@ class AnimatedArtwork {
       localPathTall: localPathTall ?? this.localPathTall,
       fetchedAt: fetchedAt ?? this.fetchedAt,
       hasMotion: hasMotion ?? this.hasMotion,
+      urlWide: urlWide,
+      stillUrl: stillUrl,
+      logoUrl: logoUrl,
+      logoAspect: logoAspect,
     );
   }
 
   Map<String, dynamic> toJson() => {
-        'key': key,
-        'artist': artist,
-        'album': album,
-        'urlSquare': urlSquare,
-        'urlTall': urlTall,
-        'localPathSquare': localPathSquare,
-        'localPathTall': localPathTall,
-        'fetchedAt': fetchedAt,
-        'hasMotion': hasMotion,
-      };
+    'key': key,
+    'artist': artist,
+    'album': album,
+    'urlSquare': urlSquare,
+    'urlTall': urlTall,
+    'localPathSquare': localPathSquare,
+    'localPathTall': localPathTall,
+    'fetchedAt': fetchedAt,
+    'hasMotion': hasMotion,
+    if (urlWide != null) 'urlWide': urlWide,
+    if (stillUrl != null) 'stillUrl': stillUrl,
+    if (logoUrl != null) 'logoUrl': logoUrl,
+    if (logoAspect != null) 'logoAspect': logoAspect,
+  };
 
   factory AnimatedArtwork.fromJson(Map<String, dynamic> json) {
     return AnimatedArtwork(
@@ -149,6 +177,86 @@ class AnimatedArtwork {
       localPathTall: json['localPathTall'] as String?,
       fetchedAt: json['fetchedAt'] as int? ?? 0,
       hasMotion: json['hasMotion'] as bool? ?? false,
+      urlWide: json['urlWide'] as String?,
+      stillUrl: json['stillUrl'] as String?,
+      logoUrl: json['logoUrl'] as String?,
+      logoAspect: (json['logoAspect'] as num?)?.toDouble(),
+    );
+  }
+
+  /// Reads an artist's `attributes` (doc 26 §3.2 table). Null unless there
+  /// is a motion video or a name logo.
+  static AnimatedArtwork? fromArtistEditorial(
+    Map attrs, {
+    required String key,
+    String? artist,
+    int? fetchedAt,
+  }) {
+    Map? pick(Map? m, List<String> keys) {
+      for (final k in keys) {
+        final v = m?[k];
+        if (v is Map) return v;
+      }
+      return null;
+    }
+
+    // mzstatic template at its own size; png keeps logo transparency.
+    String? fill(Map? img) {
+      final t = img?['url']?.toString();
+      if (t == null || t.isEmpty) return null;
+      return t
+          .replaceAll('{w}', '${(img!['width'] as num?)?.round() ?? 1080}')
+          .replaceAll('{h}', '${(img['height'] as num?)?.round() ?? 1080}')
+          .replaceAll('{c}', '')
+          .replaceAll('{f}', 'png');
+    }
+
+    final ev = attrs['editorialVideo'] as Map?;
+    final ea = attrs['editorialArtwork'] as Map?;
+    final wide = pick(ev, const [
+      'motionArtistWide16x9',
+      'motionArtistFullscreen16x9',
+      'motionDetailRaw',
+    ]);
+    final square = pick(ev, const [
+      'motionArtistSquare1x1',
+      'motionDetailSquare',
+      'motionSquareVideo1x1',
+    ]);
+    final wideUrl = wide?['video']?.toString();
+    final squareUrl = square?['video']?.toString();
+
+    final logo = pick(ea, const [
+      'musicContentColorLogoTrimmed',
+      'musicContentLogoTrimmed',
+    ]);
+    final lw = (logo?['width'] as num?)?.toDouble();
+    final lh = (logo?['height'] as num?)?.toDouble();
+    final logoAspect = (lw != null && lh != null && lh > 0) ? lw / lh : null;
+    final logoUrl = fill(logo);
+
+    if (wideUrl == null && squareUrl == null && logoUrl == null) return null;
+
+    // Square frame first: a phone banner is taller than wide, so it crops less.
+    final frame =
+        (square?['previewFrame'] as Map?) ?? (wide?['previewFrame'] as Map?);
+    final banner = pick(ea, const [
+      'bannerUber',
+      'storeFlowcase',
+      'subscriptionHero',
+      'originalFlowcaseBrick',
+    ]);
+
+    return AnimatedArtwork(
+      key: key,
+      artist: artist,
+      urlSquare: squareUrl,
+      urlWide: wideUrl,
+      stillUrl: fill(frame) ?? fill(banner),
+      logoUrl: logoUrl,
+      logoAspect: logoAspect,
+      fetchedAt: fetchedAt ?? DateTime.now().millisecondsSinceEpoch,
+      hasMotion: true,
     );
   }
 }

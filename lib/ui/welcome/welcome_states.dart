@@ -7,6 +7,13 @@ extension _WelcomeStates on _WelcomeScreenState {
         return _buildScanningState(colorScheme, l10n);
       case WelcomeState.noSongs:
         return _buildNoSongsState(colorScheme, l10n);
+      case WelcomeState.onlineSetup:
+        return _OnlineSetupFlow(
+          key: const ValueKey('online_setup_state'),
+          noSongs: _onlineFromNoSongs,
+          onSkip: _onlineFromNoSongs ? _backToNoSongs : _finishWelcome,
+          onDone: _finishWelcome,
+        );
       case WelcomeState.initial:
       default:
         return _buildInitialState(colorScheme, l10n);

@@ -8,6 +8,9 @@ import 'package:looper_player/core/theme/app_fonts.dart';
 import 'package:looper_player/core/services/storage/db_service.dart';
 import 'package:looper_player/features/settings/presentation/providers/settings_notifier.dart';
 import 'package:looper_player/l10n/app_localizations.dart';
+import 'package:looper_player/features/online/presentation/online_providers.dart'
+    show onlineActiveProvider;
+import 'package:looper_player/ui/android/tabs/home/home_order.dart';
 import 'package:looper_player/ui/widgets/sheets/app_bottom_sheet.dart';
 import 'package:looper_player/core/services/haptics/app_haptics.dart';
 
@@ -113,57 +116,15 @@ void showReorderBottomSheet(
       return StatefulBuilder(
         builder: (context, setModalState) {
           final currentSettings = ref.watch(settingsProvider);
-          final currentOrder = List<String>.from(
-            currentSettings.homeSectionOrder.isEmpty
-                ? [
-                    'playlists',
-                    'songs',
-                    'albums',
-                    'artists',
-                    'genres',
-                    'recent',
-                  ]
-                : currentSettings.homeSectionOrder
-                    .where((s) => s != 'quick_picks'),
-          );
-
-          final itemMeta = {
-            'playlists': {
-              'title': l10n.playlists,
-              'description': l10n.playlistsRowDesc,
-              'icon': LucideIcons.listMusic,
-            },
-            'quick_picks': {
-              'title': l10n.quickPicks,
-              'description': l10n.quickPicksRowDesc,
-              'icon': LucideIcons.sparkles,
-            },
-            'songs': {
-              'title': l10n.songs,
-              'description': l10n.recentlyAddedSongsRowDesc,
-              'icon': LucideIcons.music,
-            },
-            'albums': {
-              'title': l10n.albums,
-              'description': l10n.albumsRowDesc,
-              'icon': LucideIcons.disc,
-            },
-            'artists': {
-              'title': l10n.artists,
-              'description': l10n.artistsRowDesc,
-              'icon': LucideIcons.user,
-            },
-            'genres': {
-              'title': l10n.genres,
-              'description': l10n.genresRowDesc,
-              'icon': LucideIcons.library,
-            },
-            'recent': {
-              'title': l10n.recentPlayed,
-              'description': l10n.recentRowDesc,
-              'icon': LucideIcons.history,
-            },
-          };
+          final savedOrder = currentSettings.homeSectionOrder.isEmpty
+              ? AppSettings.defaultHomeSectionOrder
+              : currentSettings.homeSectionOrder;
+          // Same rows as Home: online rows only while online music is on.
+          final onlineActive = ref.watch(onlineActiveProvider);
+          final currentOrder = [
+            for (final id in savedOrder)
+              if (onlineActive || !onlineHomeRowIds.contains(id)) id,
+          ];
 
           return AppBottomSheetContainer(
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
@@ -187,6 +148,14 @@ void showReorderBottomSheet(
                     fontSize: 13,
                   ),
                 ),
+                const SizedBox(height: 4),
+                Text(
+                  l10n.reorderHomeHint,
+                  style: AppFonts.jostStyle(
+                    color: Colors.white38,
+                    fontSize: 12,
+                  ),
+                ),
                 const SizedBox(height: 20),
                 Flexible(
                   child: ReorderableListView.builder(
@@ -202,24 +171,20 @@ void showReorderBottomSheet(
                         }
                         final String item = currentOrder.removeAt(oldIndex);
                         currentOrder.insert(newIndex, item);
+                        // Hidden online rows keep their slots.
                         ref
                             .read(settingsProvider.notifier)
-                            .updateHomeSectionOrder(currentOrder);
+                            .updateHomeSectionOrder(
+                              mergeHomeOrder(savedOrder, currentOrder),
+                            );
                       });
                     },
                     itemBuilder: (context, index) {
                       final key = currentOrder[index];
-                      final meta =
-                          itemMeta[key] ??
-                          {
-                            'title': key,
-                            'description': '',
-                            'icon': LucideIcons.layers,
-                          };
-
-                      final title = meta['title'] as String;
-                      final desc = meta['description'] as String;
-                      final icon = meta['icon'] as IconData;
+                      final (:title, description: desc, :icon) = homeRowInfo(
+                        key,
+                        l10n,
+                      );
 
                       return Container(
                         key: ValueKey(key),

@@ -16,7 +16,8 @@ class TasteProfilesScreen extends ConsumerStatefulWidget {
   const TasteProfilesScreen({super.key});
 
   @override
-  ConsumerState<TasteProfilesScreen> createState() => _TasteProfilesScreenState();
+  ConsumerState<TasteProfilesScreen> createState() =>
+      _TasteProfilesScreenState();
 }
 
 class _TasteProfilesScreenState extends ConsumerState<TasteProfilesScreen> {
@@ -46,8 +47,7 @@ class _TasteProfilesScreenState extends ConsumerState<TasteProfilesScreen> {
 
   TextStyle _title() =>
       AppFonts.jostStyle(color: Colors.white, fontWeight: FontWeight.w500);
-  TextStyle _sub() =>
-      AppFonts.jostStyle(color: Colors.white54, fontSize: 12);
+  TextStyle _sub() => AppFonts.jostStyle(color: Colors.white54, fontSize: 12);
 
   @override
   Widget build(BuildContext context) {
@@ -89,9 +89,9 @@ class _TasteProfilesScreenState extends ConsumerState<TasteProfilesScreen> {
                       color: Colors.white38,
                     ),
                     onTap: () async {
-                      await Navigator.of(context).push(
-                        riseRoute(const TasteSetupScreen()),
-                      );
+                      await Navigator.of(
+                        context,
+                      ).push(riseRoute(const TasteSetupScreen()));
                       _load();
                     },
                   ),
@@ -113,10 +113,7 @@ class _TasteProfilesScreenState extends ConsumerState<TasteProfilesScreen> {
                         ),
                       ),
                       const SizedBox(height: 4),
-                      Text(
-                        l10n.detectedProfilesDesc,
-                        style: _sub(),
-                      ),
+                      Text(l10n.detectedProfilesDesc, style: _sub()),
                     ],
                   ),
                 ),
@@ -182,7 +179,10 @@ class _TasteProfilesScreenState extends ConsumerState<TasteProfilesScreen> {
                 else ...[
                   for (final artist in NotInterestedStore.blockedArtists)
                     ListTile(
-                      leading: const Icon(LucideIcons.userX, color: Colors.redAccent),
+                      leading: const Icon(
+                        LucideIcons.userX,
+                        color: Colors.redAccent,
+                      ),
                       title: Text(artist, style: _title()),
                       trailing: TextButton(
                         onPressed: () async {
@@ -195,7 +195,10 @@ class _TasteProfilesScreenState extends ConsumerState<TasteProfilesScreen> {
                     ),
                   for (final id in NotInterestedStore.hiddenSongIds)
                     ListTile(
-                      leading: const Icon(LucideIcons.eyeOff, color: Colors.white60),
+                      leading: const Icon(
+                        LucideIcons.eyeOff,
+                        color: Colors.white60,
+                      ),
                       title: Text('Video: $id', style: _title()),
                       trailing: TextButton(
                         onPressed: () async {

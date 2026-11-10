@@ -139,10 +139,6 @@ class _SquigglySliderState extends State<SquigglySlider>
   final GlobalKey _boundaryKey = GlobalKey();
   late final Ticker _ticker = createTicker(_onTick);
   Duration? _lastElapsed;
-  Duration _lastPaint = Duration.zero;
-
-  // The wave drifts slowly; ~30 repaints a second is already smooth.
-  static const Duration _paintInterval = Duration(milliseconds: 33);
 
   @override
   void initState() {
@@ -177,10 +173,14 @@ class _SquigglySliderState extends State<SquigglySlider>
     _lastElapsed = elapsed;
     if (last == null) return;
     final double dt = ((elapsed - last).inMicroseconds / 1e6).clamp(0.0, 0.1);
-    final double next = (_phase.value + dt * widget.squiggleSpeed) % 1.0;
+    // In wave cycles: the same visual speed as before (speed x wavelength
+    // cycles a second), but the track's wrap is now seamless.
+    final double next =
+        (_phase.value + dt * widget.squiggleSpeed * widget.squiggleWavelength) %
+        1.0;
     _phase.value = next < 0 ? next + 1 : next;
-    if (elapsed - _lastPaint < _paintInterval) return;
-    _lastPaint = elapsed;
+    // Every frame: a 30 fps cap read as lag next to the moving thumb, and
+    // this only repaints the slider's own layer.
     _boundaryKey.currentContext?.findRenderObject()?.markNeedsPaint();
   }
 

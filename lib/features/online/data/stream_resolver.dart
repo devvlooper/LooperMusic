@@ -360,8 +360,9 @@ class StreamResolver {
       mime: chosen['mimeType'] as String? ?? 'audio/mp4',
       bitrate: br(chosen),
       itag: chosen['itag'] as int?,
-      contentLength:
-          int.tryParse('${chosen['contentLength'] ?? params['clen'] ?? ''}'),
+      contentLength: int.tryParse(
+        '${chosen['contentLength'] ?? params['clen'] ?? ''}',
+      ),
       loudnessDb: (chosen['loudnessDb'] as num?)?.toDouble(),
       expires: expires,
       source: c.name,
@@ -450,11 +451,7 @@ class StreamResolver {
 }
 
 /// A ranged GET helper shared by the cache.
-Future<http.StreamedResponse> rangedGet(
-  StreamPick pick,
-  int start,
-  int end,
-) {
+Future<http.StreamedResponse> rangedGet(StreamPick pick, int start, int end) {
   final req = http.Request('GET', Uri.parse(pick.url))
     ..headers['User-Agent'] = pick.userAgent
     ..headers['Range'] = 'bytes=$start-$end';

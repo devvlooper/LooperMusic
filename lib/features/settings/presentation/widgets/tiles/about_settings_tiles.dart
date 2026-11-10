@@ -33,7 +33,7 @@ class LooperVersionTile extends ConsumerWidget {
     return ListTile(
       leading: const Icon(LucideIcons.info, color: Colors.white70),
       title: Text(
-        'Looper Player',
+        'Looper Music',
         style: AppFonts.jostStyle(
           color: Colors.white,
           fontWeight: FontWeight.w500,
@@ -121,7 +121,7 @@ class OpenSourceLicensesTile extends ConsumerWidget {
         Navigator.of(context, rootNavigator: true).push(
           MaterialPageRoute(
             builder: (context) => LicensePage(
-              applicationName: 'Looper Player',
+              applicationName: 'Looper Music',
               applicationVersion: versionAsync.value,
             ),
           ),
@@ -393,6 +393,11 @@ List<LyricsCredit> lyricsCredits(AppLocalizations l10n) => [
     ('KuGou', AppLinks.kugouWeb),
     ('Musixmatch', AppLinks.musixmatchWeb),
     ('Lyricify', AppLinks.lyricifyWeb),
+    ('BetterLyrics', AppLinks.betterLyricsWeb),
+    ('SimpMusic', AppLinks.simpMusicWeb),
+    ('PaxSenix', AppLinks.paxsenixWeb),
+    ('Unison', AppLinks.unisonWeb),
+    ('BiniLyrics', AppLinks.biniLyricsWeb),
   ])
     (name: name, description: l10n.creditWordSyncedDesc, url: url),
   (name: 'LRCLIB', description: l10n.creditLrclibDesc, url: AppLinks.lrclibWeb),
@@ -414,6 +419,11 @@ List<LyricsCredit> lyricsCredits(AppLocalizations l10n) => [
 ];
 
 List<LyricsCredit> onlineCredits(AppLocalizations l10n) => [
+  (
+    name: 'Inzx (nirmaleeswar30)',
+    description: 'Lyrics & animated artwork ideas (GPL-3.0)',
+    url: AppLinks.inzxSource,
+  ),
   (
     name: 'YouTube Music',
     description: l10n.creditYouTubeMusicDesc,

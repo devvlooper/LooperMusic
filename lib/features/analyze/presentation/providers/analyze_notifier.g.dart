@@ -109,7 +109,7 @@ final class AnalyzeSnapshotProvider
   }
 }
 
-String _$analyzeSnapshotHash() => r'99ee4bc85a6f73e004aa60000db182b976ce6be2';
+String _$analyzeSnapshotHash() => r'914b9deba060f330f47d4737a7473b74c26f6359';
 
 /// The Top Songs list toggle: 10 or 20 entries shown.
 
@@ -156,7 +156,7 @@ abstract class _$AnalyzeTopSongsLimit extends $Notifier<int> {
   int build();
   @$mustCallSuper
   @override
-  void runBuild() {
+  WhenComplete runBuild() {
     final ref = this.ref as $Ref<int, int>;
     final element =
         ref.element
@@ -166,6 +166,6 @@ abstract class _$AnalyzeTopSongsLimit extends $Notifier<int> {
               Object?,
               Object?
             >;
-    element.handleCreate(ref, build);
+    return element.handleCreate(ref, build);
   }
 }

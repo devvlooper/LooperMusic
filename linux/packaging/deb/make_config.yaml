@@ -1,7 +1,7 @@
-app_name: Looper Player
-package_name: looper-player
+app_name: Looper Music
+package_name: looper-music
 executable_name: looper_player
-display_name: Looper Player
+display_name: Looper Music
 generic_name: Music Player
 version: 1.0.0
 architecture: amd64

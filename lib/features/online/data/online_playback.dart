@@ -9,7 +9,12 @@ import 'package:looper_player/features/search/domain/artist_credits.dart';
 
 /// What mpv should open for a song.
 class PlayableSource {
-  const PlayableSource(this.path, {this.userAgent, this.streamed = false});
+  const PlayableSource(
+    this.path, {
+    this.userAgent,
+    this.streamed = false,
+    this.loudnessDb,
+  });
   final String path;
 
   /// The User-Agent the stream URL was issued for (null for files).
@@ -17,6 +22,9 @@ class PlayableSource {
 
   /// True when playing from the network (not a cached or local file).
   final bool streamed;
+
+  /// Track loudness in dB above YouTube's -14 LKFS target; null = unknown.
+  final double? loudnessDb;
 }
 
 /// Glue between the player and the online layer.
@@ -52,7 +60,12 @@ abstract final class OnlinePlayback {
         ),
       );
     }
-    return PlayableSource(pick.url, userAgent: pick.userAgent, streamed: true);
+    return PlayableSource(
+      pick.url,
+      userAgent: pick.userAgent,
+      streamed: true,
+      loudnessDb: pick.loudnessDb,
+    );
   }
 
   static final _decoration = RegExp(

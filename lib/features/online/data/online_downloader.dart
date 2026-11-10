@@ -36,7 +36,9 @@ String sanitizeFileName(String input) {
 }
 
 String getTargetFileName(String artist, String title) {
-  final cleanArtist = sanitizeFileName(artist.isEmpty ? 'Unknown Artist' : artist);
+  final cleanArtist = sanitizeFileName(
+    artist.isEmpty ? 'Unknown Artist' : artist,
+  );
   final cleanTitle = sanitizeFileName(title.isEmpty ? 'Unknown Title' : title);
   return '$cleanArtist - $cleanTitle.m4a';
 }
@@ -95,8 +97,8 @@ class DownloadItem {
 
 final downloadsProvider =
     NotifierProvider<DownloadsNotifier, Map<String, DownloadItem>>(
-  DownloadsNotifier.new,
-);
+      DownloadsNotifier.new,
+    );
 
 class DownloadsNotifier extends Notifier<Map<String, DownloadItem>> {
   static const _maxConcurrent = 2;
@@ -229,7 +231,8 @@ class DownloadsNotifier extends Notifier<Map<String, DownloadItem>> {
         automatic: false,
         mp4Only: true,
         quality: settings.downloadQuality,
-        onProgress: (p) => _set(id, (i) => i.copyWith(progress: 0.15 + p * 0.65)),
+        onProgress: (p) =>
+            _set(id, (i) => i.copyWith(progress: 0.15 + p * 0.65)),
       );
       if (downloadedPath == null || !await File(downloadedPath).exists()) {
         throw Exception('no M4A stream could be downloaded');
@@ -246,14 +249,12 @@ class DownloadsNotifier extends Notifier<Map<String, DownloadItem>> {
           .filter()
           .pathEqualTo('yt:$id')
           .findFirst();
-      final info = mergeDownloadInfo(
-        song,
-        await _details(id),
-        onlineRow,
-      );
+      final info = mergeDownloadInfo(song, await _details(id), onlineRow);
 
       var lyrics = onlineRow?.lyrics;
-      if (lyrics == null || lyrics.isEmpty || lyrics == LyricsFetcher.notFound) {
+      if (lyrics == null ||
+          lyrics.isEmpty ||
+          lyrics == LyricsFetcher.notFound) {
         final s = onlineRow ?? song.toSong();
         lyrics = await LyricsCache.get(
           LyricsFetcher.cleanArtist(s),
@@ -315,8 +316,9 @@ class DownloadsNotifier extends Notifier<Map<String, DownloadItem>> {
 
       if (Platform.isAndroid) {
         try {
-          await const MethodChannel('com.looper.player/broadcast')
-              .invokeMethod('rescanMedia', {'path': finalFile.path});
+          await const MethodChannel(
+            'com.looper.player/broadcast',
+          ).invokeMethod('rescanMedia', {'path': finalFile.path});
         } catch (_) {}
       }
 
@@ -349,7 +351,8 @@ class DownloadsNotifier extends Notifier<Map<String, DownloadItem>> {
     final chosen = OnlineSettingsNotifier.current.downloadDir?.trim();
     if (chosen != null && chosen.isNotEmpty) return chosen;
     if (Platform.isAndroid) return '/storage/emulated/0/Music/Looper';
-    final home = Platform.environment['HOME'] ??
+    final home =
+        Platform.environment['HOME'] ??
         Platform.environment['USERPROFILE'] ??
         '';
     return p.join(home, 'Music', 'Looper');
@@ -372,7 +375,9 @@ class DownloadsNotifier extends Notifier<Map<String, DownloadItem>> {
         if (!dir.existsSync()) dir.createSync(recursive: true);
         return dir;
       } catch (e) {
-        LoggerHelper.write('$_tag: custom downloadDir $downloadDir failed to create/open: $e');
+        LoggerHelper.write(
+          '$_tag: custom downloadDir $downloadDir failed to create/open: $e',
+        );
       }
     }
 
@@ -385,12 +390,13 @@ class DownloadsNotifier extends Notifier<Map<String, DownloadItem>> {
         final extDirs = await getExternalStorageDirectories(
           type: StorageDirectory.music,
         );
-        final fallback = extDirs?.firstOrNull ??
-            (await getApplicationDocumentsDirectory());
+        final fallback =
+            extDirs?.firstOrNull ?? (await getApplicationDocumentsDirectory());
         return fallback;
       }
     } else {
-      final home = Platform.environment['HOME'] ??
+      final home =
+          Platform.environment['HOME'] ??
           Platform.environment['USERPROFILE'] ??
           '';
       final dir = Directory(p.join(home, 'Music', 'Looper'));
@@ -400,28 +406,33 @@ class DownloadsNotifier extends Notifier<Map<String, DownloadItem>> {
   }
 }
 
-
 /// What a download is tagged with: the listing, filled in from the song's
 /// details and the saved online row. A field nobody states stays null.
-OnlineSong mergeDownloadInfo(OnlineSong listed, OnlineSong? details, Song? row) =>
-    OnlineSong(
-      videoId: listed.videoId,
-      title: listed.title,
-      artist: listed.artist ?? details?.artist ?? row?.artist,
-      album: listed.album ?? details?.album ?? row?.album,
-      durationMs: listed.durationMs ?? details?.durationMs ?? row?.duration,
-      // Details carry the largest picture; a listing's can be a small one.
-      thumbnail: details?.thumbnail ?? listed.thumbnail ?? row?.artPath,
-      videoType: listed.videoType ?? details?.videoType,
-      year: listed.year ?? details?.year ?? row?.year,
-    );
+OnlineSong mergeDownloadInfo(
+  OnlineSong listed,
+  OnlineSong? details,
+  Song? row,
+) => OnlineSong(
+  videoId: listed.videoId,
+  title: listed.title,
+  artist: listed.artist ?? details?.artist ?? row?.artist,
+  album: listed.album ?? details?.album ?? row?.album,
+  durationMs: listed.durationMs ?? details?.durationMs ?? row?.duration,
+  // Details carry the largest picture; a listing's can be a small one.
+  thumbnail: details?.thumbnail ?? listed.thumbnail ?? row?.artPath,
+  videoType: listed.videoType ?? details?.videoType,
+  year: listed.year ?? details?.year ?? row?.year,
+);
 
 /// Cover URLs to try, best first: googleusercontent art asked at 1200 px;
 /// for a video, its largest frame, then whatever the listing had.
 List<String> coverCandidates(String videoId, String? thumbnail) {
   final t = thumbnail;
   if (t != null && t.contains('googleusercontent.com')) {
-    final big = t.replaceFirst(RegExp(r'=w\d+-h\d+[^/?#]*'), '=w1200-h1200-l90-rj');
+    final big = t.replaceFirst(
+      RegExp(r'=w\d+-h\d+[^/?#]*'),
+      '=w1200-h1200-l90-rj',
+    );
     return {big, t}.toList();
   }
   return {
@@ -464,7 +475,12 @@ Future<Cover> squareCover(Uint8List bytes) async {
     final recorder = ui.PictureRecorder();
     ui.Canvas(recorder).drawImageRect(
       image,
-      ui.Rect.fromLTWH((w - side) / 2, (h - side) / 2, side.toDouble(), side.toDouble()),
+      ui.Rect.fromLTWH(
+        (w - side) / 2,
+        (h - side) / 2,
+        side.toDouble(),
+        side.toDouble(),
+      ),
       ui.Rect.fromLTWH(0, 0, side.toDouble(), side.toDouble()),
       ui.Paint()..filterQuality = ui.FilterQuality.high,
     );
