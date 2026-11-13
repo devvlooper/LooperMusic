@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:looper_player/core/theme/app_fonts.dart';
-import 'package:looper_player/features/microg/data/auth_session.dart';
+import 'package:looper_player/features/microg/domain/auth_session.dart';
 import 'package:looper_player/features/microg/data/microg_platform.dart';
 import 'package:looper_player/l10n/app_localizations.dart';
 import 'package:webview_flutter/webview_flutter.dart';

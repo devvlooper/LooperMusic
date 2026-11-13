@@ -4,18 +4,30 @@ class AppLinks {
   AppLinks._();
 
   // App GitHub & Releases Links
-  static const String githubRepo = 'https://github.com/sthrnilshaaa/Looper-music';
+  static const String githubRepo =
+      'https://github.com/sthrnilshaaa/Looper-music';
   static const String githubReleasesApi =
       'https://api.github.com/repos/sthrnilshaaa/Looper-music/releases/latest';
 
   /// Everyone who has committed to the repo; the About screen's maintainers
   /// row is built from it, so new contributors show up without a release.
   static const String githubContributorsApi =
-      'https://api.github.com/repos/sthrnilshaaa/Looper-music/contributors';
+      'https://api.github.com/repos/sthrnilshaaa/looper/contributors';
+
+  /// Public repo whose star count and page the About screen shows.
+  static const String githubStatsRepoApi =
+      'https://api.github.com/repos/sthrnilshaaa/looper';
+  static const String githubStatsRepo =
+      'https://github.com/sthrnilshaaa/looper';
   static const String githubReleasesWeb =
       'https://github.com/sthrnilshaaa/Looper-music/releases';
   static const String playStoreWeb =
       'https://play.google.com/store/apps/details?id=com.looper.player';
+
+  // About > Socials. Empty until the channels exist; empty links do nothing.
+  static const String socialDiscord = '';
+  static const String socialGithub = '';
+  static const String socialTelegram = '';
 
   // Support & Donation
   static const String koFi = 'https://ko-fi.com/L2L124TL7L';

@@ -42,7 +42,7 @@ import '../../widgets/genre_card.dart';
 import '../../widgets/recent_song_pills.dart';
 
 import 'package:looper_player/core/services/haptics/app_haptics.dart';
-import 'home_order.dart';
+import 'package:looper_player/features/settings/domain/home_order.dart';
 import 'hold_bloom.dart';
 
 part 'home_sections.dart';
@@ -678,12 +678,8 @@ class _AndroidHomeTabState extends ConsumerState<AndroidHomeTab>
     // Added (newest first) are computed in memoized providers instead of
     // inline here - same sort, same output, just not redone on every
     // rebuild of this screen. See their doc comments in library_notifier.dart.
-    final fullQuickPicks = ref.watch(homeQuickPicksMixedProvider);
-    final fullDateAddedSongs = ref.watch(homeRecentlyAddedProvider);
-    final allQuickPicks = loadingInParts ? previewQuickPicks : fullQuickPicks;
-    final dateAddedSongs = loadingInParts
-        ? previewRecentlyAdded
-        : fullDateAddedSongs;
+    final allQuickPicks = ref.watch(homeQuickPicksMixedProvider);
+    final dateAddedSongs = ref.watch(homeRecentlyAddedProvider);
 
     final useBlur = enableDynamicTheming && !disableBlur;
 
@@ -771,10 +767,6 @@ class _AndroidHomeTabState extends ConsumerState<AndroidHomeTab>
                       size: 20,
                     ),
                   ),
-                  if (ref.watch(onlineActiveProvider)) ...[
-                    const SizedBox(width: 5),
-                    const OnlineStatusIndicator(),
-                  ],
                   const SizedBox(width: 5),
                   PremiumSection(
                     borderRadius: const BorderRadius.only(
@@ -793,10 +785,10 @@ class _AndroidHomeTabState extends ConsumerState<AndroidHomeTab>
                       AppHaptics.light();
                       ref
                           .read(appNavigationProvider.notifier)
-                          .setItem(NavItem.settings);
+                          .setItem(NavItem.account);
                     },
                     child: const Icon(
-                      LucideIcons.settings,
+                      LucideIcons.user,
                       color: Colors.white,
                       size: 20,
                     ),
@@ -924,7 +916,7 @@ class _AndroidHomeTabState extends ConsumerState<AndroidHomeTab>
         );
         slivers.add(const SliverToBoxAdapter(child: SizedBox(height: 16)));
       } else if (section == 'playlists') {
-        if (showHomePlaylists && playlists.isNotEmpty) {
+        if (showHomePlaylists && (playlists.isNotEmpty || loadingInParts)) {
           final displayCount = math.min(15, playlists.length);
           final hasMore = playlists.length > 15;
           slivers.add(
@@ -937,7 +929,10 @@ class _AndroidHomeTabState extends ConsumerState<AndroidHomeTab>
                     .read(appNavigationProvider.notifier)
                     .setItem(NavItem.playlists);
               },
-              itemCount: displayCount + (hasMore ? 1 : 0),
+              itemCount: (loadingInParts && playlists.isEmpty)
+                  ? 0
+                  : displayCount + (hasMore ? 1 : 0),
+              loading: loadingInParts && playlists.isEmpty,
               itemBuilder: (context, index) {
                 if (index >= displayCount) {
                   return _buildViewAllEndCard(

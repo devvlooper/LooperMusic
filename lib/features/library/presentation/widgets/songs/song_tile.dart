@@ -172,6 +172,11 @@ class SongTile extends ConsumerWidget {
             });
             return;
           }
+          final isCollection = collectionIndex != null || playlist != null;
+          if (song.isOnline && !isCollection) {
+            ref.read(playbackProvider.notifier).playOnlineWithRadio(song);
+            return;
+          }
           final index =
               collectionIndex ?? songs.indexWhere((s) => s.path == song.path);
           if (index != -1) {

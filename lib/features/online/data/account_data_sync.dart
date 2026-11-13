@@ -1,4 +1,3 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:looper_player/core/services/storage/local_json_store.dart';
 import 'package:looper_player/core/utils/logger_helper.dart';
 import 'package:looper_player/features/microg/data/account_auth.dart';
@@ -6,7 +5,6 @@ import 'package:looper_player/features/online/data/online_api.dart';
 import 'package:looper_player/features/online/data/parsers.dart';
 import 'package:looper_player/features/online/data/taste_profile_store.dart';
 import 'package:looper_player/features/online/data/taste_store.dart';
-import 'package:looper_player/features/online/presentation/online_providers.dart';
 
 abstract final class AccountDataSync {
   static const _tag = 'AccountDataSync';
@@ -25,12 +23,12 @@ abstract final class AccountDataSync {
   /// - Liked music / favorites (`FEmusic_liked_videos` or `LM`)
   /// - History (`FEmusic_history`)
   ///
-  /// Merges the account's artists into [TasteNotifier] so recommendations,
-  /// suggestions, and home shelves immediately personalize to the user's taste.
-  static Future<void> sync(Ref ref, {bool force = false}) async {
+  /// Returns the synced account artists so recommendations and taste can be
+  /// updated by the caller.
+  static Future<List<TasteArtist>> sync({bool force = false}) async {
     final auth = await AccountAuth.instance.headers();
-    if (auth.isEmpty) return;
-    if (_syncing) return;
+    if (auth.isEmpty) return const [];
+    if (_syncing) return const [];
     _syncing = true;
 
     try {
@@ -107,27 +105,16 @@ abstract final class AccountDataSync {
         ]);
       }
 
-      // Invalidate providers
-      ref.invalidate(onlineAccountPlaylistsProvider);
-      ref.invalidate(onlineAccountArtistsProvider);
-      ref.invalidate(onlineAccountAlbumsProvider);
-      ref.invalidate(onlineAccountFavoritesProvider);
-      ref.invalidate(onlineAccountHistoryProvider);
-
-      // Merge real account artists into Taste
       if (artistsShelf.collections.isNotEmpty) {
-        final accountTasteArtists = [
+        return [
           for (final c in artistsShelf.collections)
             TasteArtist(c.title, browseId: c.browseId, thumbnail: c.thumbnail),
         ];
-
-        await ref
-            .read(tasteProvider.notifier)
-            .mergeAccountTaste(artists: accountTasteArtists);
-        TasteProfileStore.invalidate();
       }
+      return const [];
     } catch (e) {
       LoggerHelper.write('$_tag: sync failed', e);
+      return const [];
     } finally {
       _syncing = false;
     }

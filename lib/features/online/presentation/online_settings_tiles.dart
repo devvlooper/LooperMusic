@@ -23,58 +23,100 @@ import 'package:looper_player/ui/widgets/common/folder_picker_helper.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 TextStyle _title() =>
-    AppFonts.jostStyle(color: Colors.white, fontWeight: FontWeight.w500);
-TextStyle _sub() => AppFonts.jostStyle(color: Colors.white54, fontSize: 12);
+    AppFonts.settingsStyle(color: Colors.white, fontWeight: FontWeight.w500);
+TextStyle _sub() => AppFonts.settingsStyle(color: Colors.white54, fontSize: 12);
 
-/// Settings > Online music.
+/// Settings > Network & Internet > online music.
+/// Everything past the on/off switch is hidden while online music is off;
+/// the helpers below follow the same rule for their own categories.
 List<({String title, List<Widget> tiles})> onlineSettingsSections(
   AppLocalizations l10n,
-) => [
-  (
-    title: l10n.onlineMusic,
-    tiles: const [
-      _EnabledTile(),
-      _AccountTile(),
-      _RefreshTile(),
-      ContentRegionTile(),
-      _TasteTile(),
-      _PreferLocalTile(),
-    ],
-  ),
-  (
-    title: l10n.onlineStreaming,
-    tiles: const [
-      _QualityTile(mobile: false),
-      _QualityTile(mobile: true),
-      _PreloadTile(),
-      _PreloadMobileTile(),
-    ],
-  ),
-  (
-    title: l10n.onlineCache,
-    tiles: const [
-      _CachePlayedTile(),
-      _CachePlayedMobileTile(),
-      _CacheLimitTile(),
-      _CacheTile(),
-    ],
-  ),
-  (
-    title: l10n.onlineDownloads,
-    tiles: const [_DownloadDirTile(), _DownloadQualityTile()],
-  ),
-  (
-    title: l10n.animatedArtworks,
-    tiles: const [
-      _AnimatedArtworkModeTile(),
+  WidgetRef ref,
+) {
+  final enabled = ref.watch(onlineSettingsProvider.select((s) => s.enabled));
+  if (!enabled) {
+    return [
+      (title: l10n.onlineMusic, tiles: const [_EnabledTile()]),
+    ];
+  }
+  return [
+    (
+      title: l10n.onlineMusic,
+      tiles: const [
+        _EnabledTile(),
+        OnlineAccountTile(),
+        _RefreshTile(),
+        ContentRegionTile(),
+        _TasteTile(),
+        _PreferLocalTile(),
+      ],
+    ),
+    (
+      title: l10n.onlineStreaming,
+      tiles: const [
+        _QualityTile(mobile: false),
+        _QualityTile(mobile: true),
+        _PreloadTile(),
+        _PreloadMobileTile(),
+      ],
+    ),
+  ];
+}
+
+/// Online cache controls, shown under Miscellaneous > Storage.
+List<Widget> onlineCacheTiles(WidgetRef ref) =>
+    onlineAvailable &&
+        ref.watch(onlineSettingsProvider.select((s) => s.enabled))
+    ? const [
+        _CachePlayedTile(),
+        _CachePlayedMobileTile(),
+        _CacheLimitTile(),
+        _CacheTile(),
+      ]
+    : const [];
+
+/// Online download folder + quality, shown under Music Management.
+List<Widget> onlineDownloadTiles(WidgetRef ref) =>
+    onlineAvailable &&
+        ref.watch(onlineSettingsProvider.select((s) => s.enabled))
+    ? const [_DownloadDirTile(), _DownloadQualityTile()]
+    : const [];
+
+/// Animated artwork look (player-screen only), shown under Now Playing.
+List<Widget> animatedArtworkTiles(WidgetRef ref) {
+  // Animated artwork is fetched online, so it hides with online music.
+  if (!onlineAvailable ||
+      !ref.watch(onlineSettingsProvider.select((s) => s.enabled))) {
+    return const [];
+  }
+  final artworkOn =
+      ref.watch(animatedArtworkSettingsProvider.select((s) => s.mode)) !=
+      AnimatedArtworkMode.never;
+  return [
+    const _AnimatedArtworkModeTile(),
+    if (artworkOn) ...const [
       _AnimateAlbumCoverTile(),
       _ImmersiveBackgroundTile(),
       _AmbientGlowTile(),
-      _AnimatedArtworkCacheLimitTile(),
-      _ClearAnimatedArtworkCacheTile(),
     ],
-  ),
-];
+  ];
+}
+
+/// Animated artwork cache controls, shown under Miscellaneous > Storage.
+List<Widget> animatedArtworkCacheTiles(WidgetRef ref) {
+  // Animated artwork is fetched online, so it hides with online music.
+  if (!onlineAvailable ||
+      !ref.watch(onlineSettingsProvider.select((s) => s.enabled))) {
+    return const [];
+  }
+  final artworkOn =
+      ref.watch(animatedArtworkSettingsProvider.select((s) => s.mode)) !=
+      AnimatedArtworkMode.never;
+  return [
+    if (artworkOn) const _AnimatedArtworkCacheLimitTile(),
+    const _ClearAnimatedArtworkCacheTile(),
+  ];
+}
 
 class _Switch extends ConsumerWidget {
   const _Switch({
@@ -95,7 +137,6 @@ class _Switch extends ConsumerWidget {
     secondary: Icon(icon, color: Colors.white70),
     title: Text(title, style: _title()),
     subtitle: subtitle == null ? null : Text(subtitle!, style: _sub()),
-    activeThumbColor: ref.watch(settingsProvider).accent,
     value: value,
     onChanged: onChanged,
   );
@@ -140,7 +181,7 @@ class _EnabledTile extends ConsumerWidget {
             padding: const EdgeInsets.fromLTRB(72, 0, 16, 8),
             child: Text(
               l10n.onlineGuestPrivacyNote,
-              style: AppFonts.jostStyle(
+              style: AppFonts.settingsStyle(
                 color: Colors.white.withValues(alpha: 0.5),
                 fontSize: 11,
               ),
@@ -173,7 +214,7 @@ class _EnabledTile extends ConsumerWidget {
                 const SizedBox(width: 12),
                 Text(
                   l10n.onlineDisclaimerTitle,
-                  style: AppFonts.jostStyle(
+                  style: AppFonts.settingsStyle(
                     color: Colors.white,
                     fontSize: 18,
                     fontWeight: FontWeight.w600,
@@ -184,7 +225,7 @@ class _EnabledTile extends ConsumerWidget {
             const SizedBox(height: 16),
             Text(
               l10n.onlineDisclaimerBody,
-              style: AppFonts.jostStyle(
+              style: AppFonts.settingsStyle(
                 color: Colors.white70,
                 fontSize: 14,
                 height: 1.4,
@@ -198,7 +239,7 @@ class _EnabledTile extends ConsumerWidget {
                   onPressed: () => Navigator.of(ctx).pop(),
                   child: Text(
                     l10n.onlineNotNow,
-                    style: AppFonts.jostStyle(color: Colors.white60),
+                    style: AppFonts.settingsStyle(color: Colors.white60),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -217,7 +258,7 @@ class _EnabledTile extends ConsumerWidget {
                   },
                   child: Text(
                     l10n.onlineTurnOn,
-                    style: AppFonts.jostStyle(fontWeight: FontWeight.w600),
+                    style: AppFonts.settingsStyle(fontWeight: FontWeight.w600),
                   ),
                 ),
               ],
@@ -235,7 +276,7 @@ class _RefreshTile extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context)!;
     return ListTile(
-      leading: const Icon(LucideIcons.refreshCw, color: Colors.white70),
+      leading: const Icon(LucideIcons.refreshCw),
       title: Text(l10n.onlineRefresh, style: _title()),
       subtitle: Text(l10n.onlineRefreshDesc, style: _sub()),
       onTap: () async {
@@ -264,7 +305,7 @@ class ContentRegionTile extends ConsumerWidget {
         : ContentRegions.nameFor(region);
 
     return ListTile(
-      leading: const Icon(LucideIcons.globe, color: Colors.white70),
+      leading: const Icon(LucideIcons.globe),
       title: Text(l10n.onlineContentRegion, style: _title()),
       subtitle: Text(displaySubtitle, style: _sub()),
       trailing: const Icon(LucideIcons.chevronRight, color: Colors.white38),
@@ -361,7 +402,7 @@ class _RegionPickerSheetState extends State<_RegionPickerSheet> {
                 const SizedBox(height: 16),
                 Text(
                   l10n.onlineContentRegion,
-                  style: AppFonts.jostStyle(
+                  style: AppFonts.settingsStyle(
                     color: Colors.white,
                     fontSize: 18,
                     fontWeight: FontWeight.w600,
@@ -370,7 +411,7 @@ class _RegionPickerSheetState extends State<_RegionPickerSheet> {
                 const SizedBox(height: 4),
                 Text(
                   l10n.onlineContentRegionDesc,
-                  style: AppFonts.jostStyle(
+                  style: AppFonts.settingsStyle(
                     color: Colors.white54,
                     fontSize: 12,
                   ),
@@ -379,7 +420,7 @@ class _RegionPickerSheetState extends State<_RegionPickerSheet> {
                 TextField(
                   controller: _searchController,
                   onChanged: (v) => setState(() => _filter = v.trim()),
-                  style: AppFonts.jostStyle(color: Colors.white),
+                  style: AppFonts.settingsStyle(color: Colors.white),
                   decoration: InputDecoration(
                     prefixIcon: const Icon(
                       LucideIcons.search,
@@ -387,7 +428,7 @@ class _RegionPickerSheetState extends State<_RegionPickerSheet> {
                       color: Colors.white54,
                     ),
                     hintText: l10n.onlineContentRegionSearch,
-                    hintStyle: AppFonts.jostStyle(color: Colors.white38),
+                    hintStyle: AppFonts.settingsStyle(color: Colors.white38),
                     filled: true,
                     fillColor: Colors.white.withValues(alpha: 0.06),
                     contentPadding: const EdgeInsets.symmetric(
@@ -418,7 +459,7 @@ class _RegionPickerSheetState extends State<_RegionPickerSheet> {
                       l10n.onlineContentRegionAuto(
                         ContentRegions.nameFor(widget.autoCountry),
                       ),
-                      style: AppFonts.jostStyle(
+                      style: AppFonts.settingsStyle(
                         color: widget.selectedRegion == null
                             ? Colors.blueAccent
                             : Colors.white,
@@ -440,7 +481,7 @@ class _RegionPickerSheetState extends State<_RegionPickerSheet> {
                   ListTile(
                     title: Text(
                       r.name,
-                      style: AppFonts.jostStyle(
+                      style: AppFonts.settingsStyle(
                         color: widget.selectedRegion == r.code
                             ? Colors.blueAccent
                             : Colors.white,
@@ -451,7 +492,7 @@ class _RegionPickerSheetState extends State<_RegionPickerSheet> {
                     ),
                     subtitle: Text(
                       r.code,
-                      style: AppFonts.jostStyle(
+                      style: AppFonts.settingsStyle(
                         color: Colors.white38,
                         fontSize: 11,
                       ),
@@ -474,15 +515,15 @@ class _RegionPickerSheetState extends State<_RegionPickerSheet> {
   }
 }
 
-class _AccountTile extends ConsumerWidget {
-  const _AccountTile();
+class OnlineAccountTile extends ConsumerWidget {
+  const OnlineAccountTile({super.key});
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context)!;
     final auth = ref.watch(authProvider);
     final name = auth.session?.displayName ?? auth.session?.microgAccount;
     return ListTile(
-      leading: const Icon(LucideIcons.circleUser, color: Colors.white70),
+      leading: const Icon(LucideIcons.circleUser),
       title: Text(l10n.accountTitle, style: _title()),
       subtitle: Text(switch (auth.status) {
         AuthStatus.signedIn => l10n.accountSignedInAs(name ?? ''),
@@ -503,7 +544,7 @@ class _TasteTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     return ListTile(
-      leading: const Icon(LucideIcons.sparkles, color: Colors.white70),
+      leading: const Icon(LucideIcons.sparkles),
       title: Text(l10n.onlineYourTaste, style: _title()),
       subtitle: Text(l10n.onlineYourTasteDesc, style: _sub()),
       trailing: const Icon(LucideIcons.chevronRight, color: Colors.white38),
@@ -557,7 +598,7 @@ class _QualityTile extends ConsumerWidget {
         value: value,
         underline: const SizedBox.shrink(),
         dropdownColor: Theme.of(context).colorScheme.surfaceContainerHigh,
-        style: AppFonts.jostStyle(color: Colors.white),
+        style: AppFonts.settingsStyle(color: Colors.white),
         items: [
           for (final q in OnlineQuality.values)
             DropdownMenuItem(value: q, child: Text(label(q))),
@@ -689,7 +730,7 @@ class _CacheTileState extends State<_CacheTile> {
       builder: (context, snap) {
         final mb = ((snap.data ?? 0) / (1024 * 1024)).toStringAsFixed(1);
         return ListTile(
-          leading: const Icon(LucideIcons.trash2, color: Colors.white70),
+          leading: const Icon(LucideIcons.trash2),
           title: Text(l10n.onlineClearCache, style: _title()),
           subtitle: Text(
             '${l10n.onlineCacheUsed('$mb MB')} • ${l10n.onlineClearCacheDesc}',
@@ -733,7 +774,7 @@ class _DownloadDirTile extends ConsumerWidget {
     final l10n = AppLocalizations.of(context)!;
     final s = ref.watch(onlineSettingsProvider);
     return ListTile(
-      leading: const Icon(LucideIcons.folder, color: Colors.white70),
+      leading: const Icon(LucideIcons.folder),
       title: Text(l10n.downloadFolder, style: _title()),
       subtitle: Text(
         s.downloadDir ?? 'Default (Music/Looper)',
@@ -777,13 +818,13 @@ class _DownloadQualityTile extends ConsumerWidget {
       OnlineQuality.low => l10n.onlineQualityLow,
     };
     return ListTile(
-      leading: const Icon(LucideIcons.arrowDownToLine, color: Colors.white70),
+      leading: const Icon(LucideIcons.arrowDownToLine),
       title: Text(l10n.downloadQuality, style: _title()),
       trailing: DropdownButton<OnlineQuality>(
         value: s.downloadQuality,
         underline: const SizedBox.shrink(),
         dropdownColor: Theme.of(context).colorScheme.surfaceContainerHigh,
-        style: AppFonts.jostStyle(color: Colors.white),
+        style: AppFonts.settingsStyle(color: Colors.white),
         items: [
           for (final q in OnlineQuality.values)
             DropdownMenuItem(value: q, child: Text(label(q))),
@@ -812,14 +853,14 @@ class _AnimatedArtworkModeTile extends ConsumerWidget {
       AnimatedArtworkMode.never => l10n.animatedArtworksNever,
     };
     return ListTile(
-      leading: const Icon(LucideIcons.sparkles, color: Colors.white70),
+      leading: const Icon(LucideIcons.sparkles),
       title: Text(l10n.animatedArtworks, style: _title()),
       subtitle: Text(l10n.animatedArtworksDesc, style: _sub()),
       trailing: DropdownButton<AnimatedArtworkMode>(
         value: s.mode,
         underline: const SizedBox.shrink(),
         dropdownColor: Theme.of(context).colorScheme.surfaceContainerHigh,
-        style: AppFonts.jostStyle(color: Colors.white),
+        style: AppFonts.settingsStyle(color: Colors.white),
         items: [
           for (final m in AnimatedArtworkMode.values)
             DropdownMenuItem(value: m, child: Text(label(m))),
@@ -907,13 +948,13 @@ class _AnimatedArtworkCacheLimitTile extends ConsumerWidget {
     String label(int mb) => mb >= 1024 ? '${(mb / 1024).round()} GB' : '$mb MB';
 
     return ListTile(
-      leading: const Icon(LucideIcons.hardDrive, color: Colors.white70),
+      leading: const Icon(LucideIcons.hardDrive),
       title: Text(l10n.animatedArtworkCacheLimit, style: _title()),
       trailing: DropdownButton<int>(
         value: s.cacheLimitMB,
         underline: const SizedBox.shrink(),
         dropdownColor: Theme.of(context).colorScheme.surfaceContainerHigh,
-        style: AppFonts.jostStyle(color: Colors.white),
+        style: AppFonts.settingsStyle(color: Colors.white),
         items: [
           for (final opt in options)
             DropdownMenuItem(value: opt, child: Text(label(opt))),
@@ -939,7 +980,7 @@ class _ClearAnimatedArtworkCacheTile extends ConsumerWidget {
       leading: const Icon(LucideIcons.trash2, color: Colors.redAccent),
       title: Text(
         l10n.clearAnimatedArtworkCache,
-        style: AppFonts.jostStyle(color: Colors.redAccent),
+        style: AppFonts.settingsStyle(color: Colors.redAccent),
       ),
       onTap: () async {
         await AnimatedArtworkService.instance.clearCache();

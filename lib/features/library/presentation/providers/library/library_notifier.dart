@@ -1264,14 +1264,18 @@ Stream<List<Song>> topSongs(Ref ref) {
 // the UI - is unchanged; only when the work happens is different.
 
 /// Home tab's "Quick Picks" - same comparator (play count, most first) and
-/// same 18-item cap as before.
+/// same 18-item cap as before. Falls back to cold-start preview songs while
+/// the full library is loading so items never jump or shuffle on launch.
 @Riverpod(keepAlive: true)
 List<Song> homeQuickPicks(Ref ref) {
-  final songs = ref.watch(libraryProvider.select((s) => s.songs));
+  final (songs, previewReady, previewQuickPicks) = ref.watch(
+    libraryProvider.select((s) => (s.songs, s.previewReady, s.previewQuickPicks)),
+  );
+  final source = (songs.isEmpty && previewReady) ? previewQuickPicks : songs;
   // Ties go newest first, then by path - the same order as the cold-start
   // preview query (see Library._loadSongsInParts), so the row doesn't jump
   // when the full list replaces it.
-  final sorted = List<Song>.from(songs)
+  final sorted = List<Song>.from(source)
     ..sort((a, b) {
       final byPlays = b.playCount.compareTo(a.playCount);
       if (byPlays != 0) return byPlays;
@@ -1363,11 +1367,15 @@ final homeQuickPicksSuggestedPathsProvider = Provider<Set<String>>((ref) {
 /// Home tab's "Recently Added" section - same comparator (date added,
 /// newest first) as before. Kept as the full sorted list, not just the
 /// visible prefix, since tapping into this section queues it in full.
+/// Falls back to cold-start preview songs while the full library is loading.
 @Riverpod(keepAlive: true)
 List<Song> homeRecentlyAdded(Ref ref) {
-  final songs = ref.watch(libraryProvider.select((s) => s.songs));
+  final (songs, previewReady, previewRecentlyAdded) = ref.watch(
+    libraryProvider.select((s) => (s.songs, s.previewReady, s.previewRecentlyAdded)),
+  );
+  final source = (songs.isEmpty && previewReady) ? previewRecentlyAdded : songs;
   // Ties by path, matching the cold-start preview query.
-  return List<Song>.from(songs)..sort((a, b) {
+  return List<Song>.from(source)..sort((a, b) {
     final byDate = b.dateAdded.compareTo(a.dateAdded);
     return byDate != 0 ? byDate : a.path.compareTo(b.path);
   });

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:looper_player/features/online/presentation/online_providers.dart';
 import 'package:looper_player/ui/widgets/common/app_skeleton.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
@@ -6,11 +8,12 @@ import 'package:skeletonizer/skeletonizer.dart';
 /// after a cold start. Mirrors the real tab's layout (header, Quick Picks
 /// grid, then horizontal card rows) so the content drops into place instead
 /// of replacing a spinner.
-class HomeSkeleton extends StatelessWidget {
+class HomeSkeleton extends ConsumerWidget {
   const HomeSkeleton({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final onlineActive = ref.watch(onlineActiveProvider);
     return SafeArea(
       child: AppSkeleton(
         child: ListView(
@@ -30,6 +33,38 @@ class HomeSkeleton extends StatelessWidget {
                 ],
               ),
             ),
+            if (onlineActive) ...[
+              // Mood chips skeleton row
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+                child: Row(
+                  children: List.generate(
+                    4,
+                    (i) => const Padding(
+                      padding: EdgeInsets.only(right: 8),
+                      child: Bone(width: 80, height: 36, uniRadius: 18),
+                    ),
+                  ),
+                ),
+              ),
+              // Online shelf skeleton row (matching _ShelfSkeleton)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: SizedBox(
+                  height: 186,
+                  child: ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    physics: const NeverScrollableScrollPhysics(),
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    itemCount: 4,
+                    itemBuilder: (_, _) => const Padding(
+                      padding: EdgeInsets.only(right: 8),
+                      child: Bone(width: 132, height: 132, uniRadius: 12),
+                    ),
+                  ),
+                ),
+              ),
+            ],
             // Quick Picks title + shuffle pill.
             const Padding(
               padding: EdgeInsets.fromLTRB(16, 16, 16, 12),

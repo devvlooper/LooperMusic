@@ -40,11 +40,7 @@ abstract final class BitPerfectManager {
     // Master EQ or individual bands
     if (eqState.enabled) {
       blockers.add(
-        AudioBlocker(
-          key: 'eq_enabled',
-          name: 'Equalizer Enabled',
-          value: true,
-        ),
+        AudioBlocker(key: 'eq_enabled', name: 'Equalizer Enabled', value: true),
       );
       final hasNonZeroBand = eqState.currentSongGains
           .take(18)
@@ -124,11 +120,7 @@ abstract final class BitPerfectManager {
       }
       if (eqState.lofiEnabled) {
         blockers.add(
-          const AudioBlocker(
-            key: 'eq_lofi',
-            name: 'Lo-Fi Effect',
-            value: true,
-          ),
+          const AudioBlocker(key: 'eq_lofi', name: 'Lo-Fi Effect', value: true),
         );
       }
       if (eqState.speechFilterEnabled) {
@@ -274,9 +266,7 @@ abstract final class BitPerfectManager {
   static Future<Map<String, dynamic>> saveBlockersBackup(
     List<AudioBlocker> blockers,
   ) async {
-    final map = <String, dynamic>{
-      for (final b in blockers) b.key: b.value,
-    };
+    final map = <String, dynamic>{for (final b in blockers) b.key: b.value};
     await LocalJsonStore.write(_backupKey, map);
     return map;
   }

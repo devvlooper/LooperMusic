@@ -13,11 +13,6 @@ import 'package:looper_player/features/playback/data/lyrics_fetcher.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
-extension OnlineSongPath on Song {
-  bool get isOnline => path.startsWith('yt:');
-  String? get videoId => isOnline ? path.substring(3) : null;
-}
-
 /// Whole-song audio cache. A song is fetched in bounded ranges (open-ended
 /// googlevideo requests are throttled) into `<id>.partial`, then renamed,
 /// so a file with the final name is always complete and plays offline.

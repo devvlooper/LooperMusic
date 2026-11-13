@@ -70,6 +70,11 @@ class Song {
   ];
 }
 
+extension SongOnlineX on Song {
+  bool get isOnline => path.startsWith('yt:');
+  String? get videoId => isOnline ? path.substring(3) : null;
+}
+
 @collection
 class Album {
   Id id = Isar.autoIncrement;
@@ -202,6 +207,9 @@ class AppSettings {
   // sheets their blur without needing all of that. Independent of disableBlur,
   // which only gates the Dynamic Theming blur path (see app_bottom_sheet.dart).
   bool alwaysBlurSheets = true;
+  // The Dynamic Theming art background on the player screen only, without
+  // the app-wide accent/gradient changes.
+  bool playerDynamicBackground = false;
   bool enableInternet = true;
   bool downloadArtwork = true;
   bool includeSystemAndMessagingAudio = false;
@@ -231,6 +239,11 @@ class AppSettings {
   bool playerLyricLine = true;
   // How that line changes: 'cube', 'roll', 'flip' or 'blur' ('' = cube).
   String playerLyricLineTransition = 'cube';
+  // Portrait Now Playing layout: 'classic', 'arc' or 'linear' ('' = classic).
+  String playerStyle = 'classic';
+  // Arc / linear players: paint the active lyric line and the seek bar in
+  // the accent colour (classic always does).
+  bool playerStyleAccent = false;
   // Shows "Artist • Album" instead of just the artist under song titles
   // (lists, players, Home, Analyze, share card).
   bool showAlbumNextToArtist = true;
@@ -333,6 +346,10 @@ class AppSettings {
   // always resolved against AppAssets.avatarDir, so renaming that
   // folder is a one-place change instead of a data migration.
   String selectedAvatarAsset = 'logo_full.svg';
+  // Name shown on the Account screen greeting. Empty = not set yet.
+  String userName = '';
+  // Profile photo the user picked, copied into app support storage.
+  String userPhotoPath = '';
   // Only the default avatar (looper_main.svg) contains the swappable
   // "#C0E200" accent color - see SelectedAvatar's doc comment.
   bool avatarDynamicColor = false;

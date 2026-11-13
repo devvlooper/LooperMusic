@@ -1802,11 +1802,15 @@ class OnlineSearchSliver extends ConsumerStatefulWidget {
     super.key,
     required this.query,
     this.hideIds = const {},
+    this.songsOnly = false,
   });
   final String query;
 
   /// Paths already shown as local results (online twins are hidden).
   final Set<String> hideIds;
+
+  /// When true, renders only the songs (for the Songs filter tab).
+  final bool songsOnly;
 
   @override
   ConsumerState<OnlineSearchSliver> createState() => _OnlineSearchSliverState();
@@ -1856,21 +1860,22 @@ class _OnlineSearchSliverState extends ConsumerState<OnlineSearchSliver> {
 
     return SliverMainAxisGroup(
       slivers: [
-        SliverToBoxAdapter(
-          child: OnlineSectionTitle(
-            l10n.onlineMusic,
-            trailing: s.loading
-                ? const Padding(
-                    padding: EdgeInsets.all(12),
-                    child: SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                  )
-                : null,
+        if (!widget.songsOnly)
+          SliverToBoxAdapter(
+            child: OnlineSectionTitle(
+              l10n.onlineMusic,
+              trailing: s.loading
+                  ? const Padding(
+                      padding: EdgeInsets.all(12),
+                      child: SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    )
+                  : null,
+            ),
           ),
-        ),
         if (s.error != null)
           SliverToBoxAdapter(
             child: _ErrorCard(
@@ -1891,18 +1896,23 @@ class _OnlineSearchSliverState extends ConsumerState<OnlineSearchSliver> {
               ),
             ),
           ),
-        if (s.artists.isNotEmpty) ...[
+        if (!widget.songsOnly && s.artists.isNotEmpty) ...[
           SliverToBoxAdapter(child: OnlineSectionTitle(l10n.artists)),
           SliverToBoxAdapter(child: _cards(s.artists)),
         ],
         if (asSongs.isNotEmpty) ...[
-          SliverToBoxAdapter(child: OnlineSectionTitle(l10n.songs)),
+          SliverToBoxAdapter(
+            child: OnlineSectionTitle(
+              widget.songsOnly ? l10n.onlineMusic : l10n.songs,
+            ),
+          ),
           SliverList.builder(
             itemCount: asSongs.length,
             itemBuilder: (context, i) => SongTile(
               key: ValueKey('online-${asSongs[i].path}'),
               song: asSongs[i],
-              songs: asSongs,
+              songs: const [],
+              searchQuery: widget.query,
               l10n: l10n,
               // Searches feed the taste profile, like local search does.
               onPlay: () =>
@@ -1992,7 +2002,7 @@ class OnlineStatusIndicator extends ConsumerWidget {
               AppHaptics.light();
               ref
                   .read(appNavigationProvider.notifier)
-                  .showSettingsCategory(id: 'online', title: l10n.onlineMusic);
+                  .showSettingsCategory(id: 'online', title: l10n.catNetwork);
             },
             child: Icon(icon, color: color, size: 20),
           ),
@@ -2026,7 +2036,7 @@ class OnlineDisabledHomeFooter extends ConsumerWidget {
         AppHaptics.light();
         ref
             .read(appNavigationProvider.notifier)
-            .showSettingsCategory(id: 'online', title: l10n.onlineMusic);
+            .showSettingsCategory(id: 'online', title: l10n.catNetwork);
       },
     );
   }

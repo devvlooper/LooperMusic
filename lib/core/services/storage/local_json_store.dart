@@ -14,6 +14,7 @@ import 'package:path_provider/path_provider.dart';
 /// app's documents directory, best-effort read/write.
 class LocalJsonStore {
   static Directory? _dir;
+  static final Map<String, dynamic> _memoryCache = {};
 
   static Future<Directory> _getDir() async {
     if (_dir != null) return _dir!;
@@ -25,14 +26,43 @@ class LocalJsonStore {
     return _dir = dir;
   }
 
+  /// Initializes the store and preloads critical startup keys into memory.
+  static Future<void> init([
+    List<String> preloadKeys = const [
+      'online_home_feed_v1',
+      'online_artists_for_you_v1',
+    ],
+  ]) async {
+    try {
+      final dir = await _getDir();
+      for (final key in preloadKeys) {
+        final file = File(p.join(dir.path, '$key.json'));
+        if (await file.exists()) {
+          try {
+            final content = await file.readAsString();
+            _memoryCache[key] = jsonDecode(content);
+          } catch (_) {}
+        }
+      }
+    } catch (_) {}
+  }
+
+  /// Synchronous read from memory cache if preloaded or previously read/written.
+  static dynamic readSync(String key) => _memoryCache[key];
+
   /// Reads the JSON value stored under [key], or null if it's missing or
-  /// unreadable.
+  /// unreadable. Checks in-memory cache first.
   static Future<dynamic> read(String key) async {
+    if (_memoryCache.containsKey(key)) {
+      return _memoryCache[key];
+    }
     try {
       final dir = await _getDir();
       final file = File(p.join(dir.path, '$key.json'));
       if (!await file.exists()) return null;
-      return jsonDecode(await file.readAsString());
+      final val = jsonDecode(await file.readAsString());
+      _memoryCache[key] = val;
+      return val;
     } catch (e) {
       return null;
     }
@@ -40,6 +70,7 @@ class LocalJsonStore {
 
   /// Writes [value] (anything `jsonEncode` supports) under [key].
   static Future<void> write(String key, dynamic value) async {
+    _memoryCache[key] = value;
     try {
       final dir = await _getDir();
       final file = File(p.join(dir.path, '$key.json'));
@@ -52,6 +83,7 @@ class LocalJsonStore {
 
   /// Deletes the file stored under [key].
   static Future<void> delete(String key) async {
+    _memoryCache.remove(key);
     try {
       final dir = await _getDir();
       final file = File(p.join(dir.path, '$key.json'));

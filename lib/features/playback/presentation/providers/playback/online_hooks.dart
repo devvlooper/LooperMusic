@@ -76,7 +76,7 @@ extension _OnlineHooks on Playback {
     if (_extendingOnline || !_onlineNetworkAllowed) return;
     _extendingOnline = true;
     final exclude = {for (final s in _playlist) s.path};
-    RecommendationEngine.queueContinuation(current, exclude)
+    RecommendationEngine.queueContinuation(current, exclude, limit: 20)
         .then((fetched) {
           // Anchored to the queue that asked: a queue replaced meanwhile
           // never gets the old song's radio.

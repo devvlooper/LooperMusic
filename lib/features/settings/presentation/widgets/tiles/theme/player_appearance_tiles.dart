@@ -10,7 +10,7 @@ class ProgressBarStyleTile extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context)!;
     return ListTile(
-      leading: const Icon(LucideIcons.slidersHorizontal, color: Colors.white70),
+      leading: const Icon(LucideIcons.slidersHorizontal),
       title: Text(l10n.progressBarStyle, style: _tileTitleStyle()),
       subtitle: Text(l10n.progressBarStyleDesc, style: _tileSubtitleStyle()),
       trailing: const Icon(
@@ -39,7 +39,7 @@ class ArtworkVisualizerTile extends ConsumerWidget {
       ),
     );
     return ListTile(
-      leading: const Icon(LucideIcons.audioLines, color: Colors.white70),
+      leading: const Icon(LucideIcons.audioLines),
       title: Text(l10n.artworkVisualizer, style: _tileTitleStyle()),
       subtitle: Text(
         type == ArtworkVisualizerType.none
@@ -68,10 +68,9 @@ class PlainTimestampsTile extends ConsumerWidget {
     final settings = ref.watch(settingsProvider);
     final l10n = AppLocalizations.of(context)!;
     return SwitchListTile(
-      secondary: const Icon(LucideIcons.clock, color: Colors.white70),
+      secondary: const Icon(LucideIcons.clock),
       title: Text(l10n.plainTimestamps, style: _tileTitleStyle()),
       subtitle: Text(l10n.useStaticTextTimestamps, style: _tileSubtitleStyle()),
-      activeThumbColor: settings.accent,
       value: settings.disableAnimatedDuration,
       onChanged: (value) {
         ref
@@ -90,10 +89,9 @@ class ShowQualityBadgeTile extends ConsumerWidget {
     final settings = ref.watch(settingsProvider);
     final l10n = AppLocalizations.of(context)!;
     return SwitchListTile(
-      secondary: const Icon(LucideIcons.info, color: Colors.white70),
+      secondary: const Icon(LucideIcons.info),
       title: Text(l10n.showQualityBadge, style: _tileTitleStyle()),
       subtitle: Text(l10n.showQualityBadgeDesc, style: _tileSubtitleStyle()),
-      activeThumbColor: settings.accent,
       value: settings.showQualityBadge,
       onChanged: (value) {
         ref.read(settingsProvider.notifier).updateShowQualityBadge(value);
@@ -111,10 +109,9 @@ class GroupArtistByAlbumTile extends ConsumerWidget {
     final settings = ref.watch(settingsProvider);
     final l10n = AppLocalizations.of(context)!;
     return SwitchListTile(
-      secondary: const Icon(LucideIcons.libraryBig, color: Colors.white70),
+      secondary: const Icon(LucideIcons.libraryBig),
       title: Text(l10n.groupByAlbum, style: _tileTitleStyle()),
       subtitle: Text(l10n.groupByAlbumDesc, style: _tileSubtitleStyle()),
-      activeThumbColor: settings.accent,
       value: settings.artistGroupByAlbum,
       onChanged: (value) {
         ref.read(settingsProvider.notifier).updateArtistGroupByAlbum(value);
@@ -132,13 +129,12 @@ class ShowAlbumNextToArtistTile extends ConsumerWidget {
     final settings = ref.watch(settingsProvider);
     final l10n = AppLocalizations.of(context)!;
     return SwitchListTile(
-      secondary: const Icon(LucideIcons.disc3, color: Colors.white70),
+      secondary: const Icon(LucideIcons.disc3),
       title: Text(l10n.showAlbumNextToArtist, style: _tileTitleStyle()),
       subtitle: Text(
         l10n.showAlbumNextToArtistDesc,
         style: _tileSubtitleStyle(),
       ),
-      activeThumbColor: settings.accent,
       value: settings.showAlbumNextToArtist,
       onChanged: (value) {
         ref.read(settingsProvider.notifier).updateShowAlbumNextToArtist(value);
@@ -157,13 +153,12 @@ class ShowAlbumInQuickPicksTile extends ConsumerWidget {
     final settings = ref.watch(settingsProvider);
     final l10n = AppLocalizations.of(context)!;
     return SwitchListTile(
-      secondary: const Icon(LucideIcons.sparkles, color: Colors.white70),
+      secondary: const Icon(LucideIcons.sparkles),
       title: Text(l10n.showAlbumInQuickPicks, style: _tileTitleStyle()),
       subtitle: Text(
         l10n.showAlbumInQuickPicksDesc,
         style: _tileSubtitleStyle(),
       ),
-      activeThumbColor: settings.accent,
       value: settings.showAlbumInQuickPicks,
       onChanged: (value) {
         ref.read(settingsProvider.notifier).updateShowAlbumInQuickPicks(value);
@@ -180,7 +175,7 @@ class QualityBadgeStyleTile extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context)!;
     return ListTile(
-      leading: const Icon(LucideIcons.badgeCheck, color: Colors.white70),
+      leading: const Icon(LucideIcons.badgeCheck),
       title: Text(l10n.qualityBadgeStyle, style: _tileTitleStyle()),
       subtitle: Text(l10n.qualityBadgeStyleDesc, style: _tileSubtitleStyle()),
       trailing: const Icon(
@@ -206,13 +201,12 @@ class SegmentedUtilityButtonsTile extends ConsumerWidget {
     final settings = ref.watch(settingsProvider);
     final l10n = AppLocalizations.of(context)!;
     return SwitchListTile(
-      secondary: const Icon(LucideIcons.columns4, color: Colors.white70),
+      secondary: const Icon(LucideIcons.columns4),
       title: Text(l10n.segmentedUtilityButtons, style: _tileTitleStyle()),
       subtitle: Text(
         l10n.segmentedUtilityButtonsDesc,
         style: _tileSubtitleStyle(),
       ),
-      activeThumbColor: settings.accent,
       value: settings.segmentedUtilityButtons,
       onChanged: (value) {
         ref
@@ -232,14 +226,86 @@ class PlayerLyricLineTile extends ConsumerWidget {
     final settings = ref.watch(settingsProvider);
     final l10n = AppLocalizations.of(context)!;
     return SwitchListTile(
-      secondary: const Icon(LucideIcons.micVocal, color: Colors.white70),
+      secondary: const Icon(LucideIcons.micVocal),
       title: Text(l10n.playerLyricLine, style: _tileTitleStyle()),
       subtitle: Text(l10n.playerLyricLineDesc, style: _tileSubtitleStyle()),
-      activeThumbColor: settings.accent,
       value: settings.playerLyricLine,
       onChanged: (value) {
         ref.read(settingsProvider.notifier).updatePlayerLyricLine(value);
       },
+    );
+  }
+}
+
+/// Portrait Now Playing layout: classic, arc or linear.
+class PlayerStyleTile extends ConsumerWidget {
+  const PlayerStyleTile({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final settings = ref.watch(settingsProvider);
+    final l10n = AppLocalizations.of(context)!;
+    final current = settings.playerStyle.isEmpty
+        ? 'classic'
+        : settings.playerStyle;
+    final options = [
+      ('classic', l10n.playerStyleClassic),
+      ('arc', l10n.playerStyleArc),
+      ('linear', l10n.playerStyleLinear),
+    ];
+    final styleTile = ListTile(
+      leading: const Icon(LucideIcons.layoutTemplate),
+      title: Text(l10n.playerStyle, style: _tileTitleStyle()),
+      subtitle: Padding(
+        padding: const EdgeInsets.only(top: 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            PlayerStylePreview(style: current, accent: settings.accent),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final (value, label) in options)
+                  ChoiceChip(
+                    label: Text(label),
+                    selected: current == value,
+                    showCheckmark: false,
+                    selectedColor: Colors.white.withValues(alpha: 0.15),
+                    onSelected: (_) {
+                      AppHaptics.selection();
+                      ref
+                          .read(settingsProvider.notifier)
+                          .updatePlayerStyle(value);
+                    },
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+    if (current == 'classic') return styleTile;
+    // Arc / linear only: classic already follows the accent.
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        styleTile,
+        SwitchListTile(
+          secondary: const Icon(LucideIcons.palette),
+          title: Text(l10n.playerStyleAccent, style: _tileTitleStyle()),
+          subtitle: Text(
+            l10n.playerStyleAccentDesc,
+            style: _tileSubtitleStyle(),
+          ),
+          value: settings.playerStyleAccent,
+          onChanged: (value) {
+            AppHaptics.selection();
+            ref.read(settingsProvider.notifier).updatePlayerStyleAccent(value);
+          },
+        ),
+      ],
     );
   }
 }
@@ -263,7 +329,7 @@ class PlayerLyricLineTransitionTile extends ConsumerWidget {
       ('blur', l10n.lyricLineTransitionBlur),
     ];
     return ListTile(
-      leading: const Icon(LucideIcons.box, color: Colors.white70),
+      leading: const Icon(LucideIcons.box),
       title: Text(l10n.playerLyricLineTransition, style: _tileTitleStyle()),
       subtitle: Padding(
         padding: const EdgeInsets.only(top: 8),
@@ -276,7 +342,7 @@ class PlayerLyricLineTransitionTile extends ConsumerWidget {
                 label: Text(label),
                 selected: current == value,
                 showCheckmark: false,
-                selectedColor: accent.withValues(alpha: 0.25),
+                selectedColor: Colors.white.withValues(alpha: 0.15),
                 onSelected: (_) {
                   AppHaptics.selection();
                   ref
@@ -299,13 +365,12 @@ class EnablePlayerGradientTile extends ConsumerWidget {
     final settings = ref.watch(settingsProvider);
     final l10n = AppLocalizations.of(context)!;
     return SwitchListTile(
-      secondary: const Icon(LucideIcons.sparkles, color: Colors.white70),
+      secondary: const Icon(LucideIcons.sparkles),
       title: Text(l10n.enablePlayerGradient, style: _tileTitleStyle()),
       subtitle: Text(
         l10n.enablePlayerGradientDesc,
         style: _tileSubtitleStyle(),
       ),
-      activeThumbColor: settings.accent,
       value: settings.enablePlayerGradient,
       onChanged: (value) {
         ref.read(settingsProvider.notifier).updateEnablePlayerGradient(value);
@@ -322,13 +387,12 @@ class AnimatePlayerGradientTile extends ConsumerWidget {
     final settings = ref.watch(settingsProvider);
     final l10n = AppLocalizations.of(context)!;
     return SwitchListTile(
-      secondary: const Icon(LucideIcons.audioWaveform, color: Colors.white70),
+      secondary: const Icon(LucideIcons.audioWaveform),
       title: Text(l10n.animatePlayerGradient, style: _tileTitleStyle()),
       subtitle: Text(
         l10n.animatePlayerGradientDesc,
         style: _tileSubtitleStyle(),
       ),
-      activeThumbColor: settings.accent,
       value: settings.animatePlayerGradient,
       onChanged: (value) {
         ref.read(settingsProvider.notifier).updateAnimatePlayerGradient(value);
@@ -345,13 +409,12 @@ class KeepBackgroundGradientTile extends ConsumerWidget {
     final settings = ref.watch(settingsProvider);
     final l10n = AppLocalizations.of(context)!;
     return SwitchListTile(
-      secondary: const Icon(LucideIcons.layers, color: Colors.white70),
+      secondary: const Icon(LucideIcons.layers),
       title: Text(l10n.keepBackgroundGradient, style: _tileTitleStyle()),
       subtitle: Text(
         l10n.keepBackgroundGradientDesc,
         style: _tileSubtitleStyle(),
       ),
-      activeThumbColor: settings.accent,
       value: settings.keepBackgroundGradient,
       onChanged: (value) {
         ref.read(settingsProvider.notifier).updateKeepBackgroundGradient(value);
@@ -368,13 +431,12 @@ class AnimateBackgroundGradientTile extends ConsumerWidget {
     final settings = ref.watch(settingsProvider);
     final l10n = AppLocalizations.of(context)!;
     return SwitchListTile(
-      secondary: const Icon(LucideIcons.waves, color: Colors.white70),
+      secondary: const Icon(LucideIcons.waves),
       title: Text(l10n.animateBackgroundGradient, style: _tileTitleStyle()),
       subtitle: Text(
         l10n.animateBackgroundGradientDesc,
         style: _tileSubtitleStyle(),
       ),
-      activeThumbColor: settings.accent,
       value: settings.animateBackgroundGradient,
       onChanged: (value) {
         ref

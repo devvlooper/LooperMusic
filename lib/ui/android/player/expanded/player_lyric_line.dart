@@ -300,15 +300,13 @@ class _LineHandOff extends StatelessWidget {
                 offset: Offset(0, side * p * height * 0.35),
                 child: Transform.scale(
                   scale: 1 - p * 0.08,
-                  child: sigma < 0.1
-                      ? child
-                      : ImageFiltered(
-                          imageFilter: ImageFilter.blur(
-                            sigmaX: sigma,
-                            sigmaY: sigma,
-                          ),
-                          child: child,
-                        ),
+                  // enabled, not a conditional parent: swapping the
+                  // parent remounts the line and makes it flash.
+                  child: ImageFiltered(
+                    enabled: sigma >= 0.1,
+                    imageFilter: ImageFilter.blur(sigmaX: sigma, sigmaY: sigma),
+                    child: child,
+                  ),
                 ),
               ),
             );
@@ -561,26 +559,43 @@ Widget playerLyricLineShuttle(
   BuildContext fromHeroContext,
   BuildContext toHeroContext,
 ) {
-  final playerSide = flightDirection == HeroFlightDirection.push
-      ? fromHeroContext
-      : toHeroContext;
-  double heightOf(BuildContext c) {
+  final push = flightDirection == HeroFlightDirection.push;
+  final playerSide = push ? fromHeroContext : toHeroContext;
+  final lyricsSide = push ? toHeroContext : fromHeroContext;
+  Size sizeOf(BuildContext c) {
     final box = c.findRenderObject();
-    return box is RenderBox && box.hasSize ? box.size.height : 0;
+    return box is RenderBox && box.hasSize ? box.size : Size.zero;
   }
 
+  final player = playerSide.findAncestorWidgetOfExactType<PlayerLyricLine>();
+  final smallSize = sizeOf(playerSide);
   return _LyricLineFlight(
     animation: animation,
-    smallHeight: heightOf(playerSide),
+    smallHeight: smallSize.height,
+    // Same clamp as the player line's own inset.
+    smallInset: (player?.edgeInset ?? 0).clamp(0.0, smallSize.width / 4),
+    bigWidth: sizeOf(lyricsSide).width,
   );
 }
 
 class _LyricLineFlight extends ConsumerWidget {
-  const _LyricLineFlight({required this.animation, required this.smallHeight});
+  const _LyricLineFlight({
+    required this.animation,
+    required this.smallHeight,
+    required this.smallInset,
+    required this.bigWidth,
+  });
 
-  /// 0 at the player, 1 at the lyrics screen, in both directions.
+  /// 0 at the player, 1 at the lyrics screen, in both directions. Already
+  /// eased by the Hero, so the text grows in step with its box.
   final Animation<double> animation;
   final double smallHeight;
+
+  /// The player line's indent from its left / right edge.
+  final double smallInset;
+
+  /// Width the lyrics screen wraps its active line at.
+  final double bigWidth;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -596,43 +611,54 @@ class _LyricLineFlight extends ConsumerWidget {
               (PlayerLyricLine.rowHeight - PlayerLyricLine._gap) *
               PlayerLyricLine.fontSize
         : PlayerLyricLine.fontSize;
-    final small = miniLyricStyle(settings, accent, smallSize);
-    final big = miniLyricStyle(settings, accent, 30 * fontScale);
-    final bigAlign = switch (settings.lyricsAlignment) {
-      'left' => Alignment.centerLeft,
-      'right' => Alignment.centerRight,
-      _ => Alignment.center,
+    final bigSize = 30 * fontScale;
+    final big = miniLyricStyle(settings, accent, bigSize);
+    final (textAlign, x) = switch (settings.lyricsAlignment) {
+      'left' => (TextAlign.left, -1.0),
+      'right' => (TextAlign.right, 1.0),
+      _ => (TextAlign.center, 0.0),
     };
+    final top = Alignment(x, -1);
     final text = AdvancedLyricLine.isInstrumentalText(line.text)
         ? '♫'
         : line.text;
+    // Laid out once at the lyrics screen's size and width (wrapping where
+    // the real line wraps), then scaled, so it never reflows mid-flight.
+    final body = Text(text, style: big, textAlign: textAlign, softWrap: true);
     return Material(
       type: MaterialType.transparency,
-      child: AnimatedBuilder(
-        animation: animation,
-        builder: (context, _) {
-          final t = Curves.easeInOutCubic.transform(animation.value);
-          return Opacity(
-            // Hands over to the real line as the lyrics fade in under it.
-            opacity: 1 - const Interval(0.7, 1.0).transform(animation.value),
-            child: ClipRect(
-              child: OverflowBox(
-                alignment: bigAlign,
-                minWidth: 0,
-                maxWidth: double.infinity,
-                maxHeight: double.infinity,
-                child: Text(
-                  text,
-                  style: TextStyle.lerp(small, big, t)!.copyWith(
-                    fontSize: lerpDouble(small.fontSize, big.fontSize, t),
+      child: LayoutBuilder(
+        builder: (context, box) => AnimatedBuilder(
+          animation: animation,
+          child: body,
+          builder: (context, child) {
+            final t = animation.value;
+            final s = lerpDouble(smallSize / bigSize, 1, t)!;
+            // First row centred in the box: the player's row at the start,
+            // the real line's first row at the end.
+            final dy = (box.maxHeight - bigSize * 1.15 * s) / 2;
+            final dx = -x * lerpDouble(smallInset, 0, t)!;
+            return Opacity(
+              // Hands over to the real line as the lyrics fade in under it.
+              opacity: 1 - const Interval(0.7, 1.0).transform(t),
+              child: Transform.translate(
+                offset: Offset(dx, dy),
+                child: OverflowBox(
+                  alignment: top,
+                  minWidth: 0,
+                  maxWidth: bigWidth > 0 ? bigWidth : double.infinity,
+                  minHeight: 0,
+                  maxHeight: double.infinity,
+                  child: Transform.scale(
+                    scale: s,
+                    alignment: top,
+                    child: child,
                   ),
-                  maxLines: 1,
-                  softWrap: false,
                 ),
               ),
-            ),
-          );
-        },
+            );
+          },
+        ),
       ),
     );
   }

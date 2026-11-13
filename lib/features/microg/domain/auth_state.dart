@@ -1,4 +1,4 @@
-import 'package:looper_player/features/microg/data/auth_session.dart';
+import 'auth_session.dart';
 
 enum AuthStatus { signedOut, authenticating, signedIn, expired }
 

@@ -1,3 +1,6 @@
+import 'dart:math' as math;
+import 'dart:ui' show lerpDouble;
+
 import 'package:looper_player/core/motion/looper_scroll_physics.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -19,6 +22,8 @@ import 'package:looper_player/core/services/haptics/app_haptics.dart';
 import 'package:looper_player/core/services/update/apk_update_notifier.dart';
 import 'package:looper_player/ui/widgets/sheets/apk_update_sheet.dart';
 import 'package:looper_player/features/settings/presentation/widgets/lyrics_services_sheet.dart';
+import 'package:looper_player/features/settings/presentation/widgets/settings_widgets.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class LooperVersionTile extends ConsumerWidget {
   const LooperVersionTile({super.key});
@@ -31,17 +36,17 @@ class LooperVersionTile extends ConsumerWidget {
         : context.l10n.versionLabel('...');
 
     return ListTile(
-      leading: const Icon(LucideIcons.info, color: Colors.white70),
+      leading: const Icon(LucideIcons.info),
       title: Text(
         'Looper Music',
-        style: AppFonts.jostStyle(
+        style: AppFonts.settingsStyle(
           color: Colors.white,
           fontWeight: FontWeight.w500,
         ),
       ),
       subtitle: Text(
         versionStr,
-        style: AppFonts.jostStyle(color: Colors.white54, fontSize: 12),
+        style: AppFonts.settingsStyle(color: Colors.white54, fontSize: 12),
       ),
       onTap: () async {
         final Uri uri = Uri.parse(AppLinks.githubRepo);
@@ -63,10 +68,10 @@ class LyricsProviderTile extends ConsumerWidget {
     final l10n = AppLocalizations.of(context)!;
 
     return ListTile(
-      leading: const Icon(LucideIcons.music, color: Colors.white70),
+      leading: const Icon(LucideIcons.music),
       title: Text(
         l10n.lyricsServices,
-        style: AppFonts.jostStyle(
+        style: AppFonts.settingsStyle(
           color: Colors.white,
           fontWeight: FontWeight.w500,
         ),
@@ -75,7 +80,7 @@ class LyricsProviderTile extends ConsumerWidget {
         lyricsServiceChain(settings),
         maxLines: 2,
         overflow: TextOverflow.ellipsis,
-        style: AppFonts.jostStyle(color: Colors.white54, fontSize: 12),
+        style: AppFonts.settingsStyle(color: Colors.white54, fontSize: 12),
       ),
       trailing: Icon(
         LucideIcons.chevronRight,
@@ -99,17 +104,17 @@ class OpenSourceLicensesTile extends ConsumerWidget {
     final versionAsync = ref.watch(appVersionProvider);
 
     return ListTile(
-      leading: const Icon(LucideIcons.scrollText, color: Colors.white70),
+      leading: const Icon(LucideIcons.scrollText),
       title: Text(
         l10n.openSourceLicenses,
-        style: AppFonts.jostStyle(
+        style: AppFonts.settingsStyle(
           color: Colors.white,
           fontWeight: FontWeight.w500,
         ),
       ),
       subtitle: Text(
         l10n.openSourceLicensesDesc,
-        style: AppFonts.jostStyle(color: Colors.white54, fontSize: 12),
+        style: AppFonts.settingsStyle(color: Colors.white54, fontSize: 12),
       ),
       trailing: Icon(
         LucideIcons.chevronRight,
@@ -148,7 +153,7 @@ class GitHubStarTile extends StatelessWidget {
       ),
       title: Text(
         l10n.giveStarOnGithub,
-        style: AppFonts.jostStyle(
+        style: AppFonts.settingsStyle(
           color: Colors.white,
           fontSize: 15,
           fontWeight: FontWeight.w600,
@@ -156,7 +161,7 @@ class GitHubStarTile extends StatelessWidget {
       ),
       subtitle: Text(
         l10n.supportProjectLove,
-        style: AppFonts.jostStyle(
+        style: AppFonts.settingsStyle(
           color: Colors.white.withValues(alpha: 0.4),
           fontSize: 12,
         ),
@@ -180,7 +185,10 @@ class GitHubStarTile extends StatelessWidget {
 /// Manual update check for the github build (see [ApkInstaller.supported]);
 /// opens the in-app update sheet when a newer release exists.
 class CheckForUpdatesTile extends ConsumerStatefulWidget {
-  const CheckForUpdatesTile({super.key});
+  const CheckForUpdatesTile({super.key, this.card = false});
+
+  /// Render as the About screen's action card instead of a list tile.
+  final bool card;
 
   @override
   ConsumerState<CheckForUpdatesTile> createState() =>
@@ -220,7 +228,39 @@ class _CheckForUpdatesTileState extends ConsumerState<CheckForUpdatesTile> {
     final l10n = context.l10n;
     final update = ref.watch(apkUpdateProvider);
     final release = update.release;
-    final accentColor = ref.watch(settingsProvider.select((s) => s.accent));
+    const accentColor = Colors.white;
+    final busy = _checking || update.phase == ApkUpdatePhase.downloading;
+
+    if (widget.card) {
+      return AboutActionCard(
+        label: l10n.checkForUpdates,
+        onTap: _check,
+        icon: Container(
+          width: 33,
+          height: 32,
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.05),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          alignment: Alignment.center,
+          child: busy
+              ? SizedBox(
+                  width: 12,
+                  height: 12,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 1.5,
+                    color: accentColor,
+                    value: _checking ? null : update.progress,
+                  ),
+                )
+              : SvgPicture.asset(
+                  AppAssets.aboutDownload,
+                  width: 10.9412,
+                  height: 12.0007,
+                ),
+        ),
+      );
+    }
 
     return ListTile(
       leading: Container(
@@ -233,7 +273,7 @@ class _CheckForUpdatesTileState extends ConsumerState<CheckForUpdatesTile> {
       ),
       title: Text(
         l10n.checkForUpdates,
-        style: AppFonts.jostStyle(
+        style: AppFonts.settingsStyle(
           color: Colors.white,
           fontSize: 15,
           fontWeight: FontWeight.w600,
@@ -243,7 +283,7 @@ class _CheckForUpdatesTileState extends ConsumerState<CheckForUpdatesTile> {
           ? null
           : Text(
               l10n.updateAvailableOnGithub(release.tag),
-              style: AppFonts.jostStyle(
+              style: AppFonts.settingsStyle(
                 color: Colors.white.withValues(alpha: 0.4),
                 fontSize: 12,
               ),
@@ -293,7 +333,7 @@ class InfoSubTile extends StatelessWidget {
             children: [
               Text(
                 title,
-                style: AppFonts.jostStyle(
+                style: AppFonts.settingsStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
                   color: Colors.white,
@@ -302,7 +342,7 @@ class InfoSubTile extends StatelessWidget {
               const SizedBox(height: 4),
               Text(
                 description,
-                style: AppFonts.jostStyle(
+                style: AppFonts.settingsStyle(
                   fontSize: 12,
                   height: 1.5,
                   color: Colors.white.withValues(alpha: 0.5),
@@ -359,7 +399,7 @@ class MaintainersRow extends ConsumerWidget {
                 child: image == null
                     ? Text(
                         person.login.characters.first.toUpperCase(),
-                        style: AppFonts.jostStyle(color: Colors.white),
+                        style: AppFonts.settingsStyle(color: Colors.white),
                       )
                     : null,
               ),
@@ -469,11 +509,10 @@ class LyricsCreditsSection extends StatelessWidget {
         children: [
           Text(
             header.toUpperCase(),
-            style: AppFonts.jostStyle(
+            style: AppFonts.settingsStyle(
               fontSize: 12,
               fontWeight: FontWeight.bold,
               color: accentColor.withValues(alpha: 0.8),
-              letterSpacing: 1.0,
             ),
           ),
           const SizedBox(height: 8),
@@ -514,7 +553,7 @@ class LyricsCreditsSection extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               note,
-              style: AppFonts.jostStyle(
+              style: AppFonts.settingsStyle(
                 fontSize: 11,
                 height: 1.5,
                 color: Colors.white.withValues(alpha: 0.35),
@@ -539,6 +578,636 @@ class OnlineCreditsSection extends StatelessWidget {
       accentColor: accentColor,
       title: l10n.onlineCreditsTitle,
       credits: onlineCredits(l10n),
+    );
+  }
+}
+
+Future<void> _openUrl(String url) async {
+  AppHaptics.light();
+  if (url.isEmpty) return;
+  try {
+    await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+  } catch (e) {}
+}
+
+const _aboutCardFill = Color(0x0DFFFFFF);
+
+TextStyle _dmSans(double size, FontWeight weight, Color color) =>
+    AppFonts.settingsStyle(fontSize: size, fontWeight: weight, color: color);
+
+/// Top card: brand mark, app name and the installed version.
+class AboutHeroCard extends ConsumerWidget {
+  const AboutHeroCard({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final version = ref.watch(appVersionProvider).value ?? '';
+    return GestureDetector(
+      onTap: () => _openUrl(AppLinks.githubStatsRepo),
+      child: Container(
+        height: 212,
+        clipBehavior: Clip.antiAlias,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(15),
+          gradient: const LinearGradient(
+            begin: Alignment.topRight,
+            end: Alignment.bottomLeft,
+            stops: [0.128, 0.496, 0.872],
+            colors: [Color(0xFF101010), Color(0xFF181818), Color(0xFF131313)],
+          ),
+        ),
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: OverflowBox(
+                maxWidth: 754,
+                maxHeight: 335,
+                child: Transform.rotate(
+                  angle: -30.55 * math.pi / 180,
+                  child: Image.asset(
+                    AppAssets.aboutPattern,
+                    width: 753.375,
+                    height: 334.124,
+                    fit: BoxFit.cover,
+                    opacity: const AlwaysStoppedAnimation(0.03),
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              left: -8,
+              top: -19.64,
+              child: SvgPicture.asset(AppAssets.aboutCurve),
+            ),
+            Positioned(
+              left: 26,
+              top: 135,
+              child: Container(
+                width: 7,
+                height: 7,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFD9D9D9),
+                  borderRadius: BorderRadius.circular(5),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(28, 29, 28, 26),
+              child: _heroContent(version),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _heroContent(String version) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      SvgPicture.asset(AppAssets.aboutMark, width: 46, height: 33),
+      const Spacer(),
+      Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Container(
+            width: 2,
+            height: 12,
+            margin: const EdgeInsets.only(bottom: 3),
+            decoration: BoxDecoration(
+              color: const Color(0xFFC0E200),
+              borderRadius: BorderRadius.circular(0.4),
+            ),
+          ),
+          const SizedBox(width: 3),
+          Text(
+            'Looper Music',
+            style: GoogleFonts.pixelifySans(
+              fontSize: 16,
+              height: 13 / 16,
+              fontWeight: FontWeight.w700,
+              letterSpacing: -0.48,
+              color: Colors.white,
+            ),
+          ),
+          const Spacer(),
+          if (version.isNotEmpty)
+            Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(
+                    text: 'v',
+                    style: _dmSans(20, FontWeight.w700, Colors.white),
+                  ),
+                  TextSpan(
+                    text: version,
+                    style: _dmSans(40, FontWeight.w700, Colors.white),
+                  ),
+                ],
+              ),
+              style: const TextStyle(height: 1),
+            ),
+        ],
+      ),
+    ],
+  );
+}
+
+/// Small card with a dim title, divider and a body (maintainers / stars).
+class _AboutStatCard extends StatelessWidget {
+  final String title;
+  final Widget body;
+  final VoidCallback onTap;
+
+  const _AboutStatCard({
+    required this.title,
+    required this.body,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: _aboutCardFill,
+      borderRadius: BorderRadius.circular(10),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: SizedBox(
+          height: 115,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 15),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 16),
+                Text(
+                  '$title >',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: _dmSans(14, FontWeight.w500, Colors.white30),
+                ),
+                const SizedBox(height: 15),
+                const Divider(height: 1, thickness: 1, color: kSettingsDivider),
+                Expanded(child: body),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Overlapping contributor avatars from GitHub ([githubContributorsProvider]).
+class AboutMaintainersCard extends ConsumerWidget {
+  const AboutMaintainersCard({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final people = ref.watch(githubContributorsProvider).value ?? const [];
+    final shown = people.take(5).toList();
+    final title = '${context.l10n.maintainersLabel} & Contributors';
+    return Hero(
+      tag: _maintainersHeroTag,
+      flightShuttleBuilder: _dialogShuttle(10),
+      child: _AboutStatCard(
+        title: title,
+        onTap: () => _showAboutGridDialog(
+          context,
+          heroTag: _maintainersHeroTag,
+          cardRadius: 10,
+          title: title,
+          entries: [
+            for (final p in people)
+              (
+                label: p.login,
+                url: p.profileUrl,
+                icon: CircleAvatar(
+                  radius: 28,
+                  backgroundColor: Colors.white10,
+                  backgroundImage: _avatarImage(p, 144),
+                ),
+              ),
+          ],
+        ),
+        body: Align(
+          alignment: Alignment.centerLeft,
+          child: SizedBox(
+            height: 35,
+            width: shown.isEmpty ? 0 : 35 + 21.0 * (shown.length - 1),
+            child: Stack(
+              children: [
+                // Later avatars sit underneath earlier ones, as in the design.
+                for (final (i, person) in shown.indexed.toList().reversed)
+                  Positioned(
+                    left: 21.0 * i,
+                    child: Tooltip(
+                      message: person.login,
+                      child: Container(
+                        width: 35,
+                        height: 35,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.white10,
+                          border: Border.all(
+                            color: const Color(0xFF151515),
+                            width: 3,
+                          ),
+                          image: switch (_avatarImage(person, 96)) {
+                            final image? => DecorationImage(
+                              fit: BoxFit.cover,
+                              image: image,
+                            ),
+                            null => null,
+                          },
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+ImageProvider? _avatarImage(GithubContributor person, int size) =>
+    person.avatarUrl != null
+    ? CachedNetworkImageProvider('${person.avatarUrl}&s=$size')
+    : person.avatarAsset != null
+    ? AssetImage(person.avatarAsset!)
+    : null;
+
+const _maintainersHeroTag = 'about-maintainers';
+const _socialsHeroTag = 'about-socials';
+const _dialogFill = Color(0xFF151515);
+const double _dialogRadius = 20;
+
+/// Social channels shown on the Socials card and in its dialog.
+List<_GridEntry> _socials() => [
+  (
+    label: 'Discord',
+    url: AppLinks.socialDiscord,
+    icon: SvgPicture.asset(AppAssets.aboutDiscord, width: 48, height: 48),
+  ),
+  (
+    label: 'GitHub',
+    url: AppLinks.socialGithub,
+    icon: SvgPicture.asset(AppAssets.aboutGithub, width: 48, height: 48),
+  ),
+  (
+    label: 'Telegram',
+    url: AppLinks.socialTelegram,
+    icon: SvgPicture.asset(AppAssets.aboutTelegram, width: 48, height: 48),
+  ),
+];
+
+/// "Socials" row card with the overlapping Discord / GitHub / Telegram marks.
+class AboutSocialsCard extends StatelessWidget {
+  const AboutSocialsCard({super.key});
+
+  // Bordered so overlapping icons stay separated, as in the design.
+  static Widget _ringed(String asset) => Container(
+    decoration: BoxDecoration(
+      color: const Color(0xFF151515),
+      borderRadius: BorderRadius.circular(11),
+    ),
+    padding: const EdgeInsets.all(3),
+    child: SvgPicture.asset(asset, width: 32, height: 32),
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    return Hero(
+      tag: _socialsHeroTag,
+      flightShuttleBuilder: _dialogShuttle(15),
+      child: AboutActionCard(
+        label: 'Socials',
+        onTap: () => _showAboutGridDialog(
+          context,
+          heroTag: _socialsHeroTag,
+          cardRadius: 15,
+          title: 'Socials',
+          entries: _socials(),
+        ),
+        // Telegram first so GitHub, then Discord, overlap it (design order).
+        icon: SizedBox(
+          width: 82,
+          height: 38,
+          child: Stack(
+            children: [
+              Positioned(
+                left: 47,
+                top: 3,
+                child: SvgPicture.asset(
+                  AppAssets.aboutTelegram,
+                  width: 32,
+                  height: 32,
+                ),
+              ),
+              Positioned(left: 20, child: _ringed(AppAssets.aboutGithub)),
+              Positioned(left: 0, child: _ringed(AppAssets.aboutDiscord)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+typedef _GridEntry = ({String label, String url, Widget icon});
+
+/// The card grows (hero) into a centered dialog listing [entries] in a grid.
+Future<void> _showAboutGridDialog(
+  BuildContext context, {
+  required Object heroTag,
+  required double cardRadius,
+  required String title,
+  required List<_GridEntry> entries,
+}) {
+  AppHaptics.light();
+  return Navigator.of(context, rootNavigator: true).push(
+    PageRouteBuilder<void>(
+      opaque: false,
+      barrierDismissible: true,
+      barrierColor: Colors.black54,
+      barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
+      transitionDuration: const Duration(milliseconds: 420),
+      reverseTransitionDuration: const Duration(milliseconds: 340),
+      pageBuilder: (context, _, _) => _AboutGridDialog(
+        heroTag: heroTag,
+        cardRadius: cardRadius,
+        title: title,
+        entries: entries,
+      ),
+      // The dialog arrives by its hero flight; nothing else to animate.
+      transitionsBuilder: (_, _, _, child) => child,
+    ),
+  );
+}
+
+class _AboutGridDialog extends StatelessWidget {
+  final Object heroTag;
+  final double cardRadius;
+  final String title;
+  final List<_GridEntry> entries;
+
+  const _AboutGridDialog({
+    required this.heroTag,
+    required this.cardRadius,
+    required this.title,
+    required this.entries,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 40),
+          child: Hero(
+            tag: heroTag,
+            flightShuttleBuilder: _dialogShuttle(cardRadius),
+            child: Material(
+              color: _dialogFill,
+              borderRadius: BorderRadius.circular(_dialogRadius),
+              clipBehavior: Clip.antiAlias,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: _dmSans(16, FontWeight.w500, Colors.white),
+                    ),
+                    const SizedBox(height: 15),
+                    const Divider(
+                      height: 1,
+                      thickness: 1,
+                      color: kSettingsDivider,
+                    ),
+                    Flexible(
+                      child: GridView.count(
+                        shrinkWrap: true,
+                        physics: const LooperScrollPhysics(),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        crossAxisCount: 3,
+                        childAspectRatio: 0.9,
+                        children: [
+                          for (final e in entries)
+                            InkWell(
+                              borderRadius: BorderRadius.circular(12),
+                              onTap: () => _openUrl(e.url),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  e.icon,
+                                  const SizedBox(height: 10),
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 4,
+                                    ),
+                                    child: Text(
+                                      e.label,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: _dmSans(
+                                        13,
+                                        FontWeight.w500,
+                                        Colors.white70,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Container transform: the card's rounded box grows into the dialog, whose
+/// content (laid out at its final size) fades in over the second half.
+HeroFlightShuttleBuilder _dialogShuttle(double cardRadius) =>
+    (_, animation, direction, fromContext, toContext) {
+      final dialogContext = direction == HeroFlightDirection.push
+          ? toContext
+          : fromContext;
+      final size = dialogContext.size ?? Size.zero;
+      return AnimatedBuilder(
+        animation: animation,
+        builder: (_, child) => ClipRRect(
+          borderRadius: BorderRadius.circular(
+            lerpDouble(cardRadius, _dialogRadius, animation.value)!,
+          ),
+          child: ColoredBox(
+            color: _dialogFill,
+            child: Opacity(
+              opacity: const Interval(0.5, 1).transform(animation.value),
+              child: child,
+            ),
+          ),
+        ),
+        child: OverflowBox(
+          alignment: Alignment.topCenter,
+          minWidth: size.width,
+          maxWidth: size.width,
+          minHeight: size.height,
+          maxHeight: size.height,
+          child: (dialogContext.widget as Hero).child,
+        ),
+      );
+    };
+
+/// Live stargazer count of the public repo ([githubStarsProvider]).
+class AboutStarsCard extends ConsumerWidget {
+  const AboutStarsCard({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final stars = ref.watch(githubStarsProvider).value;
+    return _AboutStatCard(
+      title: 'Stars on Github',
+      onTap: () => _openUrl(AppLinks.githubStatsRepo),
+      body: Center(
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: SvgPicture.asset(
+                AppAssets.aboutStar,
+                width: 13,
+                height: 12,
+              ),
+            ),
+            const SizedBox(width: 4),
+            Text(
+              stars?.toString() ?? '—',
+              style: _dmSans(
+                40,
+                FontWeight.w700,
+                Colors.white,
+              ).copyWith(height: 1),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Full-width row card: label with a chevron and a trailing icon box.
+class AboutActionCard extends StatelessWidget {
+  final String label;
+  final Widget icon;
+  final VoidCallback onTap;
+
+  const AboutActionCard({
+    super.key,
+    required this.label,
+    required this.icon,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: _aboutCardFill,
+      borderRadius: BorderRadius.circular(15),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: SizedBox(
+          height: 66,
+          child: Padding(
+            padding: const EdgeInsets.only(left: 23, right: 15),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    '$label >',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: _dmSans(16, FontWeight.w500, Colors.white),
+                  ),
+                ),
+                icon,
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// "Licenses & Privacy": app info/privacy notes, credits and OSS licenses,
+/// which used to sit inline on the About screen.
+class AboutLicensesPrivacyCard extends StatelessWidget {
+  final List<Widget> content;
+
+  const AboutLicensesPrivacyCard({super.key, required this.content});
+
+  @override
+  Widget build(BuildContext context) {
+    return AboutActionCard(
+      label: 'Licenses & Privacy',
+      icon: SvgPicture.asset(AppAssets.aboutInfo, width: 33, height: 32),
+      onTap: () {
+        AppHaptics.light();
+        Navigator.of(context, rootNavigator: true).push(
+          MaterialPageRoute(
+            builder: (context) => Theme(
+              data: settingsTheme(Theme.of(context)),
+              child: Scaffold(
+                backgroundColor: Theme.of(context).colorScheme.surface,
+                body: SafeArea(
+                  child: Column(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(22, 12, 22, 8),
+                        child: SettingsHeader(
+                          title: 'Licenses & Privacy',
+                          onBack: () => Navigator.of(context).pop(),
+                        ),
+                      ),
+                      Expanded(
+                        child: ListView(
+                          physics: const LooperScrollPhysics(),
+                          padding: const EdgeInsets.fromLTRB(22, 4, 22, 120),
+                          children: [
+                            Material(
+                              color: kSettingsCard,
+                              borderRadius: BorderRadius.circular(15),
+                              clipBehavior: Clip.antiAlias,
+                              child: Column(children: content),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }

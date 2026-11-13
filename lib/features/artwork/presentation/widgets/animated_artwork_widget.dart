@@ -12,6 +12,20 @@ import 'package:video_player/video_player.dart';
 /// per media source (Doc 20 §5.3, fixes bugs A15-A17).
 class MotionArtworkHost {
   static final Map<String, _HostEntry> _active = {};
+  // mediaSource (as given to the widget) -> playFrom (the cached file).
+  static final Map<String, String> _alias = {};
+  /// The already-playing controller for [source], acquired synchronously, or
+  /// null when none is live yet. A widget mounted mid-transition (a Hero
+  /// landing, a flight shuttle, the Fluid Player's morph) paints the same
+  /// texture on its first frame instead of its still art.
+  static (VideoPlayerController, String)? acquireLive(String source) {
+    final String playFrom = _alias[source] ?? source;
+    final _HostEntry? entry = _active[playFrom];
+    if (entry == null || !entry.ready) return null;
+    entry.cancelDisposeTimer();
+    entry.refCount++;
+    return (entry.controller, playFrom);
+  }
 
   static Future<VideoPlayerController?> acquire(
     String playFrom, {
@@ -19,7 +33,9 @@ class MotionArtworkHost {
     required bool muted,
     required bool loop,
     required bool autoPlay,
+    String? alias,
   }) async {
+    if (alias != null) _alias[alias] = playFrom;
     _HostEntry? entry = _active[playFrom];
     if (entry != null) {
       entry.cancelDisposeTimer();
@@ -63,6 +79,7 @@ class MotionArtworkHost {
       if (muted) await controller.setVolume(0.0);
       await controller.setLooping(loop);
       if (autoPlay) await controller.play();
+      entry.ready = true;
       completer.complete();
       return controller;
     } catch (e) {
@@ -80,6 +97,7 @@ class MotionArtworkHost {
     if (entry.refCount <= 0) {
       entry.startDisposeTimer(() {
         _active.remove(playFrom);
+        _alias.removeWhere((_, v) => v == playFrom);
         entry.controller.dispose();
       });
     }
@@ -90,6 +108,7 @@ class _HostEntry {
   final VideoPlayerController controller;
   final Future<void> initFuture;
   int refCount;
+  bool ready = false;
   Timer? _disposeTimer;
 
   _HostEntry({
@@ -141,6 +160,7 @@ class _AnimatedArtworkWidgetState extends ConsumerState<AnimatedArtworkWidget>
   bool _hasFirstFrame = false;
   String? _activeSource;
   Timer? _firstFrameTimer;
+  bool _built = false;
 
   @override
   void initState() {
@@ -196,6 +216,21 @@ class _AnimatedArtworkWidgetState extends ConsumerState<AnimatedArtworkWidget>
       return;
     }
 
+    // Already playing elsewhere (the real artwork, a shuttle): show that
+    // texture from this widget's first frame, no still art and no fade.
+    final live = MotionArtworkHost.acquireLive(source);
+    if (live != null) {
+      _disposeCurrentController();
+      _controller = live.$1;
+      _activeSource = live.$2;
+      _controller!.addListener(_videoListener);
+      _isInitialized = true;
+      _hasFirstFrame = true;
+      // From initState the first build is still ahead; no setState needed.
+      if (_built) setState(() {});
+      return;
+    }
+
     var playFrom = source;
     if (source.startsWith('http')) {
       final permitted = await AnimatedArtworkService.instance
@@ -228,6 +263,7 @@ class _AnimatedArtworkWidgetState extends ConsumerState<AnimatedArtworkWidget>
         muted: widget.muted,
         loop: widget.loop,
         autoPlay: widget.autoPlay,
+        alias: source,
       );
 
       if (!mounted || _activeSource != playFrom || controller == null) {
@@ -301,6 +337,7 @@ class _AnimatedArtworkWidgetState extends ConsumerState<AnimatedArtworkWidget>
 
   @override
   Widget build(BuildContext context) {
+    _built = true;
     // Follow the music playback state (Doc 20 §5.3 Bug A15)
     ref.listen(playbackProvider.select((s) => s.isPlaying), (prev, isPlaying) {
       if (_controller == null || !_isInitialized) return;

@@ -352,7 +352,11 @@ class _TopResultCard extends ConsumerWidget {
           AppHaptics.light();
           onPlay();
           ref.read(lyricsSearchQueryProvider.notifier).clear();
-          ref.read(playbackProvider.notifier).play(song);
+          if (song.isOnline) {
+            ref.read(playbackProvider.notifier).playOnlineWithRadio(song);
+          } else {
+            ref.read(playbackProvider.notifier).play(song);
+          }
         },
         child: Padding(
           padding: const EdgeInsets.all(14),

@@ -50,7 +50,9 @@ abstract final class AudioNormalization {
     if (isShuffle) return false;
     final album = song.album?.trim();
     if (album == null || album.isEmpty) return false;
-    if (playlist.length < 2 || currentIndex < 0 || currentIndex >= playlist.length) {
+    if (playlist.length < 2 ||
+        currentIndex < 0 ||
+        currentIndex >= playlist.length) {
       return false;
     }
 

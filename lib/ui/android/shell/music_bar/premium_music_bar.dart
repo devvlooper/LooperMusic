@@ -11,7 +11,7 @@ import 'package:looper_player/features/playback/presentation/providers/playback/
 import 'package:looper_player/features/settings/presentation/providers/settings_notifier.dart';
 import 'package:looper_player/ui/android/player/expanded/android_expanded_player.dart';
 import 'package:looper_player/ui/android/player/expanded/gesture_artwork.dart';
-import 'package:looper_player/ui/android/player/expanded/player_landscape_layout.dart';
+import 'package:looper_player/ui/android/player/expanded/styled_player_layout.dart';
 import 'package:looper_player/ui/widgets/common/optimized_image.dart';
 import 'package:looper_player/core/utils/responsive.dart';
 import 'package:looper_player/core/utils/ui_utils.dart';
@@ -260,7 +260,10 @@ class _PremiumMusicBarState extends ConsumerState<PremiumMusicBar>
         motionArt != null &&
         motionArt.hasMotion &&
         (motionArt.bestTallMedia != null || motionArt.bestSquareMedia != null);
-    final showArtBackground = useBlur && song?.artPath != null;
+    // The expanded panel's background; playerDynamicBackground gives it the
+    // art without app-wide Dynamic Theming.
+    final showArtBackground =
+        (useBlur || settings.playerDynamicBackground) && song?.artPath != null;
     ref.listen<int>(playerCollapseTriggerProvider, (prev, next) {
       if (settings.enableSlideGesture) {
         _isDragging = false;
@@ -500,17 +503,21 @@ class _PremiumMusicBarState extends ConsumerState<PremiumMusicBar>
     // has fully expanded at least once) so the handoff at p > 0.99 lands
     // exactly where the real widget renders; before it's ever been measured
     // (the very first expand after launch), an approximation. In landscape
-    // the rect is a pure function of the window (PlayerLandscapeMetrics) -
+    // the rect is a pure function of the window (styledLandscapeArtRect) -
     // the measurement is only ever taken in portrait and would be stale
     // after a rotation.
     final bool isLandscape = Responsive.isLandscape(windowSize);
     final bool isCompact = Responsive.isShort(windowSize);
+    final PlayerLayoutStyle layoutStyle = PlayerLayoutStyle.fromSetting(
+      ref.watch(settingsProvider.select((s) => s.playerStyle)),
+    );
     final Rect expandedSlotRect = () {
       final Rect? measured = isLandscape
-          ? PlayerLandscapeMetrics.of(
+          ? styledLandscapeArtRect(
               windowSize,
               MediaQuery.paddingOf(context),
-            ).artRect
+              layoutStyle,
+            )
           : ref.watch(playerArtworkRectProvider);
       if (measured != null) {
         final double squareSize = math.min(measured.width, measured.height);
@@ -535,10 +542,24 @@ class _PremiumMusicBarState extends ConsumerState<PremiumMusicBar>
       );
     }();
     // The real artwork sits inset in that square slot while paused; land on
-    // the art itself, or the handoff jumps by the inset.
-    final Rect expandedArtRect = expandedSlotRect.deflate(
-      GestureArtworkWithFeedback.inset(isPlaying: isPlaying),
-    );
+    // the art itself, or the handoff jumps by the inset. In immersive mode,
+    // the artwork fills the top with no inset. The styled layouts (every
+    // landscape one, arc / linear in portrait) behave the same: their art is
+    // always drawn, never inset, so a flying copy only doubled it.
+    final bool styledArt =
+        isLandscape || layoutStyle != PlayerLayoutStyle.classic;
+    final bool isImmersive =
+        styledArt ||
+        ref.watch(
+          animatedArtworkSettingsProvider.select(
+            (s) => s.immersiveBackground && s.mode != AnimatedArtworkMode.never,
+          ),
+        );
+    final Rect expandedArtRect = isImmersive
+        ? expandedSlotRect
+        : expandedSlotRect.deflate(
+            GestureArtworkWithFeedback.inset(isPlaying: isPlaying),
+          );
 
     // Laid out once at the expanded size; the morph only scales it (a
     // Transform), so no per-frame relayout. Decoded at exactly the width
@@ -559,6 +580,26 @@ class _PremiumMusicBarState extends ConsumerState<PremiumMusicBar>
         fit: BoxFit.cover,
         cacheWidth: (decodeWidth * dpr).toInt(),
       );
+      // The song's motion art, the same texture the real artwork plays, so
+      // the handoff swaps like for like instead of cutting still -> video.
+      // The styled layouts' art is a still image.
+      final String? morphMotion = styledArt
+          ? null
+          : isImmersive
+          ? (motionArt?.hasMotion == true
+                ? motionArt!.bestTallMedia ?? motionArt.bestSquareMedia
+                : null)
+          : (motionSettings.animateAlbumCover &&
+                    motionSettings.mode != AnimatedArtworkMode.never
+                ? motionArt?.bestSquareMedia
+                : null);
+      if (morphMotion != null) {
+        morphImage = AnimatedArtworkWidget(
+          mediaSource: morphMotion,
+          staticFallback: morphImage,
+          fit: BoxFit.cover,
+        );
+      }
       morphPlayingIcon = SongPlaybackIndicator(isPlaying: isPlaying);
     }
 
@@ -788,8 +829,75 @@ class _PremiumMusicBarState extends ConsumerState<PremiumMusicBar>
                                 ),
 
                                 // 5. Morphing album art (flying/scaling between layouts).
-                                if (morphImage != null && p < 1.0)
+                                if (morphImage != null && p < kFluidHandoff)
                                   () {
+                                    if (isImmersive) {
+                                      // In immersive mode, the artwork fills the top
+                                      // of the expanded player (ImmersiveHeroArt) without
+                                      // a morphing rounded rectangle or drop shadow.
+                                      // The mini-bar thumbnail simply fades out with
+                                      // the mini-bar content (p < 0.34) riding the panel.
+                                      if (p >= 0.34) {
+                                        return const SizedBox.shrink();
+                                      }
+                                      final double miniFade = (1.0 - p * 3.0)
+                                          .clamp(0.0, 1.0);
+                                      final double miniSize = isCompact
+                                          ? 40.0
+                                          : 50.0;
+                                      final double miniTop = isCompact
+                                          ? 8.0
+                                          : 11.0;
+                                      final Offset origin = geometry.miniOrigin(
+                                        p,
+                                        stretch: stretch,
+                                      );
+                                      return Positioned(
+                                        key: const ValueKey('fluid_morph_art'),
+                                        left: origin.dx + 12.0,
+                                        top: origin.dy + miniTop,
+                                        width: miniSize,
+                                        height: miniSize,
+                                        child: IgnorePointer(
+                                          child: Opacity(
+                                            opacity: miniFade,
+                                            child: ClipRRect(
+                                              borderRadius:
+                                                  BorderRadius.circular(
+                                                    isCompact ? 26.0 : 32.0,
+                                                  ),
+                                              child: Stack(
+                                                fit: StackFit.expand,
+                                                children: [
+                                                  morphImage!,
+                                                  if (morphPlayingIcon !=
+                                                          null &&
+                                                      p < 0.25)
+                                                    Positioned.fill(
+                                                      child: Opacity(
+                                                        opacity: (1.0 - p * 4.0)
+                                                            .clamp(0.0, 1.0),
+                                                        child: ColoredBox(
+                                                          color: Colors.black
+                                                              .withValues(
+                                                                alpha:
+                                                                    SongPlaybackOverlay
+                                                                        .dimAlpha,
+                                                              ),
+                                                          child: Center(
+                                                            child:
+                                                                morphPlayingIcon,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      );
+                                    }
                                     final Rect art = geometry.morphArtRect(
                                       p,
                                       expandedArtRect,
@@ -806,10 +914,6 @@ class _PremiumMusicBarState extends ConsumerState<PremiumMusicBar>
                                     final double shadowT = ((p - 0.6) / 0.39)
                                         .clamp(0.0, 1.0)
                                         .toDouble();
-                                    // Smooth cross-fade near the open end (p >= 0.90 to 1.00)
-                                    final double morphOpacity = p < 0.90
-                                        ? 1.0
-                                        : ((1.0 - p) / 0.10).clamp(0.0, 1.0);
                                     return Positioned(
                                       key: const ValueKey('fluid_morph_art'),
                                       left: 0,
@@ -817,89 +921,86 @@ class _PremiumMusicBarState extends ConsumerState<PremiumMusicBar>
                                       width: artDimension,
                                       height: artDimension,
                                       child: IgnorePointer(
-                                        child: Opacity(
-                                          opacity: morphOpacity,
-                                          child: Transform(
-                                            transform:
-                                                Matrix4.translationValues(
-                                                  art.left,
-                                                  art.top,
-                                                  0,
-                                                )..scaleByDouble(
-                                                  scale,
-                                                  scale,
-                                                  1.0,
-                                                  1.0,
-                                                ),
-                                            child: DecoratedBox(
-                                              decoration: BoxDecoration(
-                                                borderRadius: BorderRadius.circular(
-                                                  FluidPlayerGeometry.morphArtRadius(
-                                                        p,
-                                                        compact: isCompact,
-                                                      ) /
-                                                      scale,
-                                                ),
-                                                boxShadow: shadowT > 0
-                                                    ? [
-                                                        BoxShadow(
+                                        child: Transform(
+                                          transform:
+                                              Matrix4.translationValues(
+                                                art.left,
+                                                art.top,
+                                                0,
+                                              )..scaleByDouble(
+                                                scale,
+                                                scale,
+                                                1.0,
+                                                1.0,
+                                              ),
+                                          child: DecoratedBox(
+                                            decoration: BoxDecoration(
+                                              borderRadius: BorderRadius.circular(
+                                                FluidPlayerGeometry.morphArtRadius(
+                                                      p,
+                                                      compact: isCompact,
+                                                    ) /
+                                                    scale,
+                                              ),
+                                              boxShadow: shadowT > 0
+                                                  ? [
+                                                      BoxShadow(
+                                                        color: Colors.black
+                                                            .withValues(
+                                                              alpha:
+                                                                  0.4 * shadowT,
+                                                            ),
+                                                        blurRadius: 16 / scale,
+                                                        spreadRadius:
+                                                            -6 / scale,
+                                                        offset: Offset(
+                                                          0,
+                                                          10 / scale,
+                                                        ),
+                                                      ),
+                                                    ]
+                                                  : null,
+                                            ),
+                                            child: ClipRRect(
+                                              // Radius is in the unscaled box, so divide
+                                              // by the scale to get the on-screen radius.
+                                              borderRadius: BorderRadius.circular(
+                                                FluidPlayerGeometry.morphArtRadius(
+                                                      p,
+                                                      compact: isCompact,
+                                                    ) /
+                                                    scale,
+                                              ),
+                                              child: Stack(
+                                                fit: StackFit.expand,
+                                                children: [
+                                                  morphImage!,
+                                                  if (morphPlayingIcon !=
+                                                          null &&
+                                                      p < 0.25)
+                                                    Positioned.fill(
+                                                      child: Opacity(
+                                                        opacity: (1.0 - p * 4.0)
+                                                            .clamp(0.0, 1.0),
+                                                        child: ColoredBox(
                                                           color: Colors.black
                                                               .withValues(
                                                                 alpha:
-                                                                    0.4 * shadowT,
+                                                                    SongPlaybackOverlay
+                                                                        .dimAlpha,
                                                               ),
-                                                          blurRadius: 16 / scale,
-                                                          spreadRadius:
-                                                              -6 / scale,
-                                                          offset: Offset(
-                                                            0,
-                                                            10 / scale,
-                                                          ),
-                                                        ),
-                                                      ]
-                                                    : null,
-                                              ),
-                                              child: ClipRRect(
-                                                // Radius is in the unscaled box, so divide
-                                                // by the scale to get the on-screen radius.
-                                                borderRadius: BorderRadius.circular(
-                                                  FluidPlayerGeometry.morphArtRadius(
-                                                        p,
-                                                        compact: isCompact,
-                                                      ) /
-                                                      scale,
-                                                ),
-                                                child: Stack(
-                                                  fit: StackFit.expand,
-                                                  children: [
-                                                    morphImage!,
-                                                    if (morphPlayingIcon !=
-                                                            null &&
-                                                        p < 0.25)
-                                                      Positioned.fill(
-                                                        child: Opacity(
-                                                          opacity: (1.0 - p * 4.0)
-                                                              .clamp(0.0, 1.0),
-                                                          child: ColoredBox(
-                                                            color: Colors.black
-                                                                .withValues(
-                                                                  alpha:
-                                                                      SongPlaybackOverlay
-                                                                          .dimAlpha,
-                                                                ),
-                                                            child: Center(
-                                                              child: Transform.scale(
-                                                                scale:
-                                                                    1.0 / scale,
-                                                                child:
-                                                                    morphPlayingIcon,
-                                                              ),
+                                                          child: Center(
+                                                            child: Transform.scale(
+                                                              scale:
+                                                                  1.0 / scale,
+                                                              child:
+                                                                  morphPlayingIcon,
                                                             ),
                                                           ),
                                                         ),
                                                       ),
-                                                  ],
-                                                ),
+                                                    ),
+                                                ],
                                               ),
                                             ),
                                           ),

@@ -2,11 +2,13 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:looper_player/features/microg/data/account_auth.dart';
-import 'package:looper_player/features/microg/data/auth_session.dart';
+import 'package:looper_player/features/microg/domain/auth_session.dart';
 import 'package:looper_player/features/microg/data/microg_platform.dart';
 import 'package:looper_player/features/microg/domain/auth_state.dart';
 import 'package:looper_player/features/online/data/account_data_sync.dart';
 import 'package:looper_player/features/online/data/online_api.dart';
+import 'package:looper_player/features/online/data/taste_profile_store.dart';
+import 'package:looper_player/features/online/data/taste_store.dart';
 import 'package:looper_player/features/online/presentation/online_providers.dart';
 
 /// Mirrors [AccountAuth] for the UI and runs the sign-in flows.
@@ -17,17 +19,26 @@ class AuthNotifier extends Notifier<AuthState> {
     void listener() {
       state = source.value;
       if (source.value.status == AuthStatus.signedIn) {
-        unawaited(AccountDataSync.sync(ref));
+        unawaited(_syncAccountData());
       }
     }
     source.addListener(listener);
     ref.onDispose(() => source.removeListener(listener));
     unawaited(AccountAuth.instance.restore().then((_) {
       if (AccountAuth.instance.signedIn) {
-        unawaited(AccountDataSync.sync(ref));
+        unawaited(_syncAccountData());
       }
     }));
     return source.value;
+  }
+
+  Future<void> _syncAccountData({bool force = false}) async {
+    final artists = await AccountDataSync.sync(force: force);
+    ref.read(accountDataRevisionProvider.notifier).bump();
+    if (artists.isNotEmpty) {
+      await ref.read(tasteProvider.notifier).mergeAccountTaste(artists: artists);
+      TasteProfileStore.invalidate();
+    }
   }
 
   /// Engine A: pick a GmsCore account and get a one-time web sign-in link
@@ -62,7 +73,7 @@ class AuthNotifier extends Notifier<AuthState> {
         return;
       }
       await auth.commit(session.withName(name.isEmpty ? null : name));
-      await AccountDataSync.sync(ref, force: true);
+      await _syncAccountData(force: true);
     } catch (e) {
       await auth.abort('$e');
       return;

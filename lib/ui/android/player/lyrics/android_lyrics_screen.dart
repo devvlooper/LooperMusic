@@ -107,6 +107,12 @@ class _AndroidLyricsScreenState extends ConsumerState<AndroidLyricsScreen>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    // Landscape: both system bars hidden (follows rotation, since this
+    // depends on the orientation).
+    SystemNavigationBar.setFullscreen(
+      this,
+      MediaQuery.orientationOf(context) == Orientation.landscape,
+    );
     final route = ModalRoute.of(context);
     if (route != null && route.animation != _routeAnimation) {
       _routeAnimation?.removeStatusListener(_onRouteAnimationStatusChanged);
@@ -134,7 +140,8 @@ class _AndroidLyricsScreenState extends ConsumerState<AndroidLyricsScreen>
   /// lands before the fade-out instead of in the middle of it.
   void _close() {
     if (_closePending || !mounted) return;
-    if (!_navBarHidden) {
+    // Fullscreen keeps the bars hidden either way: no inset change to wait for.
+    if (!_navBarHidden || SystemNavigationBar.isFullscreen) {
       Navigator.of(context).pop();
       return;
     }
@@ -167,6 +174,7 @@ class _AndroidLyricsScreenState extends ConsumerState<AndroidLyricsScreen>
     _hideTimer?.cancel();
     _closeFallbackTimer?.cancel();
     SystemNavigationBar.setHidden(false);
+    SystemNavigationBar.setFullscreen(this, false);
     _routeAnimation?.removeStatusListener(_onRouteAnimationStatusChanged);
     _disableWakelock();
     _prevTapPulse.dispose();
@@ -764,7 +772,9 @@ class _AndroidLyricsScreenState extends ConsumerState<AndroidLyricsScreen>
                                     playbackProvider.select((s) => s.buffer),
                                   );
                                   final isStreaming = ref.watch(
-                                    playbackProvider.select((s) => s.isStreaming),
+                                    playbackProvider.select(
+                                      (s) => s.isStreaming,
+                                    ),
                                   );
                                   return Hero(
                                     tag: 'player_seek_bar',

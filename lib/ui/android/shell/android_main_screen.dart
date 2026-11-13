@@ -13,6 +13,7 @@ import 'package:looper_player/core/providers/navigation_provider.dart';
 import 'package:looper_player/core/utils/responsive.dart';
 import 'package:looper_player/features/settings/presentation/providers/settings_notifier.dart';
 import 'package:looper_player/features/settings/presentation/screens/settings_view/settings_view.dart';
+import 'package:looper_player/features/settings/presentation/screens/account_view.dart';
 import 'package:looper_player/l10n/app_localizations.dart';
 import 'package:looper_player/ui/android/shell/music_bar/premium_music_bar.dart';
 import 'package:looper_player/ui/android/shell/music_bar/fluid_player_motion.dart';
@@ -22,7 +23,7 @@ import 'package:looper_player/features/playlists/presentation/screens/playlist_v
 import 'package:looper_player/ui/android/tabs/library/categories/library_categories_views.dart';
 
 import '../tabs/home/android_home_tab.dart';
-import '../tabs/home/home_order.dart' show homeReorderCancel;
+import 'package:looper_player/features/settings/domain/home_order.dart' show homeReorderCancel;
 import '../tabs/search/android_search_tab.dart';
 import '../tabs/library/android_library_tab.dart';
 import '../tabs/songs/android_songs_tab.dart';
@@ -379,6 +380,8 @@ class _AndroidMainScreenState extends ConsumerState<AndroidMainScreen>
         navigatorKey.currentState?.push(
           _createPremiumRoute(const AndroidSearchTab()),
         );
+      } else if (isForward && next.activeItem == NavItem.account) {
+        navigatorKey.currentState?.push(_createPremiumRoute(const AccountView()));
       } else if (isForward && next.activeItem == NavItem.settings) {
         navigatorKey.currentState?.push(
           _createPremiumRoute(const SettingsView()),

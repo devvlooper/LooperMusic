@@ -7,7 +7,7 @@ import 'package:mpv_audio_kit/mpv_audio_kit.dart';
 import 'dart:math' as math;
 import '../../utils/logger_helper.dart';
 import 'package:looper_player/core/utils/l10n.dart';
-import 'package:looper_player/features/playback/presentation/providers/playback/transition_director.dart';
+import 'transition_director.dart';
 part 'audio_dsp.dart';
 part 'player_setup.dart';
 
@@ -129,10 +129,15 @@ class AudioService {
   late final Future<void> ready;
 
   AudioService() {
-    LoggerHelper.write('AudioService: Constructing dual Players for Crossmix...');
+    LoggerHelper.write(
+      'AudioService: Constructing dual Players for Crossmix...',
+    );
     _playerA = Player();
     _playerB = Player();
-    transitionDirector = TransitionDirector(playerA: _playerA, playerB: _playerB);
+    transitionDirector = TransitionDirector(
+      playerA: _playerA,
+      playerB: _playerB,
+    );
     ready = _initPlayer();
 
     // ── EQ deferred-apply on FILE_LOADED ────────────────────────────────────────

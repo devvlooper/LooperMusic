@@ -10,7 +10,7 @@ import 'package:looper_player/features/settings/presentation/providers/settings_
 import 'package:looper_player/l10n/app_localizations.dart';
 import 'package:looper_player/features/online/presentation/online_providers.dart'
     show onlineActiveProvider;
-import 'package:looper_player/ui/android/tabs/home/home_order.dart';
+import 'package:looper_player/features/settings/domain/home_order.dart';
 import 'package:looper_player/ui/widgets/sheets/app_bottom_sheet.dart';
 import 'package:looper_player/core/services/haptics/app_haptics.dart';
 
@@ -40,7 +40,7 @@ void showCustomColorPicker(
                   children: [
                     Text(
                       l10n.customAccentColor,
-                      style: AppFonts.jostStyle(
+                      style: AppFonts.settingsStyle(
                         color: Colors.white,
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -83,7 +83,7 @@ void showCustomColorPicker(
                       },
                       child: Text(
                         l10n.done,
-                        style: AppFonts.jostStyle(
+                        style: AppFonts.settingsStyle(
                           color: Color(currentAccent),
                           fontWeight: FontWeight.bold,
                           fontSize: 15,
@@ -134,7 +134,7 @@ void showReorderBottomSheet(
               children: [
                 Text(
                   l10n.reorderDashboardSections,
-                  style: AppFonts.jostStyle(
+                  style: AppFonts.settingsStyle(
                     color: Colors.white,
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -143,7 +143,7 @@ void showReorderBottomSheet(
                 const SizedBox(height: 6),
                 Text(
                   l10n.reorderDashboardSectionsDesc,
-                  style: AppFonts.jostStyle(
+                  style: AppFonts.settingsStyle(
                     color: Colors.white54,
                     fontSize: 13,
                   ),
@@ -151,7 +151,7 @@ void showReorderBottomSheet(
                 const SizedBox(height: 4),
                 Text(
                   l10n.reorderHomeHint,
-                  style: AppFonts.jostStyle(
+                  style: AppFonts.settingsStyle(
                     color: Colors.white38,
                     fontSize: 12,
                   ),
@@ -217,7 +217,7 @@ void showReorderBottomSheet(
                           ),
                           title: Text(
                             title,
-                            style: AppFonts.jostStyle(
+                            style: AppFonts.settingsStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.w600,
                               fontSize: 14,
@@ -225,7 +225,7 @@ void showReorderBottomSheet(
                           ),
                           subtitle: Text(
                             desc,
-                            style: AppFonts.jostStyle(
+                            style: AppFonts.settingsStyle(
                               color: Colors.white38,
                               fontSize: 12,
                             ),
@@ -260,7 +260,7 @@ void showReorderBottomSheet(
                     },
                     child: Text(
                       l10n.done,
-                      style: AppFonts.jostStyle(
+                      style: AppFonts.settingsStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
                         fontSize: 15,
@@ -285,18 +285,18 @@ void showClearDialog(BuildContext context, AppLocalizations l10n) {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       title: Text(
         l10n.resetLibrary,
-        style: AppFonts.jostStyle(color: Colors.white),
+        style: AppFonts.settingsStyle(color: Colors.white),
       ),
       content: Text(
         l10n.resetLibraryConfirmNew,
-        style: AppFonts.jostStyle(color: Colors.white70),
+        style: AppFonts.settingsStyle(color: Colors.white70),
       ),
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
           child: Text(
             l10n.cancel,
-            style: AppFonts.jostStyle(color: Colors.white38),
+            style: AppFonts.settingsStyle(color: Colors.white38),
           ),
         ),
         TextButton(
@@ -312,7 +312,7 @@ void showClearDialog(BuildContext context, AppLocalizations l10n) {
           },
           child: Text(
             l10n.clear,
-            style: AppFonts.jostStyle(color: Colors.redAccent),
+            style: AppFonts.settingsStyle(color: Colors.redAccent),
           ),
         ),
       ],

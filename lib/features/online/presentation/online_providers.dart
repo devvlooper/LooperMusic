@@ -154,18 +154,18 @@ class OnlineHomeNotifier extends Notifier<OnlineHomeState> {
         }
       }
     });
+    final syncCached = _parseCached(LocalJsonStore.readSync(_cacheKey));
     unawaited(_boot());
-    return const OnlineHomeState(loading: true);
+    return syncCached ?? const OnlineHomeState(loading: true);
   }
 
-  Future<void> _boot() async {
-    final raw = await LocalJsonStore.read(_cacheKey);
-    if (raw is List && state.shelves.isEmpty) {
+  OnlineHomeState? _parseCached(dynamic raw) {
+    if (raw is List) {
       final cached = [for (final s in raw) ?OnlineShelf.fromJson(s)];
       if (cached.isNotEmpty) {
-        state = OnlineHomeState(shelves: cached, loading: true);
+        return OnlineHomeState(shelves: cached, loading: true);
       }
-    } else if (raw is Map && state.shelves.isEmpty) {
+    } else if (raw is Map) {
       final cachedShelves = [
         for (final s in (raw['shelves'] as List? ?? const []))
           if (s is Map) ?OnlineShelf.fromJson(s),
@@ -181,12 +181,23 @@ class OnlineHomeNotifier extends Notifier<OnlineHomeState> {
       if (cachedShelves.isNotEmpty ||
           cachedForYou.isNotEmpty ||
           cachedMoods.isNotEmpty) {
-        state = OnlineHomeState(
+        return OnlineHomeState(
           shelves: cachedShelves,
           forYou: cachedForYou,
           moods: cachedMoods,
           loading: true,
         );
+      }
+    }
+    return null;
+  }
+
+  Future<void> _boot() async {
+    if (state.shelves.isEmpty) {
+      final raw = await LocalJsonStore.read(_cacheKey);
+      final cached = _parseCached(raw);
+      if (cached != null) {
+        state = cached;
       }
     }
     await load();
@@ -298,16 +309,26 @@ class OnlineHomeNotifier extends Notifier<OnlineHomeState> {
         return;
       }
       _loadedAt = DateTime.now();
+      // Keep visible Quick Picks stable during background refresh: if we
+      // already have items showing, don't swap them out under the user's
+      // fingers. Explicit pull-to-refresh (force: true) still applies right away.
+      final effectiveForYou = (!force && state.forYou.isNotEmpty)
+          ? state.forYou
+          : (forYouSongs.isNotEmpty ? forYouSongs : state.forYou);
+
       state = OnlineHomeState(
         shelves: shelves,
-        forYou: forYouSongs,
+        forYou: effectiveForYou,
         moods: nextMoods,
         activeMood: mood,
         loading: false,
       );
       await LocalJsonStore.write(_cacheKey, {
         'shelves': [for (final s in shelves) s.toJson()],
-        'forYou': [for (final s in forYouSongs) s.toJson()],
+        'forYou': [
+          for (final s in (forYouSongs.isNotEmpty ? forYouSongs : effectiveForYou))
+            s.toJson(),
+        ],
         'moods': [for (final m in nextMoods) m.toJson()],
       });
     } catch (e) {
@@ -508,7 +529,7 @@ final onlineArtistsForYouProvider = FutureProvider<List<OnlineArtistForYou>>((
   if (!ref.watch(onlineActiveProvider)) return const [];
   final taste = ref.watch(tasteProvider);
   const cacheKey = 'online_artists_for_you_v1';
-  final raw = await LocalJsonStore.read(cacheKey);
+  final raw = LocalJsonStore.readSync(cacheKey) ?? await LocalJsonStore.read(cacheKey);
   if (raw is Map) {
     final savedAt = raw['savedAt'] as int? ?? 0;
     if (DateTime.now().millisecondsSinceEpoch - savedAt < 7 * 86400 * 1000) {
@@ -662,10 +683,24 @@ final isOnlineConnectedProvider = Provider<bool>((ref) {
   return active && auth.status == AuthStatus.signedIn;
 });
 
+/// Revision counter bumped whenever account data sync writes new cache entries.
+class AccountDataRevisionNotifier extends Notifier<int> {
+  @override
+  int build() => 0;
+
+  void bump() => state++;
+}
+
+final accountDataRevisionProvider =
+    NotifierProvider<AccountDataRevisionNotifier, int>(
+      AccountDataRevisionNotifier.new,
+    );
+
 final onlineAccountPlaylistsProvider = FutureProvider<List<OnlineCollection>>((
   ref,
 ) async {
   if (!ref.watch(isOnlineConnectedProvider)) return const [];
+  ref.watch(accountDataRevisionProvider);
   return AccountDataSync.getAccountPlaylists();
 });
 
@@ -673,6 +708,7 @@ final onlineAccountArtistsProvider = FutureProvider<List<OnlineCollection>>((
   ref,
 ) async {
   if (!ref.watch(isOnlineConnectedProvider)) return const [];
+  ref.watch(accountDataRevisionProvider);
   return AccountDataSync.getAccountArtists();
 });
 
@@ -680,6 +716,7 @@ final onlineAccountAlbumsProvider = FutureProvider<List<OnlineCollection>>((
   ref,
 ) async {
   if (!ref.watch(isOnlineConnectedProvider)) return const [];
+  ref.watch(accountDataRevisionProvider);
   return AccountDataSync.getAccountAlbums();
 });
 
@@ -687,6 +724,7 @@ final onlineAccountFavoritesProvider = FutureProvider<List<OnlineSong>>((
   ref,
 ) async {
   if (!ref.watch(isOnlineConnectedProvider)) return const [];
+  ref.watch(accountDataRevisionProvider);
   return AccountDataSync.getAccountFavorites();
 });
 
@@ -694,5 +732,6 @@ final onlineAccountHistoryProvider = FutureProvider<List<OnlineSong>>((
   ref,
 ) async {
   if (!ref.watch(isOnlineConnectedProvider)) return const [];
+  ref.watch(accountDataRevisionProvider);
   return AccountDataSync.getAccountHistory();
 });

@@ -251,14 +251,7 @@ class _InteractiveGraphPainter extends CustomPainter {
         final x2 = getMappedX(i + 1);
         final y2 = getMappedY(values[i + 1]);
         final stepX = x2 - x1;
-        p.cubicTo(
-          x1 + stepX / 2,
-          y1,
-          x2 - stepX / 2,
-          y2,
-          x2,
-          y2,
-        );
+        p.cubicTo(x1 + stepX / 2, y1, x2 - stepX / 2, y2, x2, y2);
       }
       return p;
     }

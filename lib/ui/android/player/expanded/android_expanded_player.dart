@@ -26,7 +26,6 @@ import 'package:looper_player/ui/android/widgets/queue_bottom_sheet.dart';
 import 'package:looper_player/ui/widgets/player/premium_progress_bar.dart';
 import '../../widgets/premium_section.dart';
 import '../lyrics/android_lyrics_screen.dart';
-import 'player_landscape_layout.dart';
 import 'player_lyric_line.dart';
 import 'player_portrait_metrics.dart';
 import 'segmented_utility_row.dart';
@@ -43,7 +42,9 @@ import 'position_reporter.dart';
 import 'gesture_artwork.dart';
 import 'player_backgrounds.dart';
 import 'sleep_timer_clock.dart';
+import 'styled_player_layout.dart';
 import 'favorite_button.dart';
+import 'player_style_picker.dart';
 import 'package:looper_player/features/artwork/data/animated_artwork_service.dart';
 import 'package:looper_player/features/artwork/domain/animated_artwork_models.dart';
 import 'package:looper_player/core/utils/l10n.dart';
@@ -68,7 +69,10 @@ Future<AudioAnalysis?> currentSongAnalysis(Ref ref) async {
 }
 
 class AndroidExpandedPlayer extends ConsumerStatefulWidget {
-  const AndroidExpandedPlayer({super.key});
+  /// Set by the style picker: draw this style as a static, non-routed
+  /// preview (no Fluid Player shell, no back handling).
+  final PlayerLayoutStyle? previewStyle;
+  const AndroidExpandedPlayer({super.key, this.previewStyle});
 
   @override
   ConsumerState<AndroidExpandedPlayer> createState() =>
@@ -177,7 +181,12 @@ class _AndroidExpandedPlayerState extends ConsumerState<AndroidExpandedPlayer>
   void _showMoreOptionsBottomSheet(BuildContext context, WidgetRef ref) {
     final currentSong = ref.read(playbackProvider).currentSong;
     if (currentSong != null) {
-      showSongOptionsBottomSheet(context: context, ref: ref, song: currentSong);
+      showSongOptionsBottomSheet(
+        context: context,
+        ref: ref,
+        song: currentSong,
+        styled: true,
+      );
     }
   }
 
@@ -213,8 +222,13 @@ class _AndroidExpandedPlayerState extends ConsumerState<AndroidExpandedPlayer>
               QualityInfo.fromPath(song.path);
 
     final settings = ref.watch(settingsProvider);
-    final useBlur = settings.enableDynamicTheming;
-    final enableSlide = settings.enableSlideGesture;
+    final useBlur =
+        settings.enableDynamicTheming || settings.playerDynamicBackground;
+    final enableSlide =
+        widget.previewStyle == null && settings.enableSlideGesture;
+    final layoutStyle =
+        widget.previewStyle ??
+        PlayerLayoutStyle.fromSetting(settings.playerStyle);
     final musicDarkness = settings.musicDarkness.isNaN
         ? 0.62
         : settings.musicDarkness;
@@ -226,16 +240,14 @@ class _AndroidExpandedPlayerState extends ConsumerState<AndroidExpandedPlayer>
         motionSettings.mode != AnimatedArtworkMode.never;
     final showArtBackground = useBlur && song.artPath != null;
 
-    // In landscape the player is two panes (see PlayerLandscapeLayout); portrait
-    // keeps the original single column.
+    // Landscape uses the styled Figma layout for every player style
+    // (StyledLandscapeLayout); portrait keeps the original single column.
     final Size screenSize = MediaQuery.sizeOf(context);
-    final PlayerLandscapeMetrics? landscape = Responsive.isLandscape(screenSize)
-        ? PlayerLandscapeMetrics.of(screenSize, MediaQuery.paddingOf(context))
-        : null;
+    final bool landscape = Responsive.isLandscape(screenSize);
     // Portrait only: at a low display density the top bar and controls are
     // drawn enlarged (scale 1 at the default density; see
     // PlayerPortraitMetrics), and the column is capped on wide windows.
-    final PlayerPortraitMetrics? portrait = landscape == null
+    final PlayerPortraitMetrics? portrait = !landscape
         ? PlayerPortraitMetrics.of(
             screenSize,
             uiScale: UiScaleSteps.normalize(settings.desktopUiScale),
@@ -277,9 +289,7 @@ class _AndroidExpandedPlayerState extends ConsumerState<AndroidExpandedPlayer>
       );
     }
 
-    // The sections below are shared by the portrait column and the landscape
-    // two-pane layout (PlayerLandscapeLayout); only their padding and the
-    // transport button height differ between the two.
+    // The sections below build the classic portrait column.
 
     // Fluid Player entrance of one section: fades in and rises a short way
     // into place over its own slice of the expand progress (see
@@ -1168,9 +1178,11 @@ class _AndroidExpandedPlayerState extends ConsumerState<AndroidExpandedPlayer>
       onPositionChanged: (rect) {
         ref.read(playerArtworkRectProvider.notifier).set(rect);
       },
-      child: GestureArtworkWithFeedback(
-        song: song,
-        onTap: () => _showLyrics(context),
+      child: HoldForPlayerStyles(
+        child: GestureArtworkWithFeedback(
+          song: song,
+          onTap: () => _showLyrics(context),
+        ),
       ),
     );
 
@@ -1182,10 +1194,21 @@ class _AndroidExpandedPlayerState extends ConsumerState<AndroidExpandedPlayer>
         PositionReporter(
           ancestorKey: _playerRootKey,
           onPositionChanged: (rect) {
-            // Constrain to a square viewport based on width so morphing art stays 1:1.
-            ref.read(playerArtworkRectProvider.notifier).set(
-              Rect.fromLTWH(rect.left, rect.top, rect.width, rect.width),
-            );
+            // The Fluid Player's morphing art is a square: the one centred
+            // in this tall art, so it leaves from (and lands on) the middle
+            // of the picture - the part BoxFit.cover shows in both shapes -
+            // instead of a square at the top that jumps at the handoff.
+            final double side = math.min(rect.width, rect.height);
+            ref
+                .read(playerArtworkRectProvider.notifier)
+                .set(
+                  Rect.fromLTWH(
+                    rect.left + (rect.width - side) / 2,
+                    rect.top + (rect.height - side) / 2,
+                    side,
+                    side,
+                  ),
+                );
           },
           child: GestureDetector(
             onTap: () => _showLyrics(context),
@@ -1196,34 +1219,25 @@ class _AndroidExpandedPlayerState extends ConsumerState<AndroidExpandedPlayer>
               final playback = ref.read(playbackProvider.notifier);
               v < 0 ? playback.skipNext() : playback.skipPrevious();
             },
-            // Hidden while the Fluid Player's morphing art stands in for it.
-            child: ValueListenableBuilder<double>(
-              valueListenable: expandProgress,
-              builder: (context, progress, child) {
-                final double opacity = !enableSlide
-                    ? 1.0
-                    : ((progress - 0.90) / 0.10).clamp(0.0, 1.0);
-                return Opacity(
-                  opacity: opacity,
-                  child: child,
-                );
-              },
+            // ImmersiveHeroArt stays visible in immersive mode so it never flickers
+            // or drops to opacity 0 on bounce / drag.
+            child: HoldForPlayerStyles(
               child: RepaintBoundary(
-                child: !enableSlide
-                    ? Hero(
-                        tag: 'album_art',
-                        flightShuttleBuilder: artworkFlightShuttle,
-                        child: ImmersiveHeroArt(
-                          key: ValueKey(song.id),
-                          song: song,
-                          fadeHeight: 160 * k,
-                        ),
-                      )
-                    : ImmersiveHeroArt(
+              child: !enableSlide
+                  ? Hero(
+                      tag: 'album_art',
+                      flightShuttleBuilder: artworkFlightShuttle,
+                      child: ImmersiveHeroArt(
                         key: ValueKey(song.id),
                         song: song,
                         fadeHeight: 160 * k,
                       ),
+                    )
+                  : ImmersiveHeroArt(
+                      key: ValueKey(song.id),
+                      song: song,
+                      fadeHeight: 160 * k,
+                    ),
               ),
             ),
           ),
@@ -1347,54 +1361,40 @@ class _AndroidExpandedPlayerState extends ConsumerState<AndroidExpandedPlayer>
                       ),
               ),
             ),
-          if (landscape != null)
+          if (landscape)
             Positioned.fill(
-              child: PlayerLandscapeLayout(
-                metrics: landscape,
-                topBar: fadeWithSlide(
-                  buildTopBar(
-                    EdgeInsets.fromLTRB(16, landscape.topBarTopPadding, 16, 0),
-                  ),
-                  FluidSectionMotion.topBar,
+              child: StyledLandscapeLayout(
+                style: layoutStyle,
+                song: song,
+                enableSlide: enableSlide,
+                fadeWithSlide: fadeWithSlide,
+                onShowLyrics: () => _showLyrics(context),
+                onShowOptions: () => _showMoreOptionsBottomSheet(context, ref),
+                onShowQueue: () => showModalBottomSheet(
+                  context: context,
+                  useRootNavigator: true,
+                  isScrollControlled: true,
+                  backgroundColor: Colors.transparent,
+                  builder: (context) => const QueueBottomSheet(),
                 ),
-                // Deliberately not wrapped in PositionReporter: in landscape the
-                // artwork rect is analytic (landscape.artRect), and reporting it
-                // would leave a landscape rect in playerArtworkRectProvider that
-                // the portrait morph would then wrongly aim at.
-                artwork: GestureArtworkWithFeedback(
-                  song: song,
-                  onTap: () => _showLyrics(context),
-                ),
-                controls: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    fadeWithSlide(
-                      buildSongInfo(4),
-                      FluidSectionMotion.songInfo,
-                    ),
-                    SizedBox(height: landscape.sectionGap),
-                    fadeWithSlide(buildSeekBar(4), FluidSectionMotion.seekBar),
-                    SizedBox(height: landscape.sectionGap),
-                    fadeWithSlide(
-                      buildTransportRow(
-                        height: landscape.transportHeight,
-                        horizontalPadding: 0,
-                      ),
-                      FluidSectionMotion.transportRow,
-                    ),
-                    SizedBox(height: landscape.sectionGap),
-                    fadeWithSlide(
-                      settings.segmentedUtilityButtons
-                          ? SegmentedUtilityRow(
-                              height: landscape.utilityHeight,
-                              horizontalPadding: 0,
-                              useBlur: useBlur,
-                              onLyrics: () => _showLyrics(context),
-                            )
-                          : buildUtilityRow(0),
-                      FluidSectionMotion.utilityRow,
-                    ),
-                  ],
+              ),
+            )
+          else if (layoutStyle != PlayerLayoutStyle.classic)
+            Positioned.fill(
+              child: StyledPlayerLayout(
+                style: layoutStyle,
+                song: song,
+                playerRootKey: _playerRootKey,
+                enableSlide: enableSlide,
+                fadeWithSlide: fadeWithSlide,
+                onShowLyrics: () => _showLyrics(context),
+                onShowOptions: () => _showMoreOptionsBottomSheet(context, ref),
+                onShowQueue: () => showModalBottomSheet(
+                  context: context,
+                  useRootNavigator: true,
+                  isScrollControlled: true,
+                  backgroundColor: Colors.transparent,
+                  builder: (context) => const QueueBottomSheet(),
                 ),
               ),
             )
@@ -1583,7 +1583,7 @@ class _AndroidExpandedPlayerState extends ConsumerState<AndroidExpandedPlayer>
     // The Fluid Player lives inside the main screen's route and stays mounted
     // while collapsed; AndroidMainScreen's own PopScope already collapses it
     // on back, so registering a second handler here would only double-fire.
-    if (enableSlide) return mainContent;
+    if (enableSlide || widget.previewStyle != null) return mainContent;
 
     return PopScope(
       canPop: false,

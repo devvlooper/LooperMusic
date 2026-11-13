@@ -119,12 +119,14 @@ class _FavoriteButtonWithGlowState extends State<FavoriteButtonWithGlow>
                 widget.ref.read(playbackProvider.notifier).toggleFavorite();
               },
               child: Center(
-                child: Icon(
-                  isFav ? Icons.star_rounded : Icons.star_outline_rounded,
-                  size: 28,
-                  color: isFav
-                      ? Theme.of(context).colorScheme.primary
-                      : Colors.white.withValues(alpha: 0.35),
+                child: SvgPicture.asset(
+                  'assets/icons/player_styles/star.svg',
+                  width: 25,
+                  height: 25,
+                  colorFilter: ColorFilter.mode(
+                    Colors.white.withValues(alpha: isFav ? 1 : 0.1),
+                    BlendMode.srcIn,
+                  ),
                 ),
               ),
             ),

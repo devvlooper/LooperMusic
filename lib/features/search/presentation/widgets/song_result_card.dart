@@ -138,7 +138,11 @@ class _SongResultCard extends ConsumerWidget {
     return InkWell(
       onTap: () {
         ref.read(lyricsSearchQueryProvider.notifier).clear();
-        ref.read(playbackProvider.notifier).play(song);
+        if (song.isOnline) {
+          ref.read(playbackProvider.notifier).playOnlineWithRadio(song);
+        } else {
+          ref.read(playbackProvider.notifier).play(song);
+        }
       },
       borderRadius: BorderRadius.circular(16),
       child: isCurrent

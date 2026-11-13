@@ -10,6 +10,7 @@ import 'dart:ui';
 import 'package:looper_player/core/utils/song_metadata.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:looper_player/ui/widgets/common/app_loading_indicator.dart';
 import 'package:looper_player/core/theme/app_fonts.dart';
 import 'package:looper_player/features/playback/presentation/providers/playback/playback_notifier.dart';
@@ -44,6 +45,8 @@ void showSongOptionsBottomSheet({
   bool showDeleteOption = true,
   bool showRenameOption = true,
   bool showEqualizerAndTechnicalInfoOptions = true,
+  // The Now Playing menu (Figma player sheet) instead of the list sheet.
+  bool styled = false,
 }) {
   showModalBottomSheet(
     context: context,
@@ -51,15 +54,16 @@ void showSongOptionsBottomSheet({
     backgroundColor: Colors.transparent,
     barrierColor: Colors.black54,
     isScrollControlled: true,
-    builder: (modalContext) => _SongOptionsSheetContent(
-      song: song,
-      playlist: playlist,
-      showDeleteOption: showDeleteOption,
-      showRenameOption: showRenameOption,
-      showEqualizerAndTechnicalInfoOptions:
-          showEqualizerAndTechnicalInfoOptions,
-      parentContext: context,
-    ),
+    builder: (modalContext) =>
+        (styled ? _PlayerSongOptionsSheet.new : _SongOptionsSheetContent.new)(
+          song: song,
+          playlist: playlist,
+          showDeleteOption: showDeleteOption,
+          showRenameOption: showRenameOption,
+          showEqualizerAndTechnicalInfoOptions:
+              showEqualizerAndTechnicalInfoOptions,
+          parentContext: context,
+        ),
   );
 }
 
@@ -488,19 +492,31 @@ class _SongOptionsSheetContent extends ConsumerWidget {
                           builder: (context, snapshot) {
                             final isDownloaded = snapshot.data != null;
                             return MenuOptionTile(
-                              label: isDownloaded ? l10n.downloaded : l10n.download,
-                              icon: isDownloaded ? LucideIcons.check : LucideIcons.download,
-                              iconColor: isDownloaded ? Colors.white38 : accentColor,
+                              label: isDownloaded
+                                  ? l10n.downloaded
+                                  : l10n.download,
+                              icon: isDownloaded
+                                  ? LucideIcons.check
+                                  : LucideIcons.download,
+                              iconColor: isDownloaded
+                                  ? Colors.white38
+                                  : accentColor,
                               onTap: isDownloaded
                                   ? () {}
                                   : () {
                                       AppHaptics.light();
                                       final onlineSong = song.toOnlineSong();
-                                      ref.read(downloadsProvider.notifier).enqueue(onlineSong);
+                                      ref
+                                          .read(downloadsProvider.notifier)
+                                          .enqueue(onlineSong);
                                       Navigator.pop(context);
-                                      ScaffoldMessenger.of(parentContext).showSnackBar(
+                                      ScaffoldMessenger.of(
+                                        parentContext,
+                                      ).showSnackBar(
                                         SnackBar(
-                                          content: Text(l10n.downloadingSong(song.title)),
+                                          content: Text(
+                                            l10n.downloadingSong(song.title),
+                                          ),
                                           behavior: SnackBarBehavior.floating,
                                         ),
                                       );
@@ -526,7 +542,9 @@ class _SongOptionsSheetContent extends ConsumerWidget {
                                 action: SnackBarAction(
                                   label: l10n.undo,
                                   onPressed: () async {
-                                    await NotInterestedStore.unhideSong(videoId);
+                                    await NotInterestedStore.unhideSong(
+                                      videoId,
+                                    );
                                     ref.invalidate(onlineHomeProvider);
                                   },
                                 ),
@@ -554,7 +572,9 @@ class _SongOptionsSheetContent extends ConsumerWidget {
                                 action: SnackBarAction(
                                   label: l10n.undo,
                                   onPressed: () async {
-                                    await NotInterestedStore.unblockArtist(artist);
+                                    await NotInterestedStore.unblockArtist(
+                                      artist,
+                                    );
                                     ref.invalidate(onlineHomeProvider);
                                   },
                                 ),
@@ -621,5 +641,441 @@ class _SongOptionsSheetContent extends ConsumerWidget {
     }
 
     return sheetContent;
+  }
+}
+
+/// The Now Playing menu (Figma): a few big tiles up top, full-width rows
+/// below and Edit / Delete side by side at the bottom. Same actions as the
+/// list sheet it extends.
+class _PlayerSongOptionsSheet extends _SongOptionsSheetContent {
+  const _PlayerSongOptionsSheet({
+    required super.song,
+    super.playlist,
+    required super.showDeleteOption,
+    required super.showRenameOption,
+    required super.showEqualizerAndTechnicalInfoOptions,
+    required super.parentContext,
+  });
+
+  static const _icons = 'assets/icons/player_styles';
+
+  static TextStyle _label(double size) => TextStyle(
+    fontFamily: 'Stack Sans Text',
+    fontWeight: FontWeight.w500,
+    fontSize: size,
+    letterSpacing: -0.02 * size,
+    color: Colors.white,
+  );
+
+  static Widget _svg(String name, {Color? color, double? size}) =>
+      SvgPicture.asset(
+        '$_icons/$name.svg',
+        width: size,
+        height: size,
+        colorFilter: color == null
+            ? null
+            : ColorFilter.mode(color, BlendMode.srcIn),
+      );
+
+  static Widget _surface({
+    required double height,
+    required VoidCallback onTap,
+    required Widget child,
+    BoxBorder? border,
+  }) => Material(
+    color: Colors.white.withValues(alpha: 0.05),
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(10),
+      side: border is Border ? border.top : BorderSide.none,
+    ),
+    clipBehavior: Clip.antiAlias,
+    child: InkWell(
+      onTap: onTap,
+      child: SizedBox(height: height, child: child),
+    ),
+  );
+
+  /// Square-ish tile: icon top left, label bottom left.
+  static Widget _gridTile(Widget icon, String label, VoidCallback onTap) =>
+      _surface(
+        height: 69,
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(13, 15, 8, 14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              SizedBox(height: 12, child: icon),
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: _label(12),
+              ),
+            ],
+          ),
+        ),
+      );
+
+  /// Full-width row: icon then label.
+  static Widget _rowTile(
+    Widget icon,
+    String label,
+    VoidCallback onTap, {
+    BoxBorder? border,
+  }) => _surface(
+    height: 62,
+    onTap: onTap,
+    border: border,
+    child: Row(
+      children: [
+        const SizedBox(width: 20),
+        SizedBox.square(dimension: 18, child: Center(child: icon)),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: _label(14),
+          ),
+        ),
+      ],
+    ),
+  );
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context)!;
+    final (
+      isSleepTimerActive,
+      sleepTimerDurationRemaining,
+      sleepTimerSongsRemaining,
+    ) = ref.watch(
+      playbackProvider.select(
+        (s) => (
+          s.isSleepTimerActive,
+          s.sleepTimerDurationRemaining,
+          s.sleepTimerSongsRemaining,
+        ),
+      ),
+    );
+    final playback = ref.read(playbackProvider.notifier);
+    final bool local = !song.isOnline;
+
+    void snack(String text) => ScaffoldMessenger.of(parentContext).showSnackBar(
+      SnackBar(content: Text(text), behavior: SnackBarBehavior.floating),
+    );
+
+    final download = song.isOnline && song.videoId != null
+        ? FutureBuilder<Song?>(
+            future: OnlinePlayback.localTwin(song),
+            builder: (context, snapshot) {
+              final isDownloaded = snapshot.data != null;
+              return _gridTile(
+                _svg(
+                  'menu_download',
+                  color: isDownloaded ? Colors.white38 : null,
+                ),
+                isDownloaded ? l10n.downloaded : l10n.download,
+                isDownloaded
+                    ? () {}
+                    : () {
+                        AppHaptics.light();
+                        ref
+                            .read(downloadsProvider.notifier)
+                            .enqueue(song.toOnlineSong());
+                        Navigator.pop(context);
+                        snack(l10n.downloadingSong(song.title));
+                      },
+              );
+            },
+          )
+        // Local songs have nothing to download: Play next takes the slot.
+        : _gridTile(
+            const Icon(
+              Icons.playlist_play_rounded,
+              size: 16,
+              color: Colors.white,
+            ),
+            l10n.playNext,
+            () {
+              AppHaptics.light();
+              playback.addNext(song);
+              Navigator.pop(context);
+              snack(l10n.willPlayNext);
+            },
+          );
+
+    final rows = <Widget>[
+      _rowTile(_svg('menu_queue'), l10n.addToQueue, () {
+        AppHaptics.light();
+        playback.addToQueue(song);
+        Navigator.pop(context);
+        snack(l10n.addedToQueue);
+      }),
+      _rowTile(
+        _svg(
+          'star',
+          size: 18,
+          color: Colors.white.withValues(alpha: song.isFavorite ? 1 : 0.3),
+        ),
+        song.isFavorite ? l10n.removeFromFavorites : l10n.addToFavorites,
+        () {
+          AppHaptics.light();
+          ref.read(libraryProvider.notifier).toggleFavorite(song);
+          Navigator.pop(context);
+        },
+      ),
+      _rowTile(
+        _svg('menu_sleep'),
+        isSleepTimerActive
+            ? l10n.sleepTimerWithRemaining(
+                formatSleepTimerRemaining(
+                  l10n,
+                  durationRemaining: sleepTimerDurationRemaining,
+                  songsRemaining: sleepTimerSongsRemaining,
+                ),
+              )
+            : l10n.sleepTimer,
+        () {
+          AppHaptics.light();
+          Navigator.pop(context);
+          showSleepTimerBottomSheet(parentContext, ref);
+        },
+      ),
+      _rowTile(_svg('menu_share'), l10n.share, () {
+        AppHaptics.light();
+        playback.shareSong(song);
+        Navigator.pop(context);
+      }),
+      if (playlist != null)
+        _rowTile(
+          const Icon(LucideIcons.listX, size: 18, color: Colors.white),
+          l10n.removeFromPlaylist,
+          () async {
+            AppHaptics.medium();
+            await PlaylistService.removeSongFromPlaylist(playlist!, song);
+            if (context.mounted) Navigator.pop(context);
+            snack(l10n.removedFromPlaylist);
+          },
+        ),
+      if (showEqualizerAndTechnicalInfoOptions && local)
+        _rowTile(
+          const Icon(LucideIcons.activity, size: 18, color: Colors.white),
+          l10n.technicalInfoFrequency,
+          () {
+            AppHaptics.light();
+            Navigator.pop(context);
+            Navigator.push(
+              parentContext,
+              riseRoute(SongInfoScreen(song: song)),
+            );
+          },
+        ),
+      if (song.isOnline && song.videoId != null)
+        _rowTile(
+          const Icon(LucideIcons.thumbsDown, size: 18, color: Colors.white),
+          l10n.notInterested,
+          () async {
+            AppHaptics.light();
+            final videoId = song.videoId!;
+            await NotInterestedStore.hideSong(videoId);
+            ref.invalidate(onlineHomeProvider);
+            if (context.mounted) Navigator.pop(context);
+            snack(l10n.notInterestedSongHidden);
+          },
+        ),
+      if (song.isOnline &&
+          song.artist != null &&
+          song.artist!.trim().isNotEmpty)
+        _rowTile(
+          const Icon(LucideIcons.userX, size: 18, color: Colors.white),
+          l10n.blockArtist(song.artist!),
+          () async {
+            AppHaptics.light();
+            await NotInterestedStore.blockArtist(song.artist!.trim());
+            ref.invalidate(onlineHomeProvider);
+            if (context.mounted) Navigator.pop(context);
+            snack(l10n.artistBlocked);
+          },
+        ),
+    ];
+
+    final bool canEdit = showRenameOption && local;
+    final bool canDelete = showDeleteOption && local;
+
+    return Container(
+      decoration: const BoxDecoration(
+        color: Color(0xFF080808),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 10),
+            Container(
+              width: 53,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.5),
+                borderRadius: BorderRadius.circular(5),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(22, 21, 36, 20),
+              child: Row(
+                children: [
+                  SongArtwork(
+                    song: song,
+                    size: 52,
+                    borderRadius: BorderRadius.circular(5),
+                  ),
+                  const SizedBox(width: 20),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        for (final (text, alpha) in [
+                          (song.title, 1.0),
+                          (artistAlbumLabel(song, l10n, showAlbum: false), 0.3),
+                        ])
+                          Text(
+                            text,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontFamily: 'Space Grotesk',
+                              fontWeight: FontWeight.w700,
+                              fontSize: 18,
+                              height: 23 / 18,
+                              letterSpacing: -0.36,
+                              color: Colors.white.withValues(alpha: alpha),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: l10n.songDetails,
+                    onPressed: () {
+                      AppHaptics.light();
+                      Navigator.pop(context);
+                      showModalBottomSheet(
+                        context: parentContext,
+                        useRootNavigator: true,
+                        isScrollControlled: true,
+                        backgroundColor: Colors.transparent,
+                        builder: (context) =>
+                            SongDetailsBottomSheet(song: song),
+                      );
+                    },
+                    icon: _svg('menu_info'),
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              height: 1,
+              margin: const EdgeInsets.symmetric(horizontal: 30),
+              color: Colors.white.withValues(alpha: 0.02),
+            ),
+            Flexible(
+              child: SingleChildScrollView(
+                physics: const LooperScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(22, 16, 22, 37),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _gridTile(
+                            _svg('menu_playlist'),
+                            l10n.addToPlaylists,
+                            () {
+                              AppHaptics.light();
+                              Navigator.pop(context);
+                              _showPlaylistSelector(parentContext, l10n);
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(child: download),
+                        if (showEqualizerAndTechnicalInfoOptions) ...[
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: _gridTile(
+                              _svg('menu_eq'),
+                              l10n.equalizer,
+                              () {
+                                AppHaptics.light();
+                                Navigator.pop(context);
+                                if (UiUtils.isDesktop) {
+                                  showDesktopEqualizer(parentContext);
+                                  return;
+                                }
+                                Navigator.push(
+                                  parentContext,
+                                  riseRoute(const AndroidEqualizerScreen()),
+                                );
+                              },
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    for (final row in rows) ...[
+                      const SizedBox(height: 13),
+                      row,
+                    ],
+                    if (canEdit || canDelete) ...[
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          if (canEdit)
+                            Expanded(
+                              flex: 234,
+                              child: _rowTile(
+                                _svg('menu_edit'),
+                                l10n.editSongInfo,
+                                () {
+                                  AppHaptics.light();
+                                  Navigator.pop(context);
+                                  _showEditSongSheet(parentContext, ref);
+                                },
+                              ),
+                            ),
+                          if (canEdit && canDelete) const SizedBox(width: 9),
+                          if (canDelete)
+                            Expanded(
+                              flex: 115,
+                              child: _rowTile(
+                                _svg('menu_delete'),
+                                l10n.delete,
+                                () {
+                                  AppHaptics.warning();
+                                  Navigator.pop(context);
+                                  _showDeleteDialog(parentContext, ref);
+                                },
+                                border: Border.all(
+                                  color: const Color(0x05FFAAAA),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

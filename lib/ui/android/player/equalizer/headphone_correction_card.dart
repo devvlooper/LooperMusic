@@ -60,10 +60,8 @@ class _HeadphoneCorrectionCardState
     final l10n = AppLocalizations.of(context)!;
     final device = _audioInfo?.device;
     final isSpeaker = device?.kind == OutputDeviceKind.speaker;
-    final activeBass =
-        _isDraggingBass ? _dragBass : widget.eqState.autoEqBass;
-    final activeTilt =
-        _isDraggingTilt ? _dragTilt : widget.eqState.autoEqTilt;
+    final activeBass = _isDraggingBass ? _dragBass : widget.eqState.autoEqBass;
+    final activeTilt = _isDraggingTilt ? _dragTilt : widget.eqState.autoEqTilt;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 20),
@@ -125,7 +123,8 @@ class _HeadphoneCorrectionCardState
                 ),
               ),
               Semantics(
-                label: '${l10n.headphoneCorrection}, ${widget.eqState.autoEqEnabled ? "on" : "off"}',
+                label:
+                    '${l10n.headphoneCorrection}, ${widget.eqState.autoEqEnabled ? "on" : "off"}',
                 child: Switch.adaptive(
                   value: widget.eqState.autoEqEnabled && !isSpeaker,
                   activeThumbColor: widget.accentColor,
@@ -264,8 +263,10 @@ class _HeadphoneCorrectionCardState
             Row(
               children: [
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: 0.05),
                     borderRadius: BorderRadius.circular(8),
@@ -501,8 +502,9 @@ class _HeadphoneCorrectionCardState
                             ),
                             tooltip: l10n.autoEqForget,
                             onPressed: () async {
-                              await AutoEqService.instance
-                                  .forgetDeviceProfile(entry.key);
+                              await AutoEqService.instance.forgetDeviceProfile(
+                                entry.key,
+                              );
                               setDialogState(() {
                                 devices.remove(entry.key);
                               });
@@ -664,58 +666,57 @@ class _AutoEqSearchSheetContentState extends State<_AutoEqSearchSheetContent> {
                     ),
                   )
                 : _filtered.isEmpty
-                    ? Center(
-                        child: Text(
-                          _allEntries.isEmpty
-                              ? l10n.autoEqDownloadIndex
-                              : 'No headphones found',
+                ? Center(
+                    child: Text(
+                      _allEntries.isEmpty
+                          ? l10n.autoEqDownloadIndex
+                          : 'No headphones found',
+                      style: AppFonts.jostStyle(
+                        color: Colors.white38,
+                        fontSize: 13,
+                      ),
+                    ),
+                  )
+                : ListView.builder(
+                    itemCount: _filtered.length,
+                    itemBuilder: (ctx, index) {
+                      final entry = _filtered[index];
+                      final isFetching = _loadingEntryPath == entry.path;
+
+                      return ListTile(
+                        title: Text(
+                          entry.name,
                           style: AppFonts.jostStyle(
-                            color: Colors.white38,
+                            color: Colors.white,
                             fontSize: 13,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
-                      )
-                    : ListView.builder(
-                        itemCount: _filtered.length,
-                        itemBuilder: (ctx, index) {
-                          final entry = _filtered[index];
-                          final isFetching =
-                              _loadingEntryPath == entry.path;
-
-                          return ListTile(
-                            title: Text(
-                              entry.name,
-                              style: AppFonts.jostStyle(
-                                color: Colors.white,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
+                        subtitle: Text(
+                          entry.source,
+                          style: AppFonts.jostStyle(
+                            color: Colors.white38,
+                            fontSize: 11,
+                          ),
+                        ),
+                        trailing: isFetching
+                            ? SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  color: widget.accentColor,
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : Icon(
+                                LucideIcons.chevronRight,
+                                color: Colors.white24,
+                                size: 16,
                               ),
-                            ),
-                            subtitle: Text(
-                              entry.source,
-                              style: AppFonts.jostStyle(
-                                color: Colors.white38,
-                                fontSize: 11,
-                              ),
-                            ),
-                            trailing: isFetching
-                                ? SizedBox(
-                                    width: 18,
-                                    height: 18,
-                                    child: CircularProgressIndicator(
-                                      color: widget.accentColor,
-                                      strokeWidth: 2,
-                                    ),
-                                  )
-                                : Icon(
-                                    LucideIcons.chevronRight,
-                                    color: Colors.white24,
-                                    size: 16,
-                                  ),
-                            onTap: isFetching ? null : () => _selectEntry(entry),
-                          );
-                        },
-                      ),
+                        onTap: isFetching ? null : () => _selectEntry(entry),
+                      );
+                    },
+                  ),
           ),
         ],
       ),

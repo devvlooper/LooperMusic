@@ -689,9 +689,7 @@ class _QualityDetailsSheetState extends ConsumerState<_QualityDetailsSheet>
                               final backup =
                                   await BitPerfectManager.loadBlockersBackup();
                               if (backup != null) {
-                                final eq = ref.read(
-                                  equalizerProvider.notifier,
-                                );
+                                final eq = ref.read(equalizerProvider.notifier);
                                 if (backup.containsKey('eq_enabled')) {
                                   await eq.toggleEqualizer(
                                     backup['eq_enabled'] as bool,
@@ -838,8 +836,7 @@ class _QualityDetailsSheetState extends ConsumerState<_QualityDetailsSheet>
         ),
       if (d.maxChannels > 0)
         (l10n.qualityMaxChannels, _channelLabel(l10n, d.maxChannels)),
-      if (d.bluetoothCodec != null)
-        (l10n.bluetoothCodec, d.bluetoothCodec!),
+      if (d.bluetoothCodec != null) (l10n.bluetoothCodec, d.bluetoothCodec!),
       (
         l10n.qualityBitPerfect,
         d.bitPerfect ? l10n.qualitySupported : l10n.qualityNotSupported,

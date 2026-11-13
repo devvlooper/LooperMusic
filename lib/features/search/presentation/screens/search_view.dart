@@ -25,62 +25,15 @@ import 'package:looper_player/core/utils/l10n.dart';
 import 'package:looper_player/features/search/domain/lyric_snippet.dart'
     as snippets;
 import 'package:looper_player/ui/widgets/common/highlighted_text.dart';
+import '../providers/search_providers.dart';
+
+export '../providers/search_providers.dart';
 
 part 'search_view.g.dart';
 part '../widgets/song_result_card.dart';
 part '../widgets/artist_result_card.dart';
 part '../widgets/album_result_card.dart';
 part '../widgets/collection_result_chip.dart';
-
-@Riverpod(keepAlive: true)
-class SearchQuery extends _$SearchQuery {
-  @override
-  String build() => '';
-
-  void set(String value) => state = value;
-}
-
-/// Search terms the user has actually submitted (keyboard "search" action),
-/// not every partial string typed while the live-filter results were
-/// updating - most-recent first, deduplicated, capped so the list stays a
-/// quick-glance shortlist rather than a full search log.
-@Riverpod(keepAlive: true)
-class RecentSearches extends _$RecentSearches {
-  static const _storeKey = 'recent_searches';
-  static const _maxEntries = 10;
-
-  @override
-  List<String> build() {
-    _load();
-    return [];
-  }
-
-  Future<void> _load() async {
-    final raw = await LocalJsonStore.read(_storeKey);
-    if (raw is! List) return;
-    state = raw.whereType<String>().toList();
-  }
-
-  Future<void> add(String query) async {
-    final trimmed = query.trim();
-    if (trimmed.isEmpty) return;
-    state = [
-      trimmed,
-      ...state.where((q) => q.toLowerCase() != trimmed.toLowerCase()),
-    ].take(_maxEntries).toList();
-    await LocalJsonStore.write(_storeKey, state);
-  }
-
-  Future<void> remove(String query) async {
-    state = state.where((q) => q != query).toList();
-    await LocalJsonStore.write(_storeKey, state);
-  }
-
-  Future<void> clear() async {
-    state = [];
-    await LocalJsonStore.write(_storeKey, state);
-  }
-}
 
 class SearchResults {
   final List<Song> songs;
@@ -175,13 +128,20 @@ Stream<SearchResults> searchResults(Ref ref) {
                 .toList()
               ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
 
-        // Sort songs: top match songs name > lyrics match > others
+        // Sort songs: local search first, then online songs.
+        // Within each group: top match songs name > lyrics match > others
         final lowerQuery = query.toLowerCase();
         // Online songs stay in the DB; just hide them while online is off.
         final sortedSongs = onlineOn
             ? List<Song>.from(songs)
             : songs.where((s) => !s.path.startsWith('yt:')).toList();
         sortedSongs.sort((a, b) {
+          final isOnlineA = a.path.startsWith('yt:');
+          final isOnlineB = b.path.startsWith('yt:');
+          if (isOnlineA != isOnlineB) {
+            return isOnlineA ? 1 : -1; // Local songs first, then online songs
+          }
+
           final scoreA = songSearchScore(a, lowerQuery);
           final scoreB = songSearchScore(b, lowerQuery);
 
@@ -297,7 +257,10 @@ class SearchView extends ConsumerWidget {
     if (results.isEmpty && ref.watch(onlineActiveProvider)) {
       return CustomScrollView(
         slivers: [
-          OnlineSearchSliver(query: ref.read(searchQueryProvider)),
+          OnlineSearchSliver(
+          query: ref.read(searchQueryProvider),
+          hideIds: {for (final s in results.songs) s.path},
+        ),
           const SliverToBoxAdapter(child: SizedBox(height: 180)),
         ],
       );
@@ -420,7 +383,10 @@ class SearchView extends ConsumerWidget {
               );
             }, childCount: songListToRender.length),
           ),
-        OnlineSearchSliver(query: ref.read(searchQueryProvider)),
+        OnlineSearchSliver(
+          query: ref.read(searchQueryProvider),
+          hideIds: {for (final s in results.songs) s.path},
+        ),
         const SliverToBoxAdapter(child: SizedBox(height: 180)),
       ],
     );

@@ -44,7 +44,7 @@ import 'package:looper_player/features/playback/domain/crossmix_models.dart';
 import 'package:looper_player/features/playback/data/crossmix/crossmix_settings.dart';
 import 'package:looper_player/features/playback/data/crossmix/cue_analyzer.dart';
 import 'package:looper_player/features/playback/data/crossmix/transition_planner.dart';
-import 'package:looper_player/features/playback/presentation/providers/playback/transition_director.dart';
+import 'package:looper_player/core/services/audio/transition_director.dart';
 
 part 'playback_notifier.g.dart';
 part 'playback_state.dart';
@@ -639,6 +639,24 @@ class Playback extends _$Playback {
       continueCurrent: continueCurrent,
       sourcePlaylistId: sourcePlaylistId,
     );
+  }
+
+  /// Plays an online song from search, initializing the playlist with just
+  /// this song and immediately populating it with personalized related songs.
+  Future<void> playOnlineWithRadio(
+    Song song, {
+    int? sourcePlaylistId,
+  }) async {
+    _playlist = [song];
+    _originalPlaylist = [song];
+    _currentIndex = 0;
+    _manualQueueCount = 0;
+    state = state.copyWith(
+      queue: [song],
+      queueSourceKey: collectionKey([song]),
+    );
+    await play(song, sourcePlaylistId: sourcePlaylistId);
+    _extendOnlineQueue(song);
   }
 
   List<Song> get _manualQueueSongs {

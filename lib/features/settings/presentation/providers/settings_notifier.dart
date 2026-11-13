@@ -16,7 +16,7 @@ import '../../domain/progress_bar_style.dart';
 import 'package:flutter/painting.dart' show Color;
 import 'package:looper_player/core/utils/artwork_colors.dart' show boostChroma;
 import 'package:looper_player/core/utils/ui_utils.dart' show UiUtils;
-import 'package:looper_player/ui/android/tabs/home/home_order.dart'
+import '../../domain/home_order.dart'
     show withHomeRowIds;
 
 part 'settings_notifier.g.dart';
@@ -371,6 +371,7 @@ class Settings extends _$Settings {
       ..artworkVisualizerSyncMs = s.artworkVisualizerSyncMs
       ..disableBlur = s.disableBlur
       ..alwaysBlurSheets = s.alwaysBlurSheets
+      ..playerDynamicBackground = s.playerDynamicBackground
       ..enableInternet = s.enableInternet
       ..downloadArtwork = s.downloadArtwork
       ..includeSystemAndMessagingAudio = s.includeSystemAndMessagingAudio
@@ -389,6 +390,8 @@ class Settings extends _$Settings {
       ..playerLyricLine = s.playerLyricLine
       ..accentVibrancy = s.accentVibrancy
       ..playerLyricLineTransition = s.playerLyricLineTransition
+      ..playerStyle = s.playerStyle
+      ..playerStyleAccent = s.playerStyleAccent
       ..showAlbumNextToArtist = s.showAlbumNextToArtist
       ..showAlbumInQuickPicks = s.showAlbumInQuickPicks
       ..disableHaptics = s.disableHaptics
@@ -443,6 +446,8 @@ class Settings extends _$Settings {
       ..musicDarkness = s.musicDarkness
       ..lyricsDarkness = s.lyricsDarkness
       ..selectedAvatarAsset = s.selectedAvatarAsset
+      ..userName = s.userName
+      ..userPhotoPath = s.userPhotoPath
       ..avatarDynamicColor = s.avatarDynamicColor
       ..showPerformanceOptimizer = s.showPerformanceOptimizer
       ..useNewFont = s.useNewFont
@@ -520,11 +525,19 @@ class Settings extends _$Settings {
   Future<void> updateLyricsSyncStyle(String value) =>
       _update((s) => s..lyricsSyncStyle = value);
 
-  Future<void> updateBlurredArtworkForLyrics(bool value) =>
-      _update((s) => s..blurredArtworkForLyrics = value);
+  // Lyrics background is one of: blurred artwork, ambient colour, or
+  // neither; turning one on turns the other off.
+  Future<void> updateBlurredArtworkForLyrics(bool value) => _update(
+    (s) => s
+      ..blurredArtworkForLyrics = value
+      ..ambientColorBackground = value ? false : s.ambientColorBackground,
+  );
 
-  Future<void> updateAmbientColorBackground(bool value) =>
-      _update((s) => s..ambientColorBackground = value);
+  Future<void> updateAmbientColorBackground(bool value) => _update(
+    (s) => s
+      ..ambientColorBackground = value
+      ..blurredArtworkForLyrics = value ? false : s.blurredArtworkForLyrics,
+  );
 
   Future<void> updateShowQualityBadge(bool value) =>
       _update((s) => s..showQualityBadge = value);
@@ -540,6 +553,12 @@ class Settings extends _$Settings {
 
   Future<void> updatePlayerLyricLineTransition(String value) =>
       _update((s) => s..playerLyricLineTransition = value);
+
+  Future<void> updatePlayerStyle(String value) =>
+      _update((s) => s..playerStyle = value);
+
+  Future<void> updatePlayerStyleAccent(bool value) =>
+      _update((s) => s..playerStyleAccent = value);
 
   Future<void> updateShowAlbumNextToArtist(bool value) =>
       _update((s) => s..showAlbumNextToArtist = value);
@@ -707,6 +726,9 @@ class Settings extends _$Settings {
   Future<void> updateAlwaysBlurSheets(bool value) =>
       _update((s) => s..alwaysBlurSheets = value);
 
+  Future<void> updatePlayerDynamicBackground(bool value) =>
+      _update((s) => s..playerDynamicBackground = value);
+
   Future<void> updateEnableInternet(bool enabled) =>
       _update((s) => s..enableInternet = enabled);
 
@@ -848,6 +870,12 @@ class Settings extends _$Settings {
 
   Future<void> updateSelectedAvatar(String assetFileName) =>
       _update((s) => s..selectedAvatarAsset = assetFileName);
+
+  Future<void> updateUserName(String value) =>
+      _update((s) => s..userName = value.trim());
+
+  Future<void> updateUserPhotoPath(String value) =>
+      _update((s) => s..userPhotoPath = value);
 
   Future<void> updateAvatarDynamicColor(bool value) =>
       _update((s) => s..avatarDynamicColor = value);

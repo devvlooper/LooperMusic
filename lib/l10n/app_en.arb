@@ -154,6 +154,7 @@
   "loadingPhase4": "OPTIMIZING PLAYBACK MEMORY...",
   "@@locale": "en",
   "lyrics": "Lyrics",
+  "otherMenu": "Other menu",
   "lyricsAlignment": "Lyrics Alignment",
   "lyricsAlignmentDesc": "Align text positions for scrolling lyrics",
   "lyricsDarkness": "Lyrics Screen Darkness",
@@ -303,6 +304,21 @@
   "lyricLineTransitionRoll": "Rolling",
   "lyricLineTransitionFlip": "Flip",
   "lyricLineTransitionBlur": "Blur",
+  "playerStyle": "Player Style",
+  "playerStyleDesc": "Layout of the Now Playing screen in portrait",
+  "playerStyleClassic": "Classic",
+  "playerStyleArc": "Arc",
+  "playerStyleLinear": "Linear",
+  "playerStyleTitle": "{name} Style",
+  "@playerStyleTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "playerStyleAccent": "Use Accent Color",
+  "playerStyleAccentDesc": "Color the active lyric line and the progress bar with the accent color",
   "accentVibrancy": "Accent Vibrancy",
   "accentVibrancyDesc": "Make the accent color more vivid without changing its brightness",
   "appearanceSettingsDesc": "Colors, backgrounds, darkness and fonts",
@@ -313,7 +329,7 @@
   "playbackAndAudio": "Playback & Audio",
   "playbackAudioSettingsDesc": "Equalizer, fades, queue and interruptions",
   "general": "General",
-  "generalSettingsDesc": "Language, haptics, internet and profile",
+  "generalSettingsDesc": "Language, haptics and internet",
   "sectionPlayer": "Player",
   "sectionSeekBarVisuals": "Seek Bar & Visuals",
   "sectionTrackInfo": "Track Info",
@@ -535,6 +551,8 @@
   "tapFieldToEdit": "Tap a field to edit",
   "alwaysBlurSheets": "Always Blur Sheets",
   "alwaysBlurSheetsDesc": "Blur popup sheets even when Dynamic Theming is off",
+  "playerDynamicBackground": "Dynamic Player Background",
+  "playerDynamicBackgroundDesc": "Use the blurred album art background on the player screen only",
   "removeArtwork": "Remove artwork",
   "resetArtworkToDefault": "Reset to default",
   "artworkResetToDefault": "Artwork reset to default",
@@ -1775,5 +1793,48 @@
   "onlineSetupNext": "NEXT",
   "onlineSetupDoneTitle": "You're good to go",
   "nowPlayingArtworkMotion": "Now playing artwork motion",
-  "nowPlayingArtworkMotionDesc": "Animate the album cover on the now playing screen when available"
+  "nowPlayingArtworkMotionDesc": "Animate the album cover on the now playing screen when available",
+  "account": "Account",
+  "accountHello": "Hello,",
+  "accountDefaultName": "Listener",
+  "accountLooperTag": "{name}'s looper",
+  "@accountLooperTag": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "accountViewStats": "View Stats",
+  "accountTodayListening": "Today Listening Time",
+  "accountVersionAbout": "Version & about app",
+  "accountOpenSettings": "Open settings",
+  "accountSettings": "Account settings",
+  "accountSettingsDesc": "Name, avatar and linked accounts",
+  "accountProfile": "Profile",
+  "accountPhoto": "Profile photo",
+  "accountPhotoDesc": "Pick any image from your device",
+  "accountPhotoRemove": "Remove photo",
+  "accountEditName": "Your name",
+  "accountEditNameDesc": "Shown on your account screen",
+  "accountNameHint": "Enter your name",
+  "catPlayerInterface": "Player Interface",
+  "catPlayerInterfaceDesc": "Theme, layout, and visual styles",
+  "catMusicManagement": "Music Management",
+  "catMusicManagementDesc": "Downloads, folders and library",
+  "catBehavior": "Behavior",
+  "catBehaviorDesc": "Gestures, haptics, language",
+  "catNetwork": "Network & Internet",
+  "catNetworkDesc": "Internet mode, online music, lyrics sources",
+  "catAbout": "About",
+  "catAboutDesc": "App info, version and credits",
+  "settingsGroupTitle": "Settings",
+  "settingsSearchShort": "Search setting",
+  "catMisc": "Miscellaneous",
+  "catMiscDesc": "Storage, haptics, backup and restore",
+  "sectionStorage": "Storage",
+  "sectionBackupRestore": "Backup & Restore",
+  "sectionPlayerBackground": "Player Background",
+  "sectionClassicLayout": "Classic Layout",
+  "showPreview": "Show preview"
 }

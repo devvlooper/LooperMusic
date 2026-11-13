@@ -50,15 +50,17 @@ class AppleWebToken {
     try {
       // Step 1: GET https://music.apple.com/us/browse
       final browseUri = Uri.parse('https://music.apple.com/us/browse');
-      final browseRes = await httpClient.get(
-        browseUri,
-        headers: {
-          'User-Agent':
-              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36',
-          'Accept':
-              'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        },
-      ).timeout(const Duration(seconds: 10));
+      final browseRes = await httpClient
+          .get(
+            browseUri,
+            headers: {
+              'User-Agent':
+                  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36',
+              'Accept':
+                  'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            },
+          )
+          .timeout(const Duration(seconds: 10));
 
       if (browseRes.statusCode != 200) {
         _setBackoff();
@@ -84,14 +86,16 @@ class AppleWebToken {
       }
 
       final scriptUri = Uri.parse('https://music.apple.com$scriptPath');
-      final scriptRes = await httpClient.get(
-        scriptUri,
-        headers: {
-          'User-Agent':
-              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36',
-          'Accept': '*/*',
-        },
-      ).timeout(const Duration(seconds: 10));
+      final scriptRes = await httpClient
+          .get(
+            scriptUri,
+            headers: {
+              'User-Agent':
+                  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36',
+              'Accept': '*/*',
+            },
+          )
+          .timeout(const Duration(seconds: 10));
 
       if (scriptRes.statusCode != 200) {
         _setBackoff();

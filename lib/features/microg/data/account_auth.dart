@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-import 'package:looper_player/features/microg/data/auth_session.dart';
+import 'package:looper_player/features/microg/domain/auth_session.dart';
 import 'package:looper_player/features/microg/data/auth_store.dart';
 import 'package:looper_player/features/microg/data/microg_platform.dart';
 import 'package:looper_player/features/microg/data/sapisid_hasher.dart';

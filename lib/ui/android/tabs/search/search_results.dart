@@ -286,7 +286,12 @@ class _SearchResultsBody extends ConsumerWidget {
       keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
       slivers: [
         ...slivers,
-        if (kind == _SearchKind.all) OnlineSearchSliver(query: query),
+        if (kind == _SearchKind.all || kind == _SearchKind.songs)
+          OnlineSearchSliver(
+            query: query,
+            hideIds: {for (final s in results.songs) s.path},
+            songsOnly: kind == _SearchKind.songs,
+          ),
         // Clears the mini player and navigation bar.
         const SliverToBoxAdapter(child: SizedBox(height: 180)),
       ],

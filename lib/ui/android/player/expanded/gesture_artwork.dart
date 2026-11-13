@@ -260,76 +260,78 @@ class _GestureArtworkWithFeedbackState
           tag: 'album_art',
           flightShuttleBuilder: artworkFlightShuttle,
           child: AnimatedSwitcher(
-          duration: animate ? const Duration(milliseconds: 320) : Duration.zero,
-          switchInCurve: Curves.easeOutCubic,
-          switchOutCurve: Curves.easeInCubic,
-          layoutBuilder: (Widget? currentChild, List<Widget> previousChildren) {
-            return Stack(
-              alignment: Alignment.center,
-              children: <Widget>[
-                ...previousChildren,
-                ?currentChild,
-              ],
-            );
-          },
-          transitionBuilder: (Widget child, Animation<double> animation) {
-            final keyVal = child.key is ValueKey<String>
-                ? (child.key as ValueKey<String>).value
-                : '';
-            final isIncoming = keyVal == widget.song.path;
+            duration: animate
+                ? const Duration(milliseconds: 320)
+                : Duration.zero,
+            switchInCurve: Curves.easeOutCubic,
+            switchOutCurve: Curves.easeInCubic,
+            layoutBuilder:
+                (Widget? currentChild, List<Widget> previousChildren) {
+                  return Stack(
+                    alignment: Alignment.center,
+                    children: <Widget>[...previousChildren, ?currentChild],
+                  );
+                },
+            transitionBuilder: (Widget child, Animation<double> animation) {
+              final keyVal = child.key is ValueKey<String>
+                  ? (child.key as ValueKey<String>).value
+                  : '';
+              final isIncoming = keyVal == widget.song.path;
 
-            if (_skipSlideTransition) {
-              if (isIncoming) {
-                return SlideTransition(
-                  position: const AlwaysStoppedAnimation<Offset>(Offset.zero),
-                  child: child,
-                );
-              } else {
-                final double offset = _isNext ? -1.1 : 1.1;
-                return SlideTransition(
-                  position: AlwaysStoppedAnimation<Offset>(Offset(offset, 0.0)),
-                  child: FadeTransition(
-                    opacity: Tween<double>(
-                      begin: 1.0,
-                      end: 0.0,
-                    ).animate(animation),
+              if (_skipSlideTransition) {
+                if (isIncoming) {
+                  return SlideTransition(
+                    position: const AlwaysStoppedAnimation<Offset>(Offset.zero),
                     child: child,
-                  ),
-                );
+                  );
+                } else {
+                  final double offset = _isNext ? -1.1 : 1.1;
+                  return SlideTransition(
+                    position: AlwaysStoppedAnimation<Offset>(
+                      Offset(offset, 0.0),
+                    ),
+                    child: FadeTransition(
+                      opacity: Tween<double>(
+                        begin: 1.0,
+                        end: 0.0,
+                      ).animate(animation),
+                      child: child,
+                    ),
+                  );
+                }
               }
-            }
 
-            Offset beginOffset;
-            Offset endOffset;
+              Offset beginOffset;
+              Offset endOffset;
 
-            if (_isNext) {
-              beginOffset = isIncoming
-                  ? const Offset(1.1, 0.0)
-                  : const Offset(-1.1, 0.0);
-              endOffset = Offset.zero;
-            } else {
-              beginOffset = isIncoming
-                  ? const Offset(-1.1, 0.0)
-                  : const Offset(1.1, 0.0);
-              endOffset = Offset.zero;
-            }
+              if (_isNext) {
+                beginOffset = isIncoming
+                    ? const Offset(1.1, 0.0)
+                    : const Offset(-1.1, 0.0);
+                endOffset = Offset.zero;
+              } else {
+                beginOffset = isIncoming
+                    ? const Offset(-1.1, 0.0)
+                    : const Offset(1.1, 0.0);
+                endOffset = Offset.zero;
+              }
 
-            return SlideTransition(
-              position: Tween<Offset>(
-                begin: beginOffset,
-                end: endOffset,
-              ).animate(animation),
-              child: child,
-            );
-          },
-          child: ForegroundAlbumArt(
-            key: ValueKey<String>(widget.song.path),
-            song: widget.song,
+              return SlideTransition(
+                position: Tween<Offset>(
+                  begin: beginOffset,
+                  end: endOffset,
+                ).animate(animation),
+                child: child,
+              );
+            },
+            child: ForegroundAlbumArt(
+              key: ValueKey<String>(widget.song.path),
+              song: widget.song,
+            ),
           ),
         ),
       ),
-    ),
-  );
+    );
 
     if (nextSong?.artPath != null &&
         nextSong!.artPath != _precachedNextArtPath) {
@@ -337,10 +339,7 @@ class _GestureArtworkWithFeedbackState
       if (nextSong.artPath!.startsWith('http') ||
           File(nextSong.artPath!).existsSync()) {
         precacheImage(
-          ResizeImage(
-            artImage(nextSong.artPath!),
-            width: computedCacheWidth,
-          ),
+          ResizeImage(artImage(nextSong.artPath!), width: computedCacheWidth),
           context,
         );
       }
@@ -351,10 +350,7 @@ class _GestureArtworkWithFeedbackState
       if (prevSong.artPath!.startsWith('http') ||
           File(prevSong.artPath!).existsSync()) {
         precacheImage(
-          ResizeImage(
-            artImage(prevSong.artPath!),
-            width: computedCacheWidth,
-          ),
+          ResizeImage(artImage(prevSong.artPath!), width: computedCacheWidth),
           context,
         );
       }
@@ -448,13 +444,10 @@ class _GestureArtworkWithFeedbackState
       child: ValueListenableBuilder<double>(
         valueListenable: ref.watch(playerExpandProgressProvider),
         builder: (context, expandProgress, child) {
-          final double opacity = !enableSlide
+          final double opacity = !enableSlide || expandProgress >= kFluidHandoff
               ? 1.0
-              : ((expandProgress - 0.90) / 0.10).clamp(0.0, 1.0);
-          return Opacity(
-            opacity: opacity,
-            child: child,
-          );
+              : 0.0;
+          return Opacity(opacity: opacity, child: child);
         },
         child: AnimatedPadding(
           duration: animate ? const Duration(milliseconds: 350) : Duration.zero,

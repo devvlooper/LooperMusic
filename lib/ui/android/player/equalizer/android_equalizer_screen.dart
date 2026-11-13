@@ -720,8 +720,10 @@ class AndroidEqualizerScreen extends ConsumerWidget {
                                 mode == 0
                                     ? context.l10n.off
                                     : (mode == 1
-                                        ? context.l10n.qualityReplayGainTrack
-                                        : context.l10n.qualityReplayGainAlbum),
+                                          ? context.l10n.qualityReplayGainTrack
+                                          : context
+                                                .l10n
+                                                .qualityReplayGainAlbum),
                                 style: AppFonts.jostStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.bold,
@@ -733,8 +735,9 @@ class AndroidEqualizerScreen extends ConsumerWidget {
                             ),
                             selected: eqState.replayGainMode == mode,
                             selectedColor: accentColor.withValues(alpha: 0.35),
-                            backgroundColor:
-                                Colors.white.withValues(alpha: 0.04),
+                            backgroundColor: Colors.white.withValues(
+                              alpha: 0.04,
+                            ),
                             side: BorderSide(
                               color: eqState.replayGainMode == mode
                                   ? accentColor

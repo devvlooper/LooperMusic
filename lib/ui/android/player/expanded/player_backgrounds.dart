@@ -96,7 +96,6 @@ class ForegroundAlbumArt extends ConsumerWidget {
         imageUrl: song.artPath != null && song.artPath!.startsWith('http')
             ? song.artPath
             : null,
-        borderRadius: BorderRadius.circular(12),
         fit: BoxFit.cover,
         cacheWidth: (decodeWidth * dpr).toInt(),
       ),
@@ -207,6 +206,25 @@ class ImmersiveHeroArt extends ConsumerWidget {
         ? motion.bestTallMedia ?? motion.bestSquareMedia
         : null;
 
+    return decorate(
+      AnimatedArtworkWidget(
+        mediaSource: source,
+        staticFallback: staticArt,
+        fit: BoxFit.cover,
+      ),
+      fadeHeight: fadeHeight,
+    );
+  }
+
+  /// The immersive look over any art: the bottom fade of [fadeHeight] and a
+  /// top shade (keeps the white top bar readable over bright art), the
+  /// latter at [topShade] of its strength. Shared with the artwork Hero
+  /// flight so the flight lands on exactly this picture.
+  static Widget decorate(
+    Widget art, {
+    required double fadeHeight,
+    double topShade = 1.0,
+  }) {
     return ShaderMask(
       blendMode: BlendMode.dstIn,
       shaderCallback: (rect) => LinearGradient(
@@ -224,18 +242,16 @@ class ImmersiveHeroArt extends ConsumerWidget {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          AnimatedArtworkWidget(
-            mediaSource: source,
-            staticFallback: staticArt,
-            fit: BoxFit.cover,
-          ),
-          // Keeps the white top bar readable over bright art.
-          const DecoratedBox(
+          art,
+          DecoratedBox(
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
-                end: Alignment(0, -0.5),
-                colors: [Colors.black45, Colors.transparent],
+                end: const Alignment(0, -0.5),
+                colors: [
+                  Colors.black.withValues(alpha: 0.45 * topShade),
+                  Colors.transparent,
+                ],
               ),
             ),
           ),

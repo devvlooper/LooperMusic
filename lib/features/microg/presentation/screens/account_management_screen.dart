@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:looper_player/core/motion/app_routes.dart';
 import 'package:looper_player/core/theme/app_fonts.dart';
-import 'package:looper_player/features/microg/data/auth_session.dart';
+import 'package:looper_player/features/microg/domain/auth_session.dart';
 import 'package:looper_player/features/microg/data/microg_platform.dart';
 import 'package:looper_player/features/microg/domain/auth_state.dart';
 import 'package:looper_player/features/microg/presentation/providers/auth_provider.dart';

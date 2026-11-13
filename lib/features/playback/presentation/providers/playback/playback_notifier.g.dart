@@ -41,7 +41,7 @@ final class PlaybackProvider
   }
 }
 
-String _$playbackHash() => r'da2cd1c4903086d66395d64bf421a40bd8ba542f';
+String _$playbackHash() => r'578f2d2d8b192b6ce8c9b4cdd4e1df8a169210be';
 
 abstract class _$Playback extends $Notifier<PlaybackState> {
   PlaybackState build();

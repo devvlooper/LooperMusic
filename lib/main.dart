@@ -16,6 +16,7 @@ import 'package:flutter_displaymode/flutter_displaymode.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:looper_player/core/providers/providers.dart';
 import 'core/services/storage/db_service.dart';
+import 'package:looper_player/core/services/storage/local_json_store.dart';
 import 'core/theme/app_fonts.dart';
 import 'core/services/appambit_reporter.dart';
 import 'ui/home_screen/home_screen.dart';
@@ -188,6 +189,11 @@ void main(List<String> args) async {
     }
   }();
 
+  // Preload local JSON cache in parallel for instant, stable startup views
+  final Future<void> storeInit = LocalJsonStore.init().catchError((e, s) {
+    LoggerHelper.write('LocalJsonStore init error', e, s);
+  });
+
   // Wait for all boot-up stages concurrently
   await Future.wait([
     timed('logs', logsInit),
@@ -195,6 +201,7 @@ void main(List<String> args) async {
     timed('db', dbInit),
     timed('plugins', nativePluginsInit),
     timed('permissions', permissionCheck),
+    timed('store', storeInit),
     if (AppAmbitReporter.mustStartBeforeUi) reporterInit,
   ]);
   final beforeRunApp = startup.elapsedMilliseconds;

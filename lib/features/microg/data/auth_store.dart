@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:looper_player/features/microg/data/auth_session.dart';
+import 'package:looper_player/features/microg/domain/auth_session.dart';
 import 'package:looper_player/features/microg/data/microg_platform.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';

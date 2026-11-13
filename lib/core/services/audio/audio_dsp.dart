@@ -130,9 +130,8 @@ extension AudioServiceDsp on AudioService {
     // The preamp is the limiter's input gain, so the limiter catches it
     // (doc 25 §3.1); a live af-command, no chain rebuild while dragging.
     final levelIn = _preampLevel(_equalizerEnabled ? preamp : 0.0);
-    Future<void> apply(Player p) => p.updateAudioEffects(
-      (e) => e.copyWith(alimiter: _limiter(levelIn)),
-    );
+    Future<void> apply(Player p) =>
+        p.updateAudioEffects((e) => e.copyWith(alimiter: _limiter(levelIn)));
     try {
       await apply(player);
       if (idlePlayer.state.playlist.items.isNotEmpty) {
