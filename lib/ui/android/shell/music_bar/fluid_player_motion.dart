@@ -75,7 +75,12 @@ class FluidPlayerGeometry {
 
   /// [stretch] > 0 (open end) raises the top edge and keeps the bottom on
   /// the screen edge; [stretch] < 0 (collapsed end) moves the whole rect down.
-  Rect panelRect(double p, {double stretch = 0.0}) {
+  /// [horizontalOffset] shifts the collapsed mini panel sideways during swipe gestures.
+  Rect panelRect(
+    double p, {
+    double stretch = 0.0,
+    double horizontalOffset = 0.0,
+  }) {
     final double margin = miniMargin * (1.0 - p);
     double top = collapsedTop * (1.0 - p);
     double bottom = screenSize.height - restingBottom * (1.0 - p);
@@ -85,7 +90,9 @@ class FluidPlayerGeometry {
       top -= stretch;
       bottom -= stretch;
     }
-    return Rect.fromLTRB(margin, top, screenSize.width - margin, bottom);
+    final double left = margin + horizontalOffset;
+    final double right = screenSize.width - margin + horizontalOffset;
+    return Rect.fromLTRB(left, top, right, bottom);
   }
 
   /// Converts a vertical pointer velocity (px/s, down positive) into
@@ -193,3 +200,46 @@ final SpringDescription fluidPlayerSpring = SpringDescription.withDampingRatio(
   stiffness: 380.0,
   ratio: 1.0,
 );
+
+/// Pure calculation helper for horizontal swipe gesture physics and commit
+/// thresholds in Fluid Player.
+class FluidHorizontalSwipe {
+  static const double commitThresholdFraction = 0.25;
+  static const double commitThresholdMin = 60.0;
+  static const double projectionTime = 0.15;
+
+  /// Returns drag displacement, dampening through [rubberBand] if the drag is
+  /// blocked at a boundary (start or end of queue).
+  static double computeOffset({
+    required double fingerDx,
+    required bool isBlocked,
+    required double limit,
+  }) {
+    if (!isBlocked) return fingerDx;
+    if (fingerDx == 0.0) return 0.0;
+    return fingerDx.sign * rubberBand(fingerDx.abs(), limit);
+  }
+
+  /// Projects final offset from [offset] and pointer [velocityX] (px/s).
+  static double projectedOffset({
+    required double offset,
+    required double velocityX,
+    double projectionTime = projectionTime,
+  }) {
+    return offset + velocityX * projectionTime;
+  }
+
+  /// Minimum horizontal travel required to trigger a track skip.
+  static double threshold(double containerWidth) {
+    final double fraction = containerWidth * commitThresholdFraction;
+    return fraction > commitThresholdMin ? fraction : commitThresholdMin;
+  }
+
+  /// Whether the swipe throw or drag has crossed the commit threshold.
+  static bool shouldCommit({
+    required double projectedOffset,
+    required double threshold,
+  }) {
+    return projectedOffset.abs() >= threshold;
+  }
+}
