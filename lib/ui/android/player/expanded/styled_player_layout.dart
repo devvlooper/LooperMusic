@@ -24,9 +24,9 @@ import 'package:looper_player/l10n/app_localizations.dart';
 import 'package:looper_player/ui/widgets/common/optimized_image.dart';
 
 import '../../shell/music_bar/fluid_player_motion.dart';
-import '../../shell/blurred_background_art.dart';
 import '../lyrics/lyrics_route.dart';
 import 'favorite_button.dart';
+import 'player_backgrounds.dart';
 import 'player_lyric_line.dart';
 import 'player_style_picker.dart';
 import 'position_reporter.dart';
@@ -38,11 +38,13 @@ import 'position_reporter.dart';
 enum PlayerLayoutStyle {
   classic,
   arc,
-  linear;
+  linear,
+  card;
 
   static PlayerLayoutStyle fromSetting(String value) => switch (value) {
     'arc' => arc,
     'linear' => linear,
+    'card' || 'box' => card,
     _ => classic,
   };
 }
@@ -267,6 +269,18 @@ class _StyledPlayerLayoutState extends ConsumerState<StyledPlayerLayout>
                 ),
               ),
 
+            if (widget.style == PlayerLayoutStyle.card)
+              Positioned(
+                left: 32 * sx,
+                right: 32 * sx,
+                top: 457 * s,
+                height: 40 * s,
+                child: fade(
+                  _LinearSeekRow(scale: s),
+                  FluidSectionMotion.seekBar,
+                ),
+              ),
+
             // Right-hand controls.
             centeredAt(
               cx,
@@ -470,6 +484,40 @@ class _StyledPlayerLayoutState extends ConsumerState<StyledPlayerLayout>
                   borderRadius: BorderRadius.circular(7 * s),
                   child: _artImage(),
                 ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Card style: a floating card of art centered at top with shadow.
+  Widget _cardArt(double sx, double s, double w) {
+    final double artW = 346.735 * s;
+    final double artH = 351 * s;
+    return Positioned(
+      left: (w - artW) / 2,
+      top: 68 * s,
+      width: artW,
+      height: artH,
+      child: _reportArt(
+        _artGestures(
+          _hero(
+            DecoratedBox(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(5 * s),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.2),
+                    offset: Offset(0, 40 * s),
+                    blurRadius: 35 * s,
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(5 * s),
+                child: _artImage(),
               ),
             ),
           ),
@@ -1016,12 +1064,24 @@ final _showPlayerLyricsProvider = Provider<bool>(
 final _activeColorProvider = Provider<Color>(
   (ref) => ref.watch(
     settingsProvider.select(
-      (s) =>
-          s.playerStyleAccent ||
+      (s) {
+        if (s.playerStyleAccent ||
+            PlayerLayoutStyle.fromSetting(s.playerStyle) ==
+                PlayerLayoutStyle.classic) {
+          final isCardAccentBg =
               PlayerLayoutStyle.fromSetting(s.playerStyle) ==
-                  PlayerLayoutStyle.classic
-          ? s.accent
-          : Colors.white,
+                  PlayerLayoutStyle.card &&
+              !s.darkTheme &&
+              !s.enablePlayerGradient;
+          if (isCardAccentBg) {
+            return s.accent.computeLuminance() > 0.55
+                ? Colors.black87
+                : Colors.white;
+          }
+          return s.accent;
+        }
+        return Colors.white;
+      },
     ),
   ),
 );
@@ -1634,7 +1694,7 @@ class _LinearSeekRowState extends ConsumerState<_LinearSeekRow>
                   child: Container(
                     height: 8 * s,
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.05),
+                      color: Colors.white.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(4 * s),
                     ),
                     alignment: Alignment.centerLeft,
@@ -1711,7 +1771,7 @@ Rect styledLandscapeArtRect(
       412.856 * f.s,
       412.856 * f.s,
     ),
-    PlayerLayoutStyle.classic => Rect.fromLTWH(
+    PlayerLayoutStyle.classic || PlayerLayoutStyle.card => Rect.fromLTWH(
       f.left + 24 * f.s,
       (h - 351 * f.s) / 2,
       351 * f.s,
@@ -1835,7 +1895,7 @@ class _StyledLandscapeLayoutState extends ConsumerState<StyledLandscapeLayout>
                 next: const Offset(810, 267.5),
                 star: const Offset(810, 67.5),
               ),
-              PlayerLayoutStyle.classic => (
+              PlayerLayoutStyle.card || PlayerLayoutStyle.classic => (
                 prev: const Offset(810, 145.5),
                 play: const Offset(810, 211.5),
                 next: const Offset(810, 276.5),
@@ -1848,7 +1908,7 @@ class _StyledLandscapeLayoutState extends ConsumerState<StyledLandscapeLayout>
         final Offset chevron = switch (style) {
           PlayerLayoutStyle.arc => const Offset(39, 37),
           PlayerLayoutStyle.linear => const Offset(39, 39),
-          PlayerLayoutStyle.classic => const Offset(54, 45),
+          PlayerLayoutStyle.card || PlayerLayoutStyle.classic => const Offset(54, 45),
         };
         final double textLeft = arc ? 526 : 437;
         final double lyricsTop = arc ? 27 : 46;
@@ -2084,7 +2144,7 @@ class _StyledLandscapeLayoutState extends ConsumerState<StyledLandscapeLayout>
           ),
         ),
       ),
-      PlayerLayoutStyle.classic => DecoratedBox(
+      PlayerLayoutStyle.card || PlayerLayoutStyle.classic => DecoratedBox(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(5 * s),
           boxShadow: shadow,

@@ -106,9 +106,14 @@ class FluidPlayerGeometry {
     double p,
     Rect expandedArt, {
     double stretch = 0.0,
+    double horizontalOffset = 0.0,
     bool compact = false,
   }) {
-    final Rect panel = panelRect(p, stretch: stretch);
+    final Rect panel = panelRect(
+      p,
+      stretch: stretch,
+      horizontalOffset: horizontalOffset,
+    );
     final double miniSize = compact ? 40.0 : 50.0;
     final double miniTop = compact ? 8.0 : 11.0;
     final double size = lerpDouble(miniSize, expandedArt.width, p)!;
@@ -122,8 +127,16 @@ class FluidPlayerGeometry {
   static double morphArtRadius(double p, {bool compact = false}) =>
       lerpDouble(compact ? 26.0 : 32.0, 12.0, p)!;
 
-  Offset miniOrigin(double p, {double stretch = 0.0}) =>
-      panelRect(p, stretch: stretch).topLeft;
+  Offset miniOrigin(
+    double p, {
+    double stretch = 0.0,
+    double horizontalOffset = 0.0,
+  }) =>
+      panelRect(
+        p,
+        stretch: stretch,
+        horizontalOffset: horizontalOffset,
+      ).topLeft;
 }
 
 /// Staggered entrance of one expanded-player section: it fades in and rises

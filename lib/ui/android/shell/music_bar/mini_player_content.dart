@@ -1,6 +1,6 @@
 part of 'premium_music_bar.dart';
 
-extension _MiniPlayerContent on _PremiumMusicBarState {
+extension _MiniPlayerContent on PremiumMusicBarState {
   Widget _buildMiniPlayerContent(
     Song song,
     bool isPlaying,

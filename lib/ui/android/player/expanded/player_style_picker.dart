@@ -117,6 +117,7 @@ class _PlayerStylePickerScreenState
     PlayerLayoutStyle.classic => l10n.playerStyleClassic,
     PlayerLayoutStyle.arc => l10n.playerStyleArc,
     PlayerLayoutStyle.linear => l10n.playerStyleLinear,
+    PlayerLayoutStyle.card => l10n.playerStyleClassic,
   };
 
   void _save() {
