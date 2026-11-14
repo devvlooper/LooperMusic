@@ -11,6 +11,7 @@ class AppBottomSheetContainer extends ConsumerWidget {
   final double? height;
   final bool showDragHandle;
   final bool useBlurBG;
+  final bool? overrideUseBlur;
 
   const AppBottomSheetContainer({
     super.key,
@@ -19,6 +20,7 @@ class AppBottomSheetContainer extends ConsumerWidget {
     this.height,
     this.showDragHandle = true,
     this.useBlurBG = false,
+    this.overrideUseBlur,
   });
 
   @override
@@ -31,9 +33,9 @@ class AppBottomSheetContainer extends ConsumerWidget {
     // anyone who hasn't also turned Dynamic Theming on.
     // alwaysBlurSheets is the standalone opt-in: it lets every sheet built
     // on this container blur without needing Dynamic Theming at all.
-    final useBlur =
-        settings.alwaysBlurSheets ||
-        (!settings.disableBlur && (useBlurBG || settings.enableDynamicTheming));
+    final useBlur = overrideUseBlur ??
+        (settings.alwaysBlurSheets ||
+        (!settings.disableBlur && (useBlurBG || settings.enableDynamicTheming)));
 
     // On a landscape phone/tablet a bottom sheet stretched edge-to-edge
     // reads as a wall of controls - cap the content's width and center it,

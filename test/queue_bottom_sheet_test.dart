@@ -16,9 +16,14 @@ Song _song(String path, String title, String artist) => Song()
   ..artist = artist;
 
 class _FakeSettings extends Settings {
+  _FakeSettings({this.blur = false});
+  final bool blur;
+
   @override
   AppSettings build() => AppSettings()
-    ..alwaysBlurSheets = false
+    ..alwaysBlurSheets = blur
+    ..enableDynamicTheming = true // even when dynamic theming is true
+    ..disableBlur = false
     ..darkTheme = true
     ..accentColor = Colors.red.value;
 }
@@ -67,7 +72,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          settingsProvider.overrideWith(() => _FakeSettings()),
+          settingsProvider.overrideWith(() => _FakeSettings(blur: false)),
           playbackProvider.overrideWith(() => fakePlayback),
         ],
         child: const MaterialApp(
@@ -80,6 +85,9 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+
+    // 0. When alwaysBlurSheets is false, BackdropFilter must NOT be rendered (no background blur)
+    expect(find.byType(BackdropFilter), findsNothing);
 
     // 1. Pinned continuation card shows current song and play/pause toggle
     expect(find.text('Current Song'), findsOneWidget);
@@ -116,5 +124,33 @@ void main() {
     await tester.drag(find.text('Upcoming 1'), const Offset(-500, 0));
     await tester.pumpAndSettle();
     expect(fakePlayback.calls, contains('removeFromQueue:1'));
+  });
+
+  testWidgets('QueueBottomSheet applies BackdropFilter blur when alwaysBlurSheets is true', (tester) async {
+    final songs = [
+      _song('/s0.mp3', 'Current Song', 'Current Artist'),
+      _song('/s1.mp3', 'Upcoming 1', 'Artist 1'),
+    ];
+    final fakePlayback = _FakePlayback(songs, initialIndex: 0);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          settingsProvider.overrideWith(() => _FakeSettings(blur: true)),
+          playbackProvider.overrideWith(() => fakePlayback),
+        ],
+        child: const MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: QueueBottomSheet(),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // When alwaysBlurSheets is true, BackdropFilter is applied to blur the background
+    expect(find.byType(BackdropFilter), findsWidgets);
   });
 }

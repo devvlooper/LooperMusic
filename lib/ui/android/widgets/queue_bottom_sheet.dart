@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:looper_player/core/theme/app_fonts.dart';
 import 'package:looper_player/core/utils/l10n.dart';
+import 'package:looper_player/core/utils/motion.dart';
 import 'package:looper_player/features/library/domain/models/models.dart';
 import 'package:looper_player/features/playback/presentation/providers/playback/playback_notifier.dart';
 import 'package:looper_player/features/settings/presentation/providers/settings_notifier.dart';
@@ -19,14 +20,54 @@ class QueueBottomSheet extends ConsumerStatefulWidget {
   ConsumerState<QueueBottomSheet> createState() => _QueueBottomSheetState();
 }
 
-class _QueueBottomSheetState extends ConsumerState<QueueBottomSheet> {
+class _QueueBottomSheetState extends ConsumerState<QueueBottomSheet>
+    with SingleTickerProviderStateMixin {
   String? _initialSongPath;
   bool _isReorderMode = false;
+
+  late final AnimationController _shuffleController;
+  late final Animation<double> _shuffleAnimation;
+  Map<String, int> _previousIndices = {};
 
   @override
   void initState() {
     super.initState();
     _initialSongPath = ref.read(playbackProvider).currentSong?.path;
+    _shuffleController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 450),
+    );
+    _shuffleAnimation = CurvedAnimation(
+      parent: _shuffleController,
+      curve: Curves.easeOutCubic,
+    );
+    _shuffleController.addStatusListener((status) {
+      if (status == AnimationStatus.completed && mounted) {
+        setState(() {
+          _previousIndices.clear();
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _shuffleController.dispose();
+    super.dispose();
+  }
+
+  void _onShuffleTap(List<Song> currentUpcoming) {
+    if (currentUpcoming.length <= 1) return;
+    final reduced = Motion.reducedOf(context);
+    if (!reduced) {
+      _previousIndices = {
+        for (int i = 0; i < currentUpcoming.length; i++) currentUpcoming[i].path: i,
+      };
+      _shuffleController.forward(from: 0.0);
+    }
+    ref
+        .read(playbackProvider.notifier)
+        .shuffleUpcomingQueue(rotationSongPath: _initialSongPath);
   }
 
   @override
@@ -62,7 +103,7 @@ class _QueueBottomSheetState extends ConsumerState<QueueBottomSheet> {
     return AppBottomSheetContainer(
       height: MediaQuery.of(context).size.height * 0.78,
       padding: EdgeInsets.zero,
-      useBlurBG: true,
+      overrideUseBlur: settings.alwaysBlurSheets,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -105,11 +146,7 @@ class _QueueBottomSheetState extends ConsumerState<QueueBottomSheet> {
                   tooltip: l10n.reshuffleQueue,
                   size: 22,
                   color: accentColor,
-                  onTap: () {
-                    ref
-                        .read(playbackProvider.notifier)
-                        .shuffleUpcomingQueue(rotationSongPath: _initialSongPath);
-                  },
+                  onTap: () => _onShuffleTap(upcomingQueue),
                 ),
               ],
             ),
@@ -304,6 +341,94 @@ class _QueueBottomSheetState extends ConsumerState<QueueBottomSheet> {
                           ? (rotationIdx + displayedIndex) % queue.length
                           : displayedIndex;
 
+                      final oldIndex = _previousIndices[song.path];
+                      final int delta = oldIndex != null ? (oldIndex - index) : 0;
+
+                      Widget itemTile = Material(
+                        color: Colors.transparent,
+                        child: ListTile(
+                          leading: ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child: OptimizedImage(
+                              imagePath: song.artPath,
+                              width: 46,
+                              height: 46,
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                          title: Text(
+                            song.title,
+                            style: AppFonts.jostStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w500,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          subtitle: Text(
+                            song.artist ?? context.l10n.unknownArtist,
+                            style: AppFonts.jostStyle(
+                              color: Colors.grey,
+                              fontSize: 12,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          trailing: _isReorderMode
+                              ? ReorderableDragStartListener(
+                                  index: index,
+                                  child: const Padding(
+                                    padding: EdgeInsets.all(8.0),
+                                    child: Icon(
+                                      LucideIcons.gripVertical,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                                )
+                              : IconButton(
+                                  icon: const Icon(
+                                    LucideIcons.ellipsisVertical,
+                                    color: Colors.grey,
+                                    size: 18,
+                                  ),
+                                  onPressed: () {
+                                    showSongOptionsBottomSheet(
+                                      context: context,
+                                      ref: ref,
+                                      song: song,
+                                    );
+                                  },
+                                ),
+                          onTap: () {
+                            ref
+                                .read(playbackProvider.notifier)
+                                .playAtIndex(absoluteIndex);
+                          },
+                        ),
+                      );
+
+                      // Animate items gliding from old position to new position on shuffle
+                      if (delta != 0 && _shuffleController.isAnimating) {
+                        final effectiveDelta = delta.clamp(-5, 5);
+                        final double initialDy = effectiveDelta * 64.0;
+                        itemTile = AnimatedBuilder(
+                          animation: _shuffleAnimation,
+                          builder: (context, child) {
+                            final t = _shuffleAnimation.value;
+                            final double currentDy = initialDy * (1.0 - t);
+                            final double opacity = 0.65 + 0.35 * t;
+                            return Transform.translate(
+                              offset: Offset(0, currentDy),
+                              child: Opacity(
+                                opacity: opacity.clamp(0.0, 1.0),
+                                child: child,
+                              ),
+                            );
+                          },
+                          child: itemTile,
+                        );
+                      }
+
                       return Dismissible(
                         key: ValueKey('queue_dismiss_${song.path}_$absoluteIndex'),
                         direction: DismissDirection.horizontal,
@@ -332,68 +457,7 @@ class _QueueBottomSheetState extends ConsumerState<QueueBottomSheet> {
                               .read(playbackProvider.notifier)
                               .removeFromQueue(absoluteIndex);
                         },
-                        child: Material(
-                          color: Colors.transparent,
-                          child: ListTile(
-                            leading: ClipRRect(
-                              borderRadius: BorderRadius.circular(10),
-                              child: OptimizedImage(
-                                imagePath: song.artPath,
-                                width: 46,
-                                height: 46,
-                                fit: BoxFit.cover,
-                              ),
-                            ),
-                            title: Text(
-                              song.title,
-                              style: AppFonts.jostStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w500,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            subtitle: Text(
-                              song.artist ?? context.l10n.unknownArtist,
-                              style: AppFonts.jostStyle(
-                                color: Colors.grey,
-                                fontSize: 12,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            trailing: _isReorderMode
-                                ? ReorderableDragStartListener(
-                                    index: index,
-                                    child: const Padding(
-                                      padding: EdgeInsets.all(8.0),
-                                      child: Icon(
-                                        LucideIcons.gripVertical,
-                                        color: Colors.grey,
-                                      ),
-                                    ),
-                                  )
-                                : IconButton(
-                                    icon: const Icon(
-                                      LucideIcons.ellipsisVertical,
-                                      color: Colors.grey,
-                                      size: 18,
-                                    ),
-                                    onPressed: () {
-                                      showSongOptionsBottomSheet(
-                                        context: context,
-                                        ref: ref,
-                                        song: song,
-                                      );
-                                    },
-                                  ),
-                            onTap: () {
-                              ref
-                                  .read(playbackProvider.notifier)
-                                  .playAtIndex(absoluteIndex);
-                            },
-                          ),
-                        ),
+                        child: itemTile,
                       );
                     },
                   ),
