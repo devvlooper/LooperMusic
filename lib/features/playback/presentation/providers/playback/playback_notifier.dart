@@ -2541,6 +2541,7 @@ class Playback extends _$Playback {
 
   void _checkAndUpdateLyrics() {
     if (!Platform.isAndroid) return;
+    if (_hasHomeWidgetsPinned == false) return;
     try {
       final lyricsState = ref.read(lyricsProvider);
       final currentPosition = state.position;
