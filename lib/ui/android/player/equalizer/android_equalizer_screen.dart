@@ -109,7 +109,7 @@ class AndroidEqualizerScreen extends ConsumerWidget {
 
     final accentColor = settings.accent;
     final isPureBlack = settings.darkTheme;
-    final useBlur = settings.enableDynamicTheming && !settings.disableBlur;
+    final useBlur = settings.sheetShouldBlur;
     // Same check PlayerLandscapeMetrics uses for "landscape phone, not
     // tablet" - the graph/slider area's fixed 290dp height was tuned for a
     // tall portrait screen and ate a large fraction of a short window.
