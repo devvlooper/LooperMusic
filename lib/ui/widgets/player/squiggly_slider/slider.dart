@@ -131,7 +131,7 @@ class SquigglySlider extends Slider {
 }
 
 class _SquigglySliderState extends State<SquigglySlider>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   // The wave's phase in [0, 1), advanced by a ticker. The track shape reads
   // it at paint time, so moving the wave only repaints the slider's own
   // layer (via [_boundaryKey]) instead of rebuilding the whole Slider.
@@ -139,11 +139,28 @@ class _SquigglySliderState extends State<SquigglySlider>
   final GlobalKey _boundaryKey = GlobalKey();
   late final Ticker _ticker = createTicker(_onTick);
   Duration? _lastElapsed;
+  // Capped at ~30 fps: the wave is very slow (0.08 waves/sec), so ticking at
+  // full panel refresh (90/120Hz) wastes GPU/CPU cycles with zero visual gain.
+  static const Duration _paintInterval = Duration(milliseconds: 33);
+  Duration _lastPaint = Duration.zero;
+  bool _resumed = true;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    final lifecycle = WidgetsBinding.instance.lifecycleState;
+    _resumed = lifecycle == null || lifecycle == AppLifecycleState.resumed;
     _syncTicker();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final bool resumed = state == AppLifecycleState.resumed;
+    if (resumed != _resumed) {
+      _resumed = resumed;
+      _syncTicker();
+    }
   }
 
   @override
@@ -153,6 +170,7 @@ class _SquigglySliderState extends State<SquigglySlider>
   }
 
   bool get _wantsTick =>
+      _resumed &&
       widget.squiggleSpeed != 0 &&
       widget.squiggleAnimating &&
       // Nothing visible changes while the wave is flat (amplitude 0 -
@@ -162,6 +180,7 @@ class _SquigglySliderState extends State<SquigglySlider>
   void _syncTicker() {
     if (_wantsTick && !_ticker.isActive) {
       _lastElapsed = null;
+      _lastPaint = Duration.zero;
       _ticker.start();
     } else if (!_wantsTick && _ticker.isActive) {
       _ticker.stop();
@@ -179,13 +198,16 @@ class _SquigglySliderState extends State<SquigglySlider>
         (_phase.value + dt * widget.squiggleSpeed * widget.squiggleWavelength) %
         1.0;
     _phase.value = next < 0 ? next + 1 : next;
-    // Every frame: a 30 fps cap read as lag next to the moving thumb, and
-    // this only repaints the slider's own layer.
-    _boundaryKey.currentContext?.findRenderObject()?.markNeedsPaint();
+    // Capped at ~30 fps: prevents 120Hz continuous repaint loops on mobile
+    if (elapsed - _lastPaint >= _paintInterval) {
+      _lastPaint = elapsed;
+      _boundaryKey.currentContext?.findRenderObject()?.markNeedsPaint();
+    }
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _ticker.dispose();
     _phase.dispose();
     super.dispose();
