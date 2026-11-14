@@ -1847,5 +1847,9 @@
   "sectionStorage": "التخزين",
   "settingsGroupTitle": "الإعدادات",
   "settingsSearchShort": "بحث في الإعدادات",
-  "showPreview": "إظهار المعاينة"
+  "showPreview": "إظهار المعاينة",
+  "keepScreenAwake": "إبقاء الشاشة قيد التشغيل",
+  "keepScreenAwakeDesc": "منع الشاشة من الإيقاف أثناء فتح المشغل أو كلمات الأغاني",
+  "highRefreshRate": "معدل تحديث عالٍ",
+  "highRefreshRateDesc": "يعمل بمعدل 90/120 هرتز لرسوم متحركة أكثر سلاسة؛ أوقفه لتوفير البطارية عند 60 هرتز"
 }

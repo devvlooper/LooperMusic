@@ -1847,5 +1847,9 @@
   "sectionStorage": "저장소",
   "settingsGroupTitle": "설정",
   "settingsSearchShort": "설정 검색",
-  "showPreview": "미리보기 표시"
+  "showPreview": "미리보기 표시",
+  "keepScreenAwake": "화면 켜짐 유지",
+  "keepScreenAwakeDesc": "플레이어나 가사가 열려 있는 동안 화면이 꺼지지 않도록 합니다",
+  "highRefreshRate": "높은 화면 재생률",
+  "highRefreshRateDesc": "부드러운 애니메이션을 위해 90/120Hz로 실행합니다 (배터리 절약을 위해 끄면 60Hz)"
 }

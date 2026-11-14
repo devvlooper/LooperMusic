@@ -1847,5 +1847,9 @@
   "sectionBackupRestore": "Backup & Restore",
   "sectionPlayerBackground": "Player Background",
   "sectionClassicLayout": "Classic Layout",
-  "showPreview": "Show preview"
+  "showPreview": "Show preview",
+  "keepScreenAwake": "Keep Screen Awake",
+  "keepScreenAwakeDesc": "Prevent screen from sleeping while player or lyrics are open",
+  "highRefreshRate": "High Refresh Rate",
+  "highRefreshRateDesc": "Runs display at 90/120Hz for smoother animations; turn off for 60Hz battery saver"
 }

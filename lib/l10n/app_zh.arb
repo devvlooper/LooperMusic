@@ -1847,5 +1847,9 @@
   "sectionStorage": "存储",
   "settingsGroupTitle": "设置",
   "settingsSearchShort": "搜索设置",
-  "showPreview": "显示预览"
+  "showPreview": "显示预览",
+  "keepScreenAwake": "保持屏幕常亮",
+  "keepScreenAwakeDesc": "在播放器或歌词打开时防止屏幕变暗熄灭",
+  "highRefreshRate": "高刷新率",
+  "highRefreshRateDesc": "以 90/120Hz 运行以获得更流畅的动画；关闭以使用 60Hz 省电模式"
 }

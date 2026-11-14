@@ -106,6 +106,7 @@ class SettingsCategoryScreen extends ConsumerWidget {
         (
           title: l10n.sectionDisplay,
           tiles: [
+            if (Platform.isAndroid) const HighRefreshRateTile(),
             const GroupArtistByAlbumTile(),
             const ShowAlbumNextToArtistTile(),
             sub(settings.showAlbumNextToArtist, const [
@@ -169,6 +170,7 @@ class SettingsCategoryScreen extends ConsumerWidget {
                 PlayerLyricLineTransitionTile(),
               ]),
             ],
+            if (!UiUtils.isDesktop) const KeepScreenAwakeTile(),
           ],
         ),
         if (classic) ...[

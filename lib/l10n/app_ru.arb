@@ -1847,5 +1847,9 @@
   "sectionStorage": "Хранилище",
   "settingsGroupTitle": "Настройки",
   "settingsSearchShort": "Поиск настройки",
-  "showPreview": "Показать предпросмотр"
+  "showPreview": "Показать предпросмотр",
+  "keepScreenAwake": "Не выключать экран",
+  "keepScreenAwakeDesc": "Предотвращает выключение экрана, пока открыт плеер или текст песни",
+  "highRefreshRate": "Высокая частота обновления",
+  "highRefreshRateDesc": "Работает на 90/120 Гц для плавных анимаций; отключите для экономии батареи (60 Гц)"
 }

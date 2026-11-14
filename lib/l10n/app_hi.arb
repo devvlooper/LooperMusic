@@ -1847,5 +1847,9 @@
   "sectionStorage": "स्टोरेज",
   "settingsGroupTitle": "सेटिंग्स",
   "settingsSearchShort": "सेटिंग खोजें",
-  "showPreview": "पूर्वावलोकन दिखाएं"
+  "showPreview": "पूर्वावलोकन दिखाएं",
+  "keepScreenAwake": "स्क्रीन चालू रखें",
+  "keepScreenAwakeDesc": "प्लेयर या बोल खुले होने पर स्क्रीन को बंद होने से रोकें",
+  "highRefreshRate": "उच्च रिफ्रेश दर",
+  "highRefreshRateDesc": "सुगम एनिमेशन के लिए 90/120Hz पर चलता है; 60Hz बैटरी सेवर के लिए बंद करें"
 }

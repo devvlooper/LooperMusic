@@ -1847,5 +1847,9 @@
   "sectionStorage": "Memoria",
   "settingsGroupTitle": "Impostazioni",
   "settingsSearchShort": "Cerca impostazione",
-  "showPreview": "Mostra anteprima"
+  "showPreview": "Mostra anteprima",
+  "keepScreenAwake": "Mantieni schermo attivo",
+  "keepScreenAwakeDesc": "Impedisce allo schermo di spegnersi quando il lettore o i testi sono aperti",
+  "highRefreshRate": "Frequenza di aggiornamento elevata",
+  "highRefreshRateDesc": "Usa 90/120 Hz per animazioni più fluide; disattiva per risparmiare batteria a 60 Hz"
 }

@@ -12,7 +12,6 @@ import 'package:window_manager/window_manager.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:looper_player/l10n/app_localizations.dart';
 import 'package:looper_player/features/settings/presentation/providers/settings_notifier.dart';
-import 'package:flutter_displaymode/flutter_displaymode.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:looper_player/core/providers/providers.dart';
 import 'core/services/storage/db_service.dart';
@@ -166,9 +165,6 @@ void main(List<String> args) async {
     } catch (e, s) {
       LoggerHelper.write('Failed to initialize MpvAudioKit', e, s);
     }
-    try {
-      await FlutterDisplayMode.setHighRefreshRate();
-    } catch (_) {}
   }();
 
   // Check permissions in parallel (status check only - no automatic permission prompt dialogs on startup)

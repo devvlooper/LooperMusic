@@ -1847,5 +1847,9 @@
   "sectionStorage": "Opslag",
   "settingsGroupTitle": "Instellingen",
   "settingsSearchShort": "Zoek instelling",
-  "showPreview": "Voorbeeld tonen"
+  "showPreview": "Voorbeeld tonen",
+  "keepScreenAwake": "Scherm aan houden",
+  "keepScreenAwakeDesc": "Voorkomt dat het scherm uitschakelt terwijl speler of songteksten geopend zijn",
+  "highRefreshRate": "Hoge vernieuwingsfrequentie",
+  "highRefreshRateDesc": "Draait op 90/120 Hz voor soepelere animaties; uitschakelen voor 60 Hz batterijbesparing"
 }

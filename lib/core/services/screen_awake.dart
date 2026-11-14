@@ -6,18 +6,35 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 /// lyric line).
 abstract final class ScreenAwake {
   static final Set<Object> _holders = {};
+  static bool _enabled = true;
 
-  static bool get isActive => _holders.isNotEmpty;
+  static bool get isEnabled => _enabled;
+
+  static void setEnabled(bool enabled) {
+    if (_enabled == enabled) return;
+    _enabled = enabled;
+    if (!_enabled && _holders.isNotEmpty) {
+      WakelockPlus.disable().catchError((_) {});
+    } else if (_enabled && _holders.isNotEmpty) {
+      WakelockPlus.enable().catchError((_) {});
+    }
+  }
+
+  static bool get isActive => _enabled && _holders.isNotEmpty;
 
   static bool holds(Object holder) => _holders.contains(holder);
 
   @visibleForTesting
-  static void resetForTesting() => _holders.clear();
+  static void resetForTesting() {
+    _holders.clear();
+    _enabled = true;
+  }
 
   static void set(Object holder, bool on) {
-    final wasOn = _holders.isNotEmpty;
+    final wasOn = _enabled && _holders.isNotEmpty;
     on ? _holders.add(holder) : _holders.remove(holder);
-    if (_holders.isNotEmpty == wasOn) return;
-    (wasOn ? WakelockPlus.disable() : WakelockPlus.enable()).catchError((_) {});
+    final nowOn = _enabled && _holders.isNotEmpty;
+    if (nowOn == wasOn) return;
+    (nowOn ? WakelockPlus.enable() : WakelockPlus.disable()).catchError((_) {});
   }
 }

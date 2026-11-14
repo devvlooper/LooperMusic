@@ -1847,5 +1847,9 @@
   "sectionStorage": "Armazenamento",
   "settingsGroupTitle": "Configurações",
   "settingsSearchShort": "Pesquisar configuração",
-  "showPreview": "Mostrar prévia"
+  "showPreview": "Mostrar prévia",
+  "keepScreenAwake": "Manter tela ligada",
+  "keepScreenAwakeDesc": "Evita que a tela desligue enquanto o player ou as letras estão abertos",
+  "highRefreshRate": "Alta taxa de atualização",
+  "highRefreshRateDesc": "Usa 90/120 Hz para animações mais suaves; desligue para economizar bateria a 60 Hz"
 }

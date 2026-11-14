@@ -447,4 +447,12 @@ class AppSettings {
   /// automatic window-based scale. NaN on old rows - read it through
   /// LyricsScale.normalize.
   double lyricsFontScale = 1.0;
+
+  /// Whether to keep the screen on while the player or lyrics are open.
+  /// Null on existing installs, treated as true.
+  bool? keepScreenAwake;
+
+  /// Whether to lock display to the highest available refresh rate (e.g. 120Hz).
+  /// Null on existing installs, treated as true.
+  bool? forceHighRefreshRate;
 }

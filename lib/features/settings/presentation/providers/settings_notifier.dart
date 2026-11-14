@@ -1,7 +1,9 @@
 import 'dart:io';
+import 'package:flutter_displaymode/flutter_displaymode.dart';
 import 'package:isar_community/isar.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../../../core/services/haptics/app_haptics.dart';
+import '../../../../core/services/screen_awake.dart';
 import '../../../../core/services/storage/db_service.dart';
 import '../../../../core/services/storage/local_json_store.dart';
 
@@ -281,11 +283,24 @@ class Settings extends _$Settings {
         ..audioCacheSecs = 120
         ..audioBackCacheSizeMB = 100
         ..persistQueue = false
+        ..keepScreenAwake = true
+        ..forceHighRefreshRate = true
         ..globalEqualizerGains = _createDefaultGains();
       await DbService.isar.writeTxn(() async {
         await DbService.isar.appSettings.put(defaultSettings);
       });
       state = defaultSettings;
+    }
+
+    ScreenAwake.setEnabled(state.keepScreenAwake ?? true);
+    if (Platform.isAndroid) {
+      try {
+        if (state.forceHighRefreshRate ?? true) {
+          await FlutterDisplayMode.setHighRefreshRate();
+        } else {
+          await FlutterDisplayMode.setPreferredMode(DisplayMode.auto);
+        }
+      } catch (_) {}
     }
 
     _updateActiveFont();
@@ -493,7 +508,9 @@ class Settings extends _$Settings {
       ..firstTimeEqualizer = s.firstTimeEqualizer
       ..lyricsGestureTutorialSeen = s.lyricsGestureTutorialSeen
       ..desktopUiScale = s.desktopUiScale
-      ..lyricsFontScale = s.lyricsFontScale;
+      ..lyricsFontScale = s.lyricsFontScale
+      ..keepScreenAwake = s.keepScreenAwake
+      ..forceHighRefreshRate = s.forceHighRefreshRate;
   }
 
   Future<void> updateLibraryFolders(List<String> folders) =>
@@ -945,4 +962,22 @@ class Settings extends _$Settings {
 
   Future<void> updateLyricsGestureTutorialSeen(bool value) =>
       _update((s) => s..lyricsGestureTutorialSeen = value);
+
+  Future<void> updateKeepScreenAwake(bool value) async {
+    ScreenAwake.setEnabled(value);
+    await _update((s) => s..keepScreenAwake = value);
+  }
+
+  Future<void> updateForceHighRefreshRate(bool value) async {
+    if (Platform.isAndroid) {
+      try {
+        if (value) {
+          await FlutterDisplayMode.setHighRefreshRate();
+        } else {
+          await FlutterDisplayMode.setPreferredMode(DisplayMode.auto);
+        }
+      } catch (_) {}
+    }
+    await _update((s) => s..forceHighRefreshRate = value);
+  }
 }

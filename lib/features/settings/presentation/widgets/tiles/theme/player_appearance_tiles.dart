@@ -100,6 +100,44 @@ class ShowQualityBadgeTile extends ConsumerWidget {
   }
 }
 
+class KeepScreenAwakeTile extends ConsumerWidget {
+  const KeepScreenAwakeTile({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final settings = ref.watch(settingsProvider);
+    final l10n = AppLocalizations.of(context)!;
+    return SwitchListTile(
+      secondary: const Icon(LucideIcons.sun),
+      title: Text(l10n.keepScreenAwake, style: _tileTitleStyle()),
+      subtitle: Text(l10n.keepScreenAwakeDesc, style: _tileSubtitleStyle()),
+      value: settings.keepScreenAwake ?? true,
+      onChanged: (value) {
+        ref.read(settingsProvider.notifier).updateKeepScreenAwake(value);
+      },
+    );
+  }
+}
+
+class HighRefreshRateTile extends ConsumerWidget {
+  const HighRefreshRateTile({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final settings = ref.watch(settingsProvider);
+    final l10n = AppLocalizations.of(context)!;
+    return SwitchListTile(
+      secondary: const Icon(LucideIcons.gauge),
+      title: Text(l10n.highRefreshRate, style: _tileTitleStyle()),
+      subtitle: Text(l10n.highRefreshRateDesc, style: _tileSubtitleStyle()),
+      value: settings.forceHighRefreshRate ?? true,
+      onChanged: (value) {
+        ref.read(settingsProvider.notifier).updateForceHighRefreshRate(value);
+      },
+    );
+  }
+}
+
 /// Lists an artist page's songs under album headers. Off by default.
 class GroupArtistByAlbumTile extends ConsumerWidget {
   const GroupArtistByAlbumTile({super.key});

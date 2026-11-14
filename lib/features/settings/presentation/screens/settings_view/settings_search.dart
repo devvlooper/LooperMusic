@@ -277,12 +277,26 @@ extension _SettingsSearch on _SettingsViewState {
         category: '${l10n.nowPlaying} · ${l10n.sectionPlayer}',
         widget: const PlayerLyricLineTile(),
       ),
+      if (!UiUtils.isDesktop)
+        SettingsSearchItem(
+          title: l10n.keepScreenAwake,
+          subtitle: l10n.keepScreenAwakeDesc,
+          category: '${l10n.nowPlaying} · ${l10n.sectionPlayer}',
+          widget: const KeepScreenAwakeTile(),
+        ),
       SettingsSearchItem(
         title: l10n.accentVibrancy,
         subtitle: l10n.accentVibrancyDesc,
         category: '${l10n.catPlayerInterface} · ${l10n.themeGroupColors}',
         widget: const AccentVibrancyTile(),
       ),
+      if (Platform.isAndroid)
+        SettingsSearchItem(
+          title: l10n.highRefreshRate,
+          subtitle: l10n.highRefreshRateDesc,
+          category: '${l10n.catPlayerInterface} · ${l10n.sectionDisplay}',
+          widget: const HighRefreshRateTile(),
+        ),
       SettingsSearchItem(
         title: l10n.groupByAlbum,
         subtitle: l10n.groupByAlbumDesc,
