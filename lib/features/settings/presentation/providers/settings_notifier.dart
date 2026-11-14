@@ -807,14 +807,13 @@ class Settings extends _$Settings {
     });
   }
 
-  /// Saves the resume position quietly. It runs every few seconds while
-  /// playing, and nothing on screen shows it, so it updates the live object
-  /// and the database without a state change - going through [_update]
-  /// cloned the whole settings object (queue list included) and rebuilt
-  /// every widget watching settings each time.
-  Future<void> updateLastPosition(int positionMs) async {
+  /// Saves the resume position quietly. When [persist] is true, writes to
+  /// the database; when false, updates in memory without triggering a disk
+  /// write transaction.
+  Future<void> updateLastPosition(int positionMs, {bool persist = true}) async {
     if (state.lastPositionMs == positionMs) return;
     state.lastPositionMs = positionMs;
+    if (!persist) return;
     final AppSettings current = state;
     await DbService.isar.writeTxn(() async {
       await DbService.isar.appSettings.put(current);

@@ -81,11 +81,12 @@ class Playback extends _$Playback {
   Timer? _silenceTimer;
   Timer? _songCompletionTimer;
   int _lastWidgetPositionUpdate = 0;
+  int _lastDbPositionCheckpoint = 0;
   // Separate, much coarser throttle for the isar.songs.put() progress
   // write - see the position-stream listener in _init() for why this is
   // decoupled from _lastWidgetPositionUpdate.
   int _lastProgressSaveCheckpoint = 0;
-  static const int _progressSaveIntervalMs = 20000;
+  static const int _progressSaveIntervalMs = 60000;
   int _manualQueueCount = 0;
   DateTime _lastSeekTime = DateTime.fromMillisecondsSinceEpoch(0);
   // A track end that arrived while play() was still loading a song. mpv
@@ -328,9 +329,17 @@ class Playback extends _$Playback {
           _lastWidgetPositionUpdate = now;
           _updateWidgetState();
           if (ref.read(settingsProvider).persistQueue) {
+            // Keep memory in sync quietly every 5s; flush to disk only
+            // once a minute during active playback (pause, seek, and track
+            // change already flush immediately to disk).
+            final shouldPersist = now - _lastDbPositionCheckpoint > 60000;
+            if (shouldPersist) _lastDbPositionCheckpoint = now;
             ref
                 .read(settingsProvider.notifier)
-                .updateLastPosition(position.inMilliseconds);
+                .updateLastPosition(
+                  position.inMilliseconds,
+                  persist: shouldPersist,
+                );
           }
         }
         // Deliberately on its own, coarser (20s) throttle rather than
