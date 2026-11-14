@@ -14,6 +14,7 @@ import '../../../playback/presentation/widgets/lyrics/lyrics_scale.dart';
 import '../../domain/artwork_visualizer_style.dart';
 import '../../domain/quality_badge_style.dart';
 import '../../domain/progress_bar_style.dart';
+import '../../domain/app_defaults.dart';
 
 import 'package:flutter/painting.dart' show Color;
 import 'package:looper_player/core/utils/artwork_colors.dart' show boostChroma;
@@ -47,6 +48,17 @@ extension AppAccent on AppSettings {
   }
 }
 
+/// Whether bottom sheets and popup sheets should render with frosted blur.
+///
+/// In the settings UI, either "Always Blur Sheets" or "Disable Blur Effects"
+/// is shown to the user at a time, depending on Dynamic Theming:
+/// - When Dynamic Theming is ON: blur follows `!disableBlur`.
+/// - When Dynamic Theming is OFF: blur follows `alwaysBlurSheets`.
+extension SheetBlur on AppSettings {
+  bool get sheetShouldBlur =>
+      enableDynamicTheming ? !disableBlur : alwaysBlurSheets;
+}
+
 // One-entry memo: the same accent is asked for by every tile in a build.
 (int, double)? _lastKey;
 Color? _last;
@@ -65,26 +77,8 @@ class Settings extends _$Settings {
     return AppSettings();
   }
 
-  List<double> _createDefaultGains() {
-    final list = List<double>.filled(48, 0.0);
-    list[20] = -50.0; // Silence remove threshold dB
-    list[22] = 0.2; // Crossfeed strength
-    list[24] = -20.0; // Compressor threshold dB
-    list[25] = 2.0; // Compressor ratio
-    list[26] = 20.0; // Compressor attack ms
-    list[27] = 250.0; // Compressor release ms
-    list[29] = -24.0; // Loudnorm target
-    list[31] = 2.5; // Stereo width factor
-    list[34] = 1.0; // Pitch shift
-    list[35] = 1.0; // Tempo shift
-    list[36] = 0.0; // ReplayGain mode
-    list[37] = 0.0; // ReplayGain preamp
-    list[39] = 150.0; // Speech highpass
-    list[40] = 4000.0; // Speech lowpass
-    list[44] = 1.0; // Tone shelving enabled
-    list[45] = 1.0; // Pitch/tempo enabled
-    return list;
-  }
+  List<double> _createDefaultGains() =>
+      AppDefaults.createDefaultEqualizerGains();
 
   Future<void> _loadSettings() async {
     final settings = await DbService.isar.appSettings.get(0);
@@ -254,37 +248,37 @@ class Settings extends _$Settings {
         ..stackSansDefaultMigrated = true
         ..activeLyricsIntensityDefaultMigrated = true
         ..enableDynamicTheming = !Platform.isAndroid
-        ..bgBrightness = 0.5
-        ..bgOpacity = 0.3
-        ..showHomeArtists = true
-        ..showHomeAlbums = false
-        ..showHomeGenres = true
-        ..showHomeRecent = true
-        ..showHomePlaylists = true
-        ..homeSectionOrder = [...AppSettings.defaultHomeSectionOrder]
-        ..homeDarkness = 0.35
+        ..bgBrightness = AppDefaults.bgBrightness
+        ..bgOpacity = AppDefaults.bgOpacity
+        ..showHomeArtists = AppDefaults.showHomeArtists
+        ..showHomeAlbums = AppDefaults.showHomeAlbums
+        ..showHomeGenres = AppDefaults.showHomeGenres
+        ..showHomeRecent = AppDefaults.showHomeRecent
+        ..showHomePlaylists = AppDefaults.showHomePlaylists
+        ..homeSectionOrder = [...AppDefaults.defaultHomeSectionOrder]
+        ..homeDarkness = AppDefaults.homeDarkness
         ..desktopBackgroundDarkness =
-            AppSettings.defaultDesktopBackgroundDarkness
-        ..songsDarkness = 0.72
-        ..libraryDarkness = 0.72
-        ..musicDarkness = 0.39
-        ..lyricsDarkness = 0.35
-        ..showQualityBadge = true
-        ..enablePlayerGradient = true
-        ..enableLyricsGradient = true
+            AppDefaults.defaultDesktopBackgroundDarkness
+        ..songsDarkness = AppDefaults.songsDarkness
+        ..libraryDarkness = AppDefaults.libraryDarkness
+        ..musicDarkness = AppDefaults.musicDarkness
+        ..lyricsDarkness = AppDefaults.lyricsDarkness
+        ..showQualityBadge = AppDefaults.showQualityBadge
+        ..enablePlayerGradient = AppDefaults.enablePlayerGradient
+        ..enableLyricsGradient = AppDefaults.enableLyricsGradient
         ..settingsV2 = true
         ..settingsV3 = true
-        ..dynamicLyrics = false
-        ..blurredArtworkForLyrics = true
-        ..showPerformanceOptimizer = false
-        ..equalizerEnabled = false
-        ..enableAudioCache = true
-        ..audioCacheSizeMB = 200
-        ..audioCacheSecs = 120
-        ..audioBackCacheSizeMB = 100
-        ..persistQueue = false
-        ..keepScreenAwake = true
-        ..forceHighRefreshRate = true
+        ..dynamicLyrics = AppDefaults.dynamicLyrics
+        ..blurredArtworkForLyrics = AppDefaults.blurredArtworkForLyrics
+        ..showPerformanceOptimizer = AppDefaults.showPerformanceOptimizer
+        ..equalizerEnabled = AppDefaults.equalizerEnabled
+        ..enableAudioCache = AppDefaults.enableAudioCache
+        ..audioCacheSizeMB = AppDefaults.audioCacheSizeMB
+        ..audioCacheSecs = AppDefaults.audioCacheSecs
+        ..audioBackCacheSizeMB = AppDefaults.audioBackCacheSizeMB
+        ..persistQueue = AppDefaults.persistQueue
+        ..keepScreenAwake = AppDefaults.keepScreenAwake
+        ..forceHighRefreshRate = AppDefaults.forceHighRefreshRate
         ..globalEqualizerGains = _createDefaultGains();
       await DbService.isar.writeTxn(() async {
         await DbService.isar.appSettings.put(defaultSettings);

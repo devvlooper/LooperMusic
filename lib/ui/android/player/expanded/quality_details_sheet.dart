@@ -105,8 +105,7 @@ Future<void> pushQualityHeroDialog(
 /// "Always blur sheets" (or Dynamic Theming's blur) is on, otherwise the
 /// solid sheet color.
 ({bool blur, Color color}) _surface(AppSettings s) {
-  final bool blur =
-      s.alwaysBlurSheets || (!s.disableBlur && s.enableDynamicTheming);
+  final bool blur = s.sheetShouldBlur;
   return (
     blur: blur,
     color: blur

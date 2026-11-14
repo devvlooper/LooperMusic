@@ -103,7 +103,6 @@ class _QueueBottomSheetState extends ConsumerState<QueueBottomSheet>
     return AppBottomSheetContainer(
       height: MediaQuery.of(context).size.height * 0.78,
       padding: EdgeInsets.zero,
-      overrideUseBlur: settings.alwaysBlurSheets,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [

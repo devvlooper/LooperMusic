@@ -16,14 +16,21 @@ Song _song(String path, String title, String artist) => Song()
   ..artist = artist;
 
 class _FakeSettings extends Settings {
-  _FakeSettings({this.blur = false});
-  final bool blur;
+  _FakeSettings({
+    this.alwaysBlurSheets = false,
+    this.enableDynamicTheming = false,
+    this.disableBlur = true,
+  });
+
+  final bool alwaysBlurSheets;
+  final bool enableDynamicTheming;
+  final bool disableBlur;
 
   @override
   AppSettings build() => AppSettings()
-    ..alwaysBlurSheets = blur
-    ..enableDynamicTheming = true // even when dynamic theming is true
-    ..disableBlur = false
+    ..alwaysBlurSheets = alwaysBlurSheets
+    ..enableDynamicTheming = enableDynamicTheming
+    ..disableBlur = disableBlur
     ..darkTheme = true
     ..accentColor = Colors.red.value;
 }
@@ -72,7 +79,9 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          settingsProvider.overrideWith(() => _FakeSettings(blur: false)),
+          settingsProvider.overrideWith(
+            () => _FakeSettings(alwaysBlurSheets: false, enableDynamicTheming: false),
+          ),
           playbackProvider.overrideWith(() => fakePlayback),
         ],
         child: const MaterialApp(
@@ -126,7 +135,7 @@ void main() {
     expect(fakePlayback.calls, contains('removeFromQueue:1'));
   });
 
-  testWidgets('QueueBottomSheet applies BackdropFilter blur when alwaysBlurSheets is true', (tester) async {
+  testWidgets('QueueBottomSheet applies BackdropFilter blur when alwaysBlurSheets is true (dynamicTheming off)', (tester) async {
     final songs = [
       _song('/s0.mp3', 'Current Song', 'Current Artist'),
       _song('/s1.mp3', 'Upcoming 1', 'Artist 1'),
@@ -136,7 +145,9 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          settingsProvider.overrideWith(() => _FakeSettings(blur: true)),
+          settingsProvider.overrideWith(
+            () => _FakeSettings(alwaysBlurSheets: true, enableDynamicTheming: false),
+          ),
           playbackProvider.overrideWith(() => fakePlayback),
         ],
         child: const MaterialApp(
@@ -151,6 +162,74 @@ void main() {
     await tester.pumpAndSettle();
 
     // When alwaysBlurSheets is true, BackdropFilter is applied to blur the background
+    expect(find.byType(BackdropFilter), findsWidgets);
+  });
+
+  testWidgets('QueueBottomSheet does not blur when dynamicTheming is true and disableBlur is true', (tester) async {
+    final songs = [
+      _song('/s0.mp3', 'Current Song', 'Current Artist'),
+      _song('/s1.mp3', 'Upcoming 1', 'Artist 1'),
+    ];
+    final fakePlayback = _FakePlayback(songs, initialIndex: 0);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          settingsProvider.overrideWith(
+            () => _FakeSettings(
+              enableDynamicTheming: true,
+              disableBlur: true,
+              alwaysBlurSheets: true, // even if alwaysBlurSheets was left true
+            ),
+          ),
+          playbackProvider.overrideWith(() => fakePlayback),
+        ],
+        child: const MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: QueueBottomSheet(),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // When dynamicTheming is on and disableBlur is true, BackdropFilter must NOT be rendered
+    expect(find.byType(BackdropFilter), findsNothing);
+  });
+
+  testWidgets('QueueBottomSheet blurs when dynamicTheming is true and disableBlur is false', (tester) async {
+    final songs = [
+      _song('/s0.mp3', 'Current Song', 'Current Artist'),
+      _song('/s1.mp3', 'Upcoming 1', 'Artist 1'),
+    ];
+    final fakePlayback = _FakePlayback(songs, initialIndex: 0);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          settingsProvider.overrideWith(
+            () => _FakeSettings(
+              enableDynamicTheming: true,
+              disableBlur: false,
+              alwaysBlurSheets: false, // even if alwaysBlurSheets was left false
+            ),
+          ),
+          playbackProvider.overrideWith(() => fakePlayback),
+        ],
+        child: const MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: QueueBottomSheet(),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // When dynamicTheming is on and disableBlur is false, BackdropFilter is applied
     expect(find.byType(BackdropFilter), findsWidgets);
   });
 }
