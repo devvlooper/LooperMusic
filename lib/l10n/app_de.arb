@@ -1851,5 +1851,8 @@
   "keepScreenAwake": "Bildschirm eingeschaltet lassen",
   "keepScreenAwakeDesc": "Verhindert, dass der Bildschirm im Player oder bei Songtexten ausgeht",
   "highRefreshRate": "Hohe Bildwiederholrate",
-  "highRefreshRateDesc": "Läuft mit 90/120 Hz für flüssige Animationen; für 60 Hz Akkusparmodus ausschalten"
+  "highRefreshRateDesc": "Läuft mit 90/120 Hz für flüssige Animationen; für 60 Hz Akkusparmodus ausschalten",
+  "reshuffleQueue": "Warteschlange neu mischen",
+  "reorderQueue": "Neu anordnen",
+  "nextInQueue": "Als Nächstes in der Warteschlange"
 }

@@ -1851,5 +1851,8 @@
   "keepScreenAwake": "保持屏幕常亮",
   "keepScreenAwakeDesc": "在播放器或歌词打开时防止屏幕变暗熄灭",
   "highRefreshRate": "高刷新率",
-  "highRefreshRateDesc": "以 90/120Hz 运行以获得更流畅的动画；关闭以使用 60Hz 省电模式"
+  "highRefreshRateDesc": "以 90/120Hz 运行以获得更流畅的动画；关闭以使用 60Hz 省电模式",
+  "reshuffleQueue": "重新随机排序队列",
+  "reorderQueue": "重新排序",
+  "nextInQueue": "接下来的播放"
 }

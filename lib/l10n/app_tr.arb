@@ -1851,5 +1851,8 @@
   "keepScreenAwake": "Ekranı Açık Tut",
   "keepScreenAwakeDesc": "Oynatıcı veya şarkı sözleri açıkken ekranın kapanmasını önler",
   "highRefreshRate": "Yüksek Yenileme Hızı",
-  "highRefreshRateDesc": "Daha akıcı animasyonlar için 90/120Hz hızında çalışır; pil tasarrufu (60Hz) için kapatın"
+  "highRefreshRateDesc": "Daha akıcı animasyonlar için 90/120Hz hızında çalışır; pil tasarrufu (60Hz) için kapatın",
+  "reshuffleQueue": "Sırayı yeniden karıştır",
+  "reorderQueue": "Yeniden sırala",
+  "nextInQueue": "Sıradaki parça"
 }

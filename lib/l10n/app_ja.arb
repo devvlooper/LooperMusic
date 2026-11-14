@@ -1851,5 +1851,8 @@
   "keepScreenAwake": "画面を常に点灯",
   "keepScreenAwakeDesc": "プレーヤーや歌詞の表示中に画面がオフになるのを防ぎます",
   "highRefreshRate": "高リフレッシュレート",
-  "highRefreshRateDesc": "滑らかなアニメーションのために90/120Hzで動作します（バッテリー節約時はオフで60Hz）"
+  "highRefreshRateDesc": "滑らかなアニメーションのために90/120Hzで動作します（バッテリー節約時はオフで60Hz）",
+  "reshuffleQueue": "キューを再シャッフル",
+  "reorderQueue": "並び替え",
+  "nextInQueue": "次の曲"
 }

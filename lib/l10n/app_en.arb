@@ -1851,5 +1851,8 @@
   "keepScreenAwake": "Keep Screen Awake",
   "keepScreenAwakeDesc": "Prevent screen from sleeping while player or lyrics are open",
   "highRefreshRate": "High Refresh Rate",
-  "highRefreshRateDesc": "Runs display at 90/120Hz for smoother animations; turn off for 60Hz battery saver"
+  "highRefreshRateDesc": "Runs display at 90/120Hz for smoother animations; turn off for 60Hz battery saver",
+  "reshuffleQueue": "Reshuffle queue",
+  "reorderQueue": "Reorder",
+  "nextInQueue": "Next in queue"
 }

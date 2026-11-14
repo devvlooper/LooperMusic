@@ -1851,5 +1851,8 @@
   "keepScreenAwake": "Mantener pantalla encendida",
   "keepScreenAwakeDesc": "Evita que la pantalla se apague mientras el reproductor o las letras están abiertos",
   "highRefreshRate": "Alta tasa de refresco",
-  "highRefreshRateDesc": "Usa 90/120 Hz para animaciones más fluidas; desactívalo para ahorrar batería a 60 Hz"
+  "highRefreshRateDesc": "Usa 90/120 Hz para animaciones más fluidas; desactívalo para ahorrar batería a 60 Hz",
+  "reshuffleQueue": "Volver a mezclar cola",
+  "reorderQueue": "Reordenar",
+  "nextInQueue": "Siguiente en la cola"
 }
