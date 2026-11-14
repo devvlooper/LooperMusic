@@ -24,6 +24,8 @@ import 'package:looper_player/features/playback/presentation/providers/playback/
 import 'package:looper_player/features/settings/presentation/providers/settings_notifier.dart';
 import 'package:looper_player/l10n/app_localizations.dart';
 import 'package:looper_player/ui/android/widgets/premium_section.dart';
+import 'package:looper_player/ui/android/widgets/library_skeletons.dart';
+import 'package:looper_player/ui/widgets/common/app_skeleton.dart';
 import 'package:looper_player/ui/widgets/common/optimized_image.dart';
 import 'package:looper_player/ui/widgets/common/mochy_card_row.dart';
 import 'package:looper_player/ui/widgets/sheets/song_options_bottom_sheet.dart';
@@ -1345,35 +1347,6 @@ class OnlineShelfAllScreen extends ConsumerWidget {
   }
 }
 
-/// Small skeleton row shown while the first online load runs.
-class _ShelfSkeleton extends StatelessWidget {
-  const _ShelfSkeleton();
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 186,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        physics: const NeverScrollableScrollPhysics(),
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        itemCount: 4,
-        itemBuilder: (_, _) => Padding(
-          padding: const EdgeInsets.only(right: 8),
-          child: Container(
-            width: 132,
-            height: 132,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.06),
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 /// The refresh control: spins while loading. Resets the online connection
 /// (identity, cached URLs, throttle hold) and reloads.
 class OnlineRefreshButton extends ConsumerWidget {
@@ -1515,13 +1488,6 @@ class OnlineFeedSliver extends ConsumerWidget {
 
     return SliverMainAxisGroup(
       slivers: [
-        if (home.moods.isNotEmpty)
-          SliverToBoxAdapter(
-            child: _MoodChipsRow(
-              moods: home.moods,
-              activeMood: home.activeMood,
-            ),
-          ),
         if (home.loading && home.shelves.isNotEmpty)
           const SliverToBoxAdapter(
             child: Padding(
@@ -1544,52 +1510,120 @@ class OnlineFeedSliver extends ConsumerWidget {
               onRetry: () => ref.read(onlineHomeProvider.notifier).refresh(),
             ),
           ),
-        if (firstLoad)
-          const SliverToBoxAdapter(child: _ShelfSkeleton())
-        else if (topShelves.isNotEmpty)
-          SliverList.builder(
-            itemCount: topShelves.length,
-            itemBuilder: (_, i) => OnlineShelfView(shelf: topShelves[i]),
+        SliverToBoxAdapter(
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 280),
+            switchInCurve: Curves.easeOutCubic,
+            switchOutCurve: Curves.easeInCubic,
+            child: firstLoad
+                ? const AppSkeleton(
+                    key: ValueKey('online_feed_skeleton'),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        OnlineMoodChipsSkeleton(),
+                        OnlineShelfSkeleton(),
+                        OnlineShelfSkeleton(),
+                      ],
+                    ),
+                  )
+                : KeyedSubtree(
+                    key: const ValueKey('online_feed_content'),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (home.moods.isNotEmpty)
+                          _MoodChipsRow(
+                            moods: home.moods,
+                            activeMood: home.activeMood,
+                          ),
+                        for (final shelf in topShelves)
+                          OnlineShelfView(shelf: shelf),
+                      ],
+                    ),
+                  ),
           ),
+        ),
       ],
     );
   }
 }
 
-/// Artists for you, hidden during the first load like before.
+/// Artists for you with matching skeleton during first load.
 class OnlineArtistsSliver extends ConsumerWidget {
   const OnlineArtistsSliver({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final show =
-        ref.watch(onlineActiveProvider) &&
-        !ref.watch(
-          onlineHomeProvider.select((h) => h.loading && h.shelves.isEmpty),
-        );
+    if (!ref.watch(onlineActiveProvider)) {
+      return const SliverToBoxAdapter(child: SizedBox.shrink());
+    }
+    final firstLoad = ref.watch(
+      onlineHomeProvider.select((h) => h.loading && h.shelves.isEmpty),
+    );
+    final artistsAsync = ref.watch(onlineArtistsForYouProvider);
+    final hasArtists = artistsAsync.value?.isNotEmpty ?? false;
+
+    if (!firstLoad && !hasArtists) {
+      return const SliverToBoxAdapter(child: SizedBox.shrink());
+    }
+
     return SliverToBoxAdapter(
-      child: show ? const _ArtistsForYouRow() : const SizedBox.shrink(),
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 280),
+        switchInCurve: Curves.easeOutCubic,
+        switchOutCurve: Curves.easeInCubic,
+        child: (firstLoad || artistsAsync.isLoading)
+            ? const AppSkeleton(
+                key: ValueKey('online_artists_skeleton'),
+                child: OnlineArtistsForYouSkeleton(),
+              )
+            : const KeyedSubtree(
+                key: ValueKey('online_artists_content'),
+                child: _ArtistsForYouRow(),
+              ),
+      ),
     );
   }
 }
 
-/// The YouTube shelves after the first 2.
+/// The YouTube shelves after the first 2 with matching skeleton during first load.
 class OnlineMoreSliver extends ConsumerWidget {
   const OnlineMoreSliver({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final home = ref.watch(onlineHomeProvider);
-    final firstLoad = home.loading && home.shelves.isEmpty;
-    if (!ref.watch(onlineActiveProvider) ||
-        firstLoad ||
-        home.shelves.length <= _topShelfCount) {
+    if (!ref.watch(onlineActiveProvider)) {
       return const SliverToBoxAdapter(child: SizedBox.shrink());
     }
+    final home = ref.watch(onlineHomeProvider);
+    final firstLoad = home.loading && home.shelves.isEmpty;
     final remaining = home.shelves.skip(_topShelfCount).toList();
-    return SliverList.builder(
-      itemCount: remaining.length,
-      itemBuilder: (_, i) => OnlineShelfView(shelf: remaining[i]),
+
+    if (!firstLoad && remaining.isEmpty) {
+      return const SliverToBoxAdapter(child: SizedBox.shrink());
+    }
+
+    return SliverToBoxAdapter(
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 280),
+        switchInCurve: Curves.easeOutCubic,
+        switchOutCurve: Curves.easeInCubic,
+        child: firstLoad
+            ? const AppSkeleton(
+                key: ValueKey('online_more_skeleton'),
+                child: OnlineShelfSkeleton(),
+              )
+            : KeyedSubtree(
+                key: const ValueKey('online_more_content'),
+                child: Column(
+                  children: [
+                    for (final shelf in remaining)
+                      OnlineShelfView(shelf: shelf),
+                  ],
+                ),
+              ),
+      ),
     );
   }
 }

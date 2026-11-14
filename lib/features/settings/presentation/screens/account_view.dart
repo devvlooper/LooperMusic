@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -418,7 +419,7 @@ class _HeroCard extends ConsumerWidget {
                 // player title (and holds still with reduced motion).
                 child: ScrollingText(
                   text: tag * 8,
-                  style: AppFonts.jostStyle(
+                  style: GoogleFonts.pixelifySans(
                     color: Colors.black.withValues(alpha: 0.15),
                     fontSize: 14,
                     fontWeight: FontWeight.bold,

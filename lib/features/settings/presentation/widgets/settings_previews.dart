@@ -183,6 +183,35 @@ class _PlayerStylePainter extends CustomPainter {
             i == 1 ? acc : fill,
           );
         }
+      case 'card':
+        // Card style: floating card artwork, seekbar row directly under, lyrics on left, controls on right.
+        final art = Rect.fromCenter(
+          center: Offset(cx, 38),
+          width: 58,
+          height: 58,
+        );
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(art, const Radius.circular(5)),
+          fill,
+        );
+        const barY = 74.0;
+        final barX = cx - w * 0.38;
+        final barW = w * 0.76;
+        canvas.drawRRect(r(barX, barY, 14, 4, 1.5), fill);
+        canvas.drawRRect(r(barX + 18, barY + 1, barW - 36, 2, 1), dim);
+        canvas.drawRRect(r(barX + 18, barY + 1, (barW - 36) * t, 2, 1), acc);
+        canvas.drawRRect(r(barX + barW - 14, barY, 14, 4, 1.5), dim);
+        canvas.drawRRect(r(18, 88, w * 0.45, 8, 2), acc);
+        canvas.drawRRect(r(18, 100, w * 0.38, 5, 2), dim);
+        canvas.drawRRect(r(18, 118, w * 0.32, 7, 2), fill);
+        canvas.drawRRect(r(18 + w * 0.32 + 4, 119, 12, 6, 2), dim);
+        canvas.drawRRect(r(18, 129, w * 0.22, 5, 2), dim);
+        final ctrlX = w - 22;
+        canvas.drawCircle(Offset(ctrlX, 90), 3.5, dim);
+        canvas.drawCircle(Offset(ctrlX, 104), 3.5, fill);
+        canvas.drawCircle(Offset(ctrlX, 118), 5.5, acc);
+        canvas.drawCircle(Offset(ctrlX, 132), 3.5, fill);
+        canvas.drawCircle(Offset(ctrlX, 144), 3, dim);
       default:
         // Classic: rounded cover, title, seek bar, transport row.
         canvas.drawRRect(r(cx - 40, 10, 80, 64, 8), fill);

@@ -166,6 +166,7 @@ class AnalyzeSnapshot {
   final int totalListenedMs;
   final int uniqueSongsPlayed;
   final int totalSongsInLibrary;
+  final int uniqueLocalPlayed;
   final List<SongStat> topSongs; // capped at 20, rank order
   final List<ArtistStat> topArtists; // capped at 8
   final List<AlbumStat> topAlbums; // capped at 8
@@ -179,6 +180,7 @@ class AnalyzeSnapshot {
     required this.totalListenedMs,
     required this.uniqueSongsPlayed,
     required this.totalSongsInLibrary,
+    this.uniqueLocalPlayed = 0,
     required this.topSongs,
     required this.topArtists,
     required this.topAlbums,
@@ -215,16 +217,17 @@ class AnalyzeSnapshot {
     return best;
   }
 
-  /// Share of the library played at least once, in [0, 1].
+  /// Share of the local library played at least once, in [0, 1].
   double get libraryExplored => totalSongsInLibrary == 0
       ? 0
-      : (uniqueSongsPlayed / totalSongsInLibrary).clamp(0.0, 1.0);
+      : (uniqueLocalPlayed / totalSongsInLibrary).clamp(0.0, 1.0);
 
   static const empty = AnalyzeSnapshot(
     totalPlays: 0,
     totalListenedMs: 0,
     uniqueSongsPlayed: 0,
     totalSongsInLibrary: 0,
+    uniqueLocalPlayed: 0,
     topSongs: [],
     topArtists: [],
     topAlbums: [],
@@ -238,6 +241,7 @@ class AnalyzeSnapshot {
     required List<Song> songs,
     required List<PlayEvent> events,
     List<Artist> artists = const [],
+    int? totalLocalSongs,
     String unknownLabel = 'Unknown',
     DateTime? now,
   }) {
@@ -334,11 +338,16 @@ class AnalyzeSnapshot {
     final activityGrid = _computeActivityGrid(events);
     final streak = _computeStreak(events, now: now);
 
+    final localSongsTotal =
+        totalLocalSongs ?? songs.where((s) => !s.isOnline).length;
+    final uniqueLocalPlayed = playedSongs.where((s) => !s.isOnline).length;
+
     return AnalyzeSnapshot(
       totalPlays: totalPlays,
       totalListenedMs: totalListenedMs,
       uniqueSongsPlayed: playedSongs.length,
-      totalSongsInLibrary: songs.length,
+      totalSongsInLibrary: localSongsTotal,
+      uniqueLocalPlayed: uniqueLocalPlayed,
       topSongs: topSongs,
       topArtists: topArtists,
       topAlbums: topAlbums,

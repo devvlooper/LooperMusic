@@ -167,18 +167,24 @@ extension _SettingsSearch on _SettingsViewState {
       ],
       //if (!settings.enableDynamicTheming)
       SettingsSearchItem(
-        title: l10n.ambientColorBackground,
-        subtitle: l10n.ambientColorBackgroundDesc,
+        title: l10n.enableLyricsGradient,
+        subtitle: l10n.enableLyricsGradientDesc,
         category: '${l10n.lyrics} · ${l10n.sectionBackground}',
-        widget: const AmbientLyricsBgTile(),
+        widget: const EnableLyricsGradientTile(),
       ),
-      if (!settings.ambientColorBackground)
+      if (settings.enableLyricsGradient)
         SettingsSearchItem(
-          title: l10n.blurredArtworkForLyrics,
-          subtitle: l10n.blurredArtworkForLyricsDesc,
+          title: l10n.ambientColorBackground,
+          subtitle: l10n.ambientColorBackgroundDesc,
           category: '${l10n.lyrics} · ${l10n.sectionBackground}',
-          widget: const BlurredArtworkLyricsTile(),
+          widget: const AmbientLyricsBgTile(),
         ),
+      SettingsSearchItem(
+        title: l10n.blurredArtworkForLyrics,
+        subtitle: l10n.blurredArtworkForLyricsDesc,
+        category: '${l10n.lyrics} · ${l10n.sectionBackground}',
+        widget: const BlurredArtworkLyricsTile(),
+      ),
       SettingsSearchItem(
         title: l10n.dynamicColorActiveLyrics,
         subtitle: l10n.dynamicColorActiveLyricsDesc,

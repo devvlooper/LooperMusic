@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:looper_player/core/providers/player_expand_provider.dart';
 import 'package:looper_player/core/services/haptics/app_haptics.dart';
+import 'package:looper_player/core/services/screen_awake.dart';
 import 'package:looper_player/core/services/system_navigation_bar.dart';
 import 'package:looper_player/core/utils/song_metadata.dart';
 import 'package:looper_player/core/utils/ui_utils.dart';
@@ -98,6 +99,15 @@ class _Spec {
     // Above the seek row (its timestamps start at 722).
     bigTitleBottomFromBottom: 166,
   );
+  static const card = _Spec(
+    chevronFromBottom: 336,
+    prevFromBottom: 271.5,
+    playFromBottom: 205.5,
+    nextFromBottom: 140.5,
+    lyricsTopFromBottom: 368,
+    lyricsHeight: 251,
+    bigTitleBottomFromBottom: 59,
+  );
 }
 
 class StyledPlayerLayout extends ConsumerStatefulWidget {
@@ -153,9 +163,11 @@ class _StyledPlayerLayoutState extends ConsumerState<StyledPlayerLayout>
   @override
   Widget build(BuildContext context) {
     final song = widget.song;
-    final spec = widget.style == PlayerLayoutStyle.arc
-        ? _Spec.arc
-        : _Spec.linear;
+    final spec = switch (widget.style) {
+      PlayerLayoutStyle.arc => _Spec.arc,
+      PlayerLayoutStyle.card => _Spec.card,
+      _ => _Spec.linear,
+    };
     final hasLyrics = ref.watch(_showPlayerLyricsProvider);
     final fade = widget.fadeWithSlide;
 
@@ -184,13 +196,15 @@ class _StyledPlayerLayoutState extends ConsumerState<StyledPlayerLayout>
           fit: StackFit.expand,
           children: [
             fade(
-              _FigmaBackground(song: song),
+              _buildStyledBackground(context, ref, song, widget.style),
               FluidSectionMotion.backgroundFill,
             ),
 
             // Artwork (+ the arc seek bar under it).
             if (widget.style == PlayerLayoutStyle.arc)
               ..._arcTop(context, sx, s)
+            else if (widget.style == PlayerLayoutStyle.card)
+              _cardArt(sx, s, w)
             else
               _linearArt(sx, s),
 
@@ -240,17 +254,18 @@ class _StyledPlayerLayoutState extends ConsumerState<StyledPlayerLayout>
 
             // Small title + artist at the bottom (lyrics view; the linear
             // style always, since its big title sits above the seek row).
-            if (hasLyrics || widget.style == PlayerLayoutStyle.linear)
+            if (hasLyrics || widget.style == PlayerLayoutStyle.linear || widget.style == PlayerLayoutStyle.card)
               Positioned(
                 left: 30 * sx,
                 right: (_designW - 320) * sx,
-                bottom: fromBottom(51),
+                bottom: fromBottom(widget.style == PlayerLayoutStyle.card ? 63 : 51),
                 child: fade(
-                  hasLyrics
+                  hasLyrics || widget.style == PlayerLayoutStyle.linear
                       ? _SmallTitle(
                           song: song,
                           scale: s,
                           onTap: widget.onShowOptions,
+                          showHqBadge: widget.style == PlayerLayoutStyle.card,
                         )
                       : const SizedBox.shrink(),
                   FluidSectionMotion.songInfo,
@@ -621,10 +636,56 @@ mixin _StyledArt<T extends ConsumerStatefulWidget> on ConsumerState<T> {
   }
 }
 
+Widget _buildStyledBackground(
+  BuildContext context,
+  WidgetRef ref,
+  Song song,
+  PlayerLayoutStyle style,
+) {
+  if (style != PlayerLayoutStyle.classic) {
+    final black = ref.watch(
+      settingsProvider.select((s) => s.cardBlackBackground),
+    );
+    if (black) {
+      return const ColoredBox(color: Colors.black);
+    }
+    final accentBackground = ref.watch(
+      settingsProvider.select((s) => s.cardAccentBackground),
+    );
+    if (accentBackground) {
+      final enableGradient = ref.watch(
+        settingsProvider.select((s) => s.enablePlayerGradient),
+      );
+      if (enableGradient) {
+        final animated = ref.watch(
+          settingsProvider.select((s) => s.animatePlayerGradient),
+        );
+        final musicDarkness = ref.watch(
+          settingsProvider.select((s) => s.musicDarkness),
+        );
+        return PlayerGradientBackground(
+          darkness: musicDarkness,
+          animated: animated,
+        );
+      }
+      final accent = ref.watch(settingsProvider.select((s) => s.accent));
+      return ColoredBox(color: cardAccentBackgroundColor(accent));
+    }
+  }
+  final blur = ref.watch(settingsProvider.select((s) => s.playerStyleBlur));
+  return _FigmaBackground(song: song, blur: blur);
+}
+
+/// The card player's accent background: the accent pulled toward black, as
+/// in the design, so white text and an accent seek bar both read on it.
+Color cardAccentBackgroundColor(Color accent) =>
+    Color.lerp(accent, Colors.black, 0.55)!;
+
 /// Black base, the cover blurred over it and a warm wash from the top right.
 class _FigmaBackground extends StatelessWidget {
   final Song song;
-  const _FigmaBackground({required this.song});
+  final bool blur;
+  const _FigmaBackground({required this.song, this.blur = true});
 
   @override
   Widget build(BuildContext context) {
@@ -639,7 +700,7 @@ class _FigmaBackground extends StatelessWidget {
         // the same picture the live ImageFiltered drew: that re-blurred the
         // whole screen on every open/close frame (Impeller has no raster
         // cache).
-        if (art != null)
+        if (blur && art != null)
           BlurredBackgroundArt(
             song: song,
             motion: false,
@@ -652,15 +713,16 @@ class _FigmaBackground extends StatelessWidget {
             placeholder: false,
           ),
         ColoredBox(color: Colors.black.withValues(alpha: 0.35)),
-        const DecoratedBox(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment(0.42, -1),
-              end: Alignment(-0.42, 1),
-              colors: [Color(0x40B8916B), Color(0x002184C6)],
+        if (blur)
+          const DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment(0.42, -1),
+                end: Alignment(-0.42, 1),
+                colors: [Color(0x40B8916B), Color(0x002184C6)],
+              ),
             ),
           ),
-        ),
       ],
     );
   }
@@ -1057,32 +1119,16 @@ final _showPlayerLyricsProvider = Provider<bool>(
       ref.watch(_playerLyricsProvider).lines.isNotEmpty,
 );
 
-/// The current song's lyrics in any format: line-synced, word-synced
-/// (enhanced LRC) or plain text without timestamps.
-/// Colour of the active lyric line and the seek bar fill: the accent for
-/// classic (as its portrait player) or when "Use Accent Color" is on.
+/// Colour of the active lyric line and the seek bar fill.
+/// - Classic: always the accent colour.
+/// - Styled players (card / arc / linear): accent when accent colors toggle is on.
 final _activeColorProvider = Provider<Color>(
   (ref) => ref.watch(
-    settingsProvider.select(
-      (s) {
-        if (s.playerStyleAccent ||
-            PlayerLayoutStyle.fromSetting(s.playerStyle) ==
-                PlayerLayoutStyle.classic) {
-          final isCardAccentBg =
-              PlayerLayoutStyle.fromSetting(s.playerStyle) ==
-                  PlayerLayoutStyle.card &&
-              !s.darkTheme &&
-              !s.enablePlayerGradient;
-          if (isCardAccentBg) {
-            return s.accent.computeLuminance() > 0.55
-                ? Colors.black87
-                : Colors.white;
-          }
-          return s.accent;
-        }
-        return Colors.white;
-      },
-    ),
+    settingsProvider.select((s) {
+      final style = PlayerLayoutStyle.fromSetting(s.playerStyle);
+      if (style == PlayerLayoutStyle.classic) return s.accent;
+      return (s.cardAccentColors || s.playerStyleAccent) ? s.accent : Colors.white;
+    }),
   ),
 );
 
@@ -1121,6 +1167,7 @@ class _LyricsBlockState extends ConsumerState<_LyricsBlock> {
 
   @override
   void dispose() {
+    ScreenAwake.set(this, false);
     _resume?.cancel();
     _scroll.dispose();
     super.dispose();
@@ -1169,6 +1216,13 @@ class _LyricsBlockState extends ConsumerState<_LyricsBlock> {
   @override
   Widget build(BuildContext context) {
     final (:lines, :synced) = ref.watch(_playerLyricsProvider);
+    final isPlaying = ref.watch(playbackProvider.select((p) => p.isPlaying));
+    ScreenAwake.set(
+      this,
+      lines.isNotEmpty &&
+          TickerMode.valuesOf(context).enabled &&
+          isPlaying,
+    );
     if (lines.isEmpty) return const SizedBox.shrink();
     final index = synced
         ? ref.watch(
@@ -1309,16 +1363,47 @@ class _LyricsBlockState extends ConsumerState<_LyricsBlock> {
   }
 }
 
+class _HqBadge extends StatelessWidget {
+  final double scale;
+  const _HqBadge({required this.scale});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 5 * scale, vertical: 2 * scale),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(3 * scale),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.05),
+          width: 1,
+        ),
+      ),
+      child: Text(
+        'HQ',
+        style: TextStyle(
+          fontFamily: 'DM Sans',
+          fontWeight: FontWeight.w700,
+          fontSize: 12 * scale,
+          color: Colors.white.withValues(alpha: 0.5),
+        ),
+      ),
+    );
+  }
+}
+
 class _SmallTitle extends StatelessWidget {
   final Song song;
   final double scale;
   final VoidCallback onTap;
   final double titleAlpha;
+  final bool showHqBadge;
   const _SmallTitle({
     required this.song,
     required this.scale,
     required this.onTap,
     this.titleAlpha = 0.5,
+    this.showHqBadge = false,
   });
 
   @override
@@ -1336,13 +1421,24 @@ class _SmallTitle extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            song.title,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: base.copyWith(
-              color: Colors.white.withValues(alpha: titleAlpha),
-            ),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Flexible(
+                child: Text(
+                  song.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: base.copyWith(
+                    color: Colors.white.withValues(alpha: titleAlpha),
+                  ),
+                ),
+              ),
+              if (showHqBadge) ...[
+                SizedBox(width: 6 * scale),
+                _HqBadge(scale: scale),
+              ],
+            ],
           ),
           Text(
             artistAlbumLabel(
@@ -1917,7 +2013,7 @@ class _StyledLandscapeLayoutState extends ConsumerState<StyledLandscapeLayout>
           fit: StackFit.expand,
           children: [
             fade(
-              _FigmaBackground(song: song),
+              _buildStyledBackground(context, ref, song, style),
               FluidSectionMotion.backgroundFill,
             ),
 

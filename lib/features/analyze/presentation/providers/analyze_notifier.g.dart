@@ -58,24 +58,67 @@ final class PlayEventsProvider
 
 String _$playEventsHash() => r'f11aa86418279250d0e533e390dce8da5c834d01';
 
-/// The full computed Looper Analyze report, recomputed whenever the library
-/// or play-event log changes. Reuses [libraryProvider] instead of watching
-/// songs a second time.
+/// Online songs that have actually been played in Looper Music (play count or
+/// listening time on record). Watched reactively from Isar.
+
+@ProviderFor(playedOnlineSongs)
+final playedOnlineSongsProvider = PlayedOnlineSongsProvider._();
+
+/// Online songs that have actually been played in Looper Music (play count or
+/// listening time on record). Watched reactively from Isar.
+
+final class PlayedOnlineSongsProvider
+    extends
+        $FunctionalProvider<
+          AsyncValue<List<Song>>,
+          List<Song>,
+          Stream<List<Song>>
+        >
+    with $FutureModifier<List<Song>>, $StreamProvider<List<Song>> {
+  /// Online songs that have actually been played in Looper Music (play count or
+  /// listening time on record). Watched reactively from Isar.
+  PlayedOnlineSongsProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'playedOnlineSongsProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$playedOnlineSongsHash();
+
+  @$internal
+  @override
+  $StreamProviderElement<List<Song>> $createElement($ProviderPointer pointer) =>
+      $StreamProviderElement(pointer);
+
+  @override
+  Stream<List<Song>> create(Ref ref) {
+    return playedOnlineSongs(ref);
+  }
+}
+
+String _$playedOnlineSongsHash() => r'e57082f569e8ec49d48d23b5548075a15d3a328a';
+
+/// The full computed Looper Analyze report, recomputed whenever the library,
+/// played online tracks, or play-event log changes.
 
 @ProviderFor(analyzeSnapshot)
 final analyzeSnapshotProvider = AnalyzeSnapshotProvider._();
 
-/// The full computed Looper Analyze report, recomputed whenever the library
-/// or play-event log changes. Reuses [libraryProvider] instead of watching
-/// songs a second time.
+/// The full computed Looper Analyze report, recomputed whenever the library,
+/// played online tracks, or play-event log changes.
 
 final class AnalyzeSnapshotProvider
     extends
         $FunctionalProvider<AnalyzeSnapshot, AnalyzeSnapshot, AnalyzeSnapshot>
     with $Provider<AnalyzeSnapshot> {
-  /// The full computed Looper Analyze report, recomputed whenever the library
-  /// or play-event log changes. Reuses [libraryProvider] instead of watching
-  /// songs a second time.
+  /// The full computed Looper Analyze report, recomputed whenever the library,
+  /// played online tracks, or play-event log changes.
   AnalyzeSnapshotProvider._()
     : super(
         from: null,
@@ -109,7 +152,7 @@ final class AnalyzeSnapshotProvider
   }
 }
 
-String _$analyzeSnapshotHash() => r'914b9deba060f330f47d4737a7473b74c26f6359';
+String _$analyzeSnapshotHash() => r'f06d0236897004342cd6a92a4adaf5c153449558';
 
 /// The Top Songs list toggle: 10 or 20 entries shown.
 

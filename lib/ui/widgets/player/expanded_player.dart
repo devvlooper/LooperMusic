@@ -11,6 +11,7 @@ import 'package:squiggly_slider/slider.dart';
 import '../../../features/playback/presentation/providers/playback/playback_notifier.dart';
 import 'package:looper_player/l10n/app_localizations.dart';
 import 'package:looper_player/core/theme/app_fonts.dart';
+import 'package:looper_player/ui/widgets/sheets/song_options_bottom_sheet.dart';
 
 import 'package:looper_player/ui/android/player/expanded/android_expanded_player.dart';
 
@@ -76,7 +77,13 @@ class ExpandedPlayer extends ConsumerWidget {
                         LucideIcons.moreVertical,
                         color: Colors.white,
                       ),
-                      onPressed: () {},
+                      onPressed: () {
+                        showSongOptionsBottomSheet(
+                          context: context,
+                          ref: ref,
+                          song: song,
+                        );
+                      },
                     ),
                   ],
                 ),

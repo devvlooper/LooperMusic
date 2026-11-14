@@ -4,7 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:looper_player/core/providers/navigation_provider.dart';
 import 'package:looper_player/core/theme/app_fonts.dart';
 import 'package:looper_player/features/analyze/domain/analyze_models.dart';
+import 'package:looper_player/features/analyze/presentation/providers/analyze_notifier.dart';
 import 'package:looper_player/features/analyze/presentation/widgets/analyze_common.dart';
+import 'package:looper_player/features/library/domain/models/models.dart';
 import 'package:looper_player/features/library/presentation/providers/library/library_notifier.dart';
 import 'package:looper_player/ui/widgets/common/optimized_image.dart';
 import 'package:looper_player/core/utils/l10n.dart';
@@ -25,9 +27,13 @@ class AnalyzeTopAlbumsSection extends ConsumerWidget {
 
   void _open(WidgetRef ref, BuildContext context, AlbumStat stat) {
     AppHaptics.light();
-    final songs = ref
-        .read(libraryProvider)
-        .songs
+    final onlineSongs =
+        ref.read(playedOnlineSongsProvider).value ?? const <Song>[];
+    final List<Song> allSongs = [
+      ...ref.read(libraryProvider).songs,
+      ...onlineSongs,
+    ];
+    final songs = allSongs
         .where((s) => (s.album ?? 'Unknown Album') == stat.name)
         .toList();
     ref

@@ -158,19 +158,22 @@ final class TopSongsProvider
 String _$topSongsHash() => r'd6cefbb86aa6f30a4b1b74e9648ffe7932971eaf';
 
 /// Home tab's "Quick Picks" - same comparator (play count, most first) and
-/// same 18-item cap as before.
+/// same 18-item cap as before. Falls back to cold-start preview songs while
+/// the full library is loading so items never jump or shuffle on launch.
 
 @ProviderFor(homeQuickPicks)
 final homeQuickPicksProvider = HomeQuickPicksProvider._();
 
 /// Home tab's "Quick Picks" - same comparator (play count, most first) and
-/// same 18-item cap as before.
+/// same 18-item cap as before. Falls back to cold-start preview songs while
+/// the full library is loading so items never jump or shuffle on launch.
 
 final class HomeQuickPicksProvider
     extends $FunctionalProvider<List<Song>, List<Song>, List<Song>>
     with $Provider<List<Song>> {
   /// Home tab's "Quick Picks" - same comparator (play count, most first) and
-  /// same 18-item cap as before.
+  /// same 18-item cap as before. Falls back to cold-start preview songs while
+  /// the full library is loading so items never jump or shuffle on launch.
   HomeQuickPicksProvider._()
     : super(
         from: null,
@@ -204,11 +207,12 @@ final class HomeQuickPicksProvider
   }
 }
 
-String _$homeQuickPicksHash() => r'b00e819ea0b1233bf992ee10c5db3ddaa8bf98e8';
+String _$homeQuickPicksHash() => r'c81741bd2116b7a8f0b256917dc318ec80b9a050';
 
 /// Home tab's "Recently Added" section - same comparator (date added,
 /// newest first) as before. Kept as the full sorted list, not just the
 /// visible prefix, since tapping into this section queues it in full.
+/// Falls back to cold-start preview songs while the full library is loading.
 
 @ProviderFor(homeRecentlyAdded)
 final homeRecentlyAddedProvider = HomeRecentlyAddedProvider._();
@@ -216,6 +220,7 @@ final homeRecentlyAddedProvider = HomeRecentlyAddedProvider._();
 /// Home tab's "Recently Added" section - same comparator (date added,
 /// newest first) as before. Kept as the full sorted list, not just the
 /// visible prefix, since tapping into this section queues it in full.
+/// Falls back to cold-start preview songs while the full library is loading.
 
 final class HomeRecentlyAddedProvider
     extends $FunctionalProvider<List<Song>, List<Song>, List<Song>>
@@ -223,6 +228,7 @@ final class HomeRecentlyAddedProvider
   /// Home tab's "Recently Added" section - same comparator (date added,
   /// newest first) as before. Kept as the full sorted list, not just the
   /// visible prefix, since tapping into this section queues it in full.
+  /// Falls back to cold-start preview songs while the full library is loading.
   HomeRecentlyAddedProvider._()
     : super(
         from: null,
@@ -256,7 +262,7 @@ final class HomeRecentlyAddedProvider
   }
 }
 
-String _$homeRecentlyAddedHash() => r'd08626521c63c3bffee4fc8afccd7d147fcadc0b';
+String _$homeRecentlyAddedHash() => r'ee6dff5957f753578932544d60e4e82620e762c0';
 
 /// Every song grouped by its raw genre value (null for songs missing one).
 /// The "Unknown" label itself is applied by the caller instead of here,

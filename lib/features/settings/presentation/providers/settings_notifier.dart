@@ -137,6 +137,7 @@ class Settings extends _$Settings {
         }
         settings.showQualityBadge = true;
         settings.enablePlayerGradient = true;
+        settings.enableLyricsGradient = true;
         settings.settingsV2 = true;
         settings.dynamicLyrics = false;
         settings.blurredArtworkForLyrics = true;
@@ -268,6 +269,7 @@ class Settings extends _$Settings {
         ..lyricsDarkness = 0.35
         ..showQualityBadge = true
         ..enablePlayerGradient = true
+        ..enableLyricsGradient = true
         ..settingsV2 = true
         ..settingsV3 = true
         ..dynamicLyrics = false
@@ -392,6 +394,10 @@ class Settings extends _$Settings {
       ..playerLyricLineTransition = s.playerLyricLineTransition
       ..playerStyle = s.playerStyle
       ..playerStyleAccent = s.playerStyleAccent
+      ..cardBlackBackground = s.cardBlackBackground
+      ..cardAccentBackground = s.cardAccentBackground
+      ..cardAccentColors = s.cardAccentColors
+      ..playerStyleBlur = s.playerStyleBlur
       ..showAlbumNextToArtist = s.showAlbumNextToArtist
       ..showAlbumInQuickPicks = s.showAlbumInQuickPicks
       ..disableHaptics = s.disableHaptics
@@ -429,6 +435,7 @@ class Settings extends _$Settings {
       ..inactiveLyricsOpacity = s.inactiveLyricsOpacity
       ..activeLyricsSoftColor = s.activeLyricsSoftColor
       ..lyricsNoLineGrouping = s.lyricsNoLineGrouping
+      ..enableLyricsGradient = s.enableLyricsGradient
       ..ambientColorBackground = s.ambientColorBackground
       ..lyricsAlignment = s.lyricsAlignment
       ..dynamicAccentColor = s.dynamicAccentColor
@@ -558,7 +565,19 @@ class Settings extends _$Settings {
       _update((s) => s..playerStyle = value);
 
   Future<void> updatePlayerStyleAccent(bool value) =>
-      _update((s) => s..playerStyleAccent = value);
+      _update((s) => s..playerStyleAccent = value..cardAccentColors = value);
+
+  Future<void> updateCardBlackBackground(bool value) =>
+      _update((s) => s..cardBlackBackground = value);
+
+  Future<void> updateCardAccentBackground(bool value) =>
+      _update((s) => s..cardAccentBackground = value);
+
+  Future<void> updateCardAccentColors(bool value) =>
+      _update((s) => s..cardAccentColors = value..playerStyleAccent = value);
+
+  Future<void> updatePlayerStyleBlur(bool value) =>
+      _update((s) => s..playerStyleBlur = value);
 
   Future<void> updateShowAlbumNextToArtist(bool value) =>
       _update((s) => s..showAlbumNextToArtist = value);
@@ -580,6 +599,9 @@ class Settings extends _$Settings {
     }
     return s;
   });
+
+  Future<void> updateEnableLyricsGradient(bool value) =>
+      _update((s) => s..enableLyricsGradient = value);
 
   Future<void> updateAnimatePlayerGradient(bool value) =>
       _update((s) => s..animatePlayerGradient = value);

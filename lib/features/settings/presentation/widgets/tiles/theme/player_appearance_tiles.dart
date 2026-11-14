@@ -252,6 +252,7 @@ class PlayerStyleTile extends ConsumerWidget {
       ('classic', l10n.playerStyleClassic),
       ('arc', l10n.playerStyleArc),
       ('linear', l10n.playerStyleLinear),
+      ('card', l10n.playerStyleCard),
     ];
     final styleTile = ListTile(
       leading: const Icon(LucideIcons.layoutTemplate),
@@ -287,22 +288,83 @@ class PlayerStyleTile extends ConsumerWidget {
       ),
     );
     if (current == 'classic') return styleTile;
-    // Arc / linear only: classic already follows the accent.
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         styleTile,
         SwitchListTile(
-          secondary: const Icon(LucideIcons.palette),
-          title: Text(l10n.playerStyleAccent, style: _tileTitleStyle()),
+          secondary: const Icon(LucideIcons.moon),
+          title: Text(l10n.cardBlackBackground, style: _tileTitleStyle()),
           subtitle: Text(
-            l10n.playerStyleAccentDesc,
+            l10n.cardBlackBackgroundDesc,
             style: _tileSubtitleStyle(),
           ),
-          value: settings.playerStyleAccent,
+          value: settings.cardBlackBackground,
           onChanged: (value) {
             AppHaptics.selection();
-            ref.read(settingsProvider.notifier).updatePlayerStyleAccent(value);
+            ref
+                .read(settingsProvider.notifier)
+                .updateCardBlackBackground(value);
+          },
+        ),
+        if (!settings.cardBlackBackground) ...[
+          SwitchListTile(
+            secondary: const Icon(LucideIcons.paintBucket),
+            title: Text(
+              l10n.cardAccentBackground,
+              style: _tileTitleStyle(),
+            ),
+            subtitle: Text(
+              l10n.cardAccentBackgroundDesc,
+              style: _tileSubtitleStyle(),
+            ),
+            value: settings.cardAccentBackground,
+            onChanged: (value) {
+              AppHaptics.selection();
+              ref
+                  .read(settingsProvider.notifier)
+                  .updateCardAccentBackground(value);
+            },
+          ),
+          if (settings.cardAccentBackground) ...[
+            const EnablePlayerGradientTile(),
+            if (settings.enablePlayerGradient)
+              const AnimatePlayerGradientTile(),
+          ] else ...[
+            SwitchListTile(
+              secondary: const Icon(LucideIcons.sparkles),
+              title: Text(
+                l10n.playerStyleBlurBackground,
+                style: _tileTitleStyle(),
+              ),
+              subtitle: Text(
+                l10n.playerStyleBlurBackgroundDesc,
+                style: _tileSubtitleStyle(),
+              ),
+              value: settings.playerStyleBlur,
+              onChanged: (value) {
+                AppHaptics.selection();
+                ref
+                    .read(settingsProvider.notifier)
+                    .updatePlayerStyleBlur(value);
+              },
+            ),
+          ],
+        ],
+        // Separate toggle: accent color for lyrics line + progress bar.
+        SwitchListTile(
+          secondary: const Icon(LucideIcons.palette),
+          title: Text(l10n.cardAccentColors, style: _tileTitleStyle()),
+          subtitle: Text(
+            l10n.cardAccentColorsDesc,
+            style: _tileSubtitleStyle(),
+          ),
+          value: settings.cardAccentColors || settings.playerStyleAccent,
+          onChanged: (value) {
+            AppHaptics.selection();
+            ref
+                .read(settingsProvider.notifier)
+                .updateCardAccentColors(value);
           },
         ),
       ],

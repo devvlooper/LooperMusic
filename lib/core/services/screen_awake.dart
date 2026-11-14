@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
 /// Keeps the screen on while any holder asks for it, so one screen letting
@@ -5,6 +6,13 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 /// lyric line).
 abstract final class ScreenAwake {
   static final Set<Object> _holders = {};
+
+  static bool get isActive => _holders.isNotEmpty;
+
+  static bool holds(Object holder) => _holders.contains(holder);
+
+  @visibleForTesting
+  static void resetForTesting() => _holders.clear();
 
   static void set(Object holder, bool on) {
     final wasOn = _holders.isNotEmpty;

@@ -1,7 +1,10 @@
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 import 'dart:ui' show lerpDouble;
 
 import 'package:looper_player/core/motion/looper_scroll_physics.dart';
+import 'package:looper_player/core/motion/pause_when_offscreen.dart';
+import 'package:looper_player/core/utils/motion.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -619,19 +622,29 @@ class AboutHeroCard extends ConsumerWidget {
         child: Stack(
           children: [
             Positioned.fill(
-              child: OverflowBox(
-                maxWidth: 754,
-                maxHeight: 335,
-                child: Transform.rotate(
-                  angle: -30.55 * math.pi / 180,
-                  child: Image.asset(
-                    AppAssets.aboutPattern,
-                    width: 753.375,
-                    height: 334.124,
-                    fit: BoxFit.cover,
-                    opacity: const AlwaysStoppedAnimation(0.03),
-                  ),
-                ),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final w = constraints.maxWidth;
+                  final h = constraints.maxHeight;
+                  const rad = 30.55 * math.pi / 180;
+                  final cosT = math.cos(rad);
+                  final sinT = math.sin(rad);
+                  final boxW = (w * cosT + h * sinT) + 60.0;
+                  final boxH = (w * sinT + h * cosT) + 60.0;
+                  return OverflowBox(
+                    minWidth: boxW,
+                    maxWidth: boxW,
+                    minHeight: boxH,
+                    maxHeight: boxH,
+                    child: Transform.rotate(
+                      angle: -rad,
+                      child: _AboutScrollingPattern(
+                        width: boxW,
+                        height: boxH,
+                      ),
+                    ),
+                  );
+                },
               ),
             ),
             Positioned(
@@ -710,6 +723,152 @@ class AboutHeroCard extends ConsumerWidget {
       ),
     ],
   );
+}
+
+/// Animated alternating diagonal marquee texture for [AboutHeroCard].
+/// Even rows scroll forward, odd rows scroll backward.
+class _AboutScrollingPattern extends StatefulWidget {
+  final double width;
+  final double height;
+
+  const _AboutScrollingPattern({
+    required this.width,
+    required this.height,
+  });
+
+  @override
+  State<_AboutScrollingPattern> createState() => _AboutScrollingPatternState();
+}
+
+class _AboutScrollingPatternState extends State<_AboutScrollingPattern>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  ImageStream? _imageStream;
+  ImageStreamListener? _listener;
+  ui.Image? _image;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 10),
+    );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _resolveImage();
+    if (Motion.reducedOf(context)) {
+      _controller.stop();
+    } else if (!_controller.isAnimating) {
+      _controller.repeat();
+    }
+  }
+
+  void _resolveImage() {
+    final stream = const AssetImage(AppAssets.aboutPattern)
+        .resolve(createLocalImageConfiguration(context));
+    if (stream.key == _imageStream?.key) return;
+
+    if (_imageStream != null && _listener != null) {
+      _imageStream!.removeListener(_listener!);
+    }
+    _imageStream = stream;
+    _listener = ImageStreamListener((info, _) {
+      if (!mounted) return;
+      setState(() => _image = info.image);
+    });
+    _imageStream!.addListener(_listener!);
+  }
+
+  @override
+  void dispose() {
+    if (_imageStream != null && _listener != null) {
+      _imageStream!.removeListener(_listener!);
+    }
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final image = _image;
+    if (image == null) {
+      return SizedBox(width: widget.width, height: widget.height);
+    }
+    return PauseWhenOffscreen(
+      child: RepaintBoundary(
+        child: CustomPaint(
+          size: Size(widget.width, widget.height),
+          painter: _AboutPatternPainter(
+            image: image,
+            animation: _controller,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AboutPatternPainter extends CustomPainter {
+  final ui.Image image;
+  final Animation<double> animation;
+
+  // The seamless repeating "Looper music" unit in about_pattern.png is 114x20px,
+  // starting at x=38. In the original design, the 708x314 asset was scaled by
+  // 753.375 / 708 = 1.064089. Odd rows were staggered by 37px.
+  static const _srcTileRect = Rect.fromLTWH(38, 0, 114, 20);
+  static const _scale = 1.064089;
+  static const _tileWidth = 114.0 * _scale;
+  static const _rowHeight = 20.0 * _scale;
+  static const _stagger = 37.0 * _scale;
+
+  final Paint _paint = Paint()
+    ..color = const Color.fromRGBO(255, 255, 255, 0.035)
+    ..isAntiAlias = true
+    ..filterQuality = FilterQuality.medium;
+
+  _AboutPatternPainter({
+    required this.image,
+    required this.animation,
+  }) : super(repaint: animation);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (size.width <= 0 || size.height <= 0) return;
+
+    final t = animation.value;
+    final rowCount = (size.height / _rowHeight).ceil() + 1;
+
+    for (int i = 0; i < rowCount; i++) {
+      final y = i * _rowHeight;
+      // ponytail: Alternating continuous marquee. Even rows glide forward,
+      // odd rows glide backward, wrapping seamlessly modulo _tileWidth.
+      final double dx = (i % 2 == 0)
+          ? (t * _tileWidth) % _tileWidth
+          : (_stagger - t * _tileWidth) % _tileWidth;
+
+      if (dx.isNaN || dx.isInfinite) continue;
+
+      double x = dx - _tileWidth;
+      while (x < size.width + _tileWidth) {
+        canvas.drawImageRect(
+          image,
+          _srcTileRect,
+          Rect.fromLTWH(x, y, _tileWidth + 0.5, _rowHeight + 0.5),
+          _paint,
+        );
+        x += _tileWidth;
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _AboutPatternPainter oldDelegate) {
+    return oldDelegate.image != image || oldDelegate.animation != animation;
+  }
 }
 
 /// Small card with a dim title, divider and a body (maintainers / stars).

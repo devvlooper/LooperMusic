@@ -244,6 +244,16 @@ class AppSettings {
   // Arc / linear players: paint the active lyric line and the seek bar in
   // the accent colour (classic always does).
   bool playerStyleAccent = false;
+  // Card player only: plain black background (wins over the accent one).
+  bool cardBlackBackground = false;
+  // Card player only: darkened accent (or the gradient) as the background.
+  bool cardAccentBackground = false;
+  // Styled players (card / arc / linear): paint the active lyric line and progress bar in the
+  // accent colour (independent of the background choice).
+  bool cardAccentColors = false;
+  // Styled players (card / arc / linear): show blurred album artwork as the background
+  // when neither plain black nor accent background is active.
+  bool playerStyleBlur = true;
   // Shows "Artist • Album" instead of just the artist under song titles
   // (lists, players, Home, Analyze, share card).
   bool showAlbumNextToArtist = true;
@@ -317,6 +327,7 @@ class AppSettings {
   // longer shown as one (LyricLine.pairHeads). Stored inverted so grouping
   // stays on by default, also for settings saved before it existed.
   bool lyricsNoLineGrouping = false;
+  bool enableLyricsGradient = true;
   bool ambientColorBackground = true;
   String lyricsAlignment = 'left'; // 'left', 'center', 'right'
   bool dynamicAccentColor = true;

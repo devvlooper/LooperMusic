@@ -29,6 +29,7 @@ class LocalJsonStore {
   /// Initializes the store and preloads critical startup keys into memory.
   static Future<void> init([
     List<String> preloadKeys = const [
+      'online_home_cache',
       'online_home_feed_v1',
       'online_artists_for_you_v1',
     ],

@@ -49,6 +49,7 @@ import 'package:looper_player/features/artwork/data/animated_artwork_service.dar
 import 'package:looper_player/features/artwork/domain/animated_artwork_models.dart';
 import 'package:looper_player/core/utils/l10n.dart';
 import 'package:looper_player/core/services/haptics/app_haptics.dart';
+import 'package:looper_player/core/services/screen_awake.dart';
 export 'position_reporter.dart';
 export 'player_backgrounds.dart';
 
@@ -138,6 +139,7 @@ class _AndroidExpandedPlayerState extends ConsumerState<AndroidExpandedPlayer>
 
   @override
   void dispose() {
+    ScreenAwake.set(this, false);
     _routeAnimation?.removeListener(_onRouteAnimationTick);
     _dismissController.dispose();
     _prevTapPulse.dispose();
@@ -195,6 +197,11 @@ class _AndroidExpandedPlayerState extends ConsumerState<AndroidExpandedPlayer>
     final showAlbum = watchShowAlbum(ref);
     final song = ref.watch(playbackProvider.select((s) => s.currentSong));
     final l10n = AppLocalizations.of(context)!;
+
+    final isPlaying = ref.watch(playbackProvider.select((s) => s.isPlaying));
+    final isExpandedOpen = widget.previewStyle == null &&
+        TickerMode.valuesOf(context).enabled;
+    ScreenAwake.set(this, isExpandedOpen && isPlaying && song != null);
 
     if (song == null) {
       return Scaffold(

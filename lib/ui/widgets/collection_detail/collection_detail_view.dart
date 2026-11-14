@@ -5,7 +5,7 @@ import 'package:looper_player/core/motion/looper_scroll_physics.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'dart:ui';
+import 'package:flutter_svg/svg.dart';
 import 'package:looper_player/core/utils/responsive.dart';
 import 'package:looper_player/ui/android/widgets/premium_section.dart';
 import 'package:looper_player/features/settings/presentation/providers/settings_notifier.dart';

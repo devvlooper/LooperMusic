@@ -5,7 +5,9 @@ import 'package:looper_player/core/providers/navigation_provider.dart';
 import 'package:looper_player/core/theme/app_fonts.dart';
 import 'package:looper_player/core/utils/l10n.dart';
 import 'package:looper_player/features/analyze/domain/analyze_models.dart';
+import 'package:looper_player/features/analyze/presentation/providers/analyze_notifier.dart';
 import 'package:looper_player/features/analyze/presentation/widgets/analyze_common.dart';
+import 'package:looper_player/features/library/domain/models/models.dart';
 import 'package:looper_player/features/library/presentation/providers/library/library_notifier.dart';
 import 'package:looper_player/ui/widgets/common/optimized_image.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -25,9 +27,13 @@ class AnalyzeTopArtistsSection extends ConsumerWidget {
 
   void _open(WidgetRef ref, BuildContext context, ArtistStat stat) {
     AppHaptics.light();
-    final songs = ref
-        .read(libraryProvider)
-        .songs
+    final onlineSongs =
+        ref.read(playedOnlineSongsProvider).value ?? const <Song>[];
+    final List<Song> allSongs = [
+      ...ref.read(libraryProvider).songs,
+      ...onlineSongs,
+    ];
+    final songs = allSongs
         .where((s) => (s.artist ?? 'Unknown Artist') == stat.name)
         .toList();
     final url = stat.imageUrl;

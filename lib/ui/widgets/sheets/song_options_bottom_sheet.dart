@@ -1,4 +1,5 @@
 import 'package:looper_player/core/motion/app_routes.dart';
+import 'package:looper_player/core/utils/responsive.dart';
 import 'package:looper_player/features/online/data/not_interested_store.dart';
 import 'package:looper_player/features/online/data/online_cache.dart';
 import 'package:looper_player/features/online/data/online_downloader.dart';
@@ -45,8 +46,8 @@ void showSongOptionsBottomSheet({
   bool showDeleteOption = true,
   bool showRenameOption = true,
   bool showEqualizerAndTechnicalInfoOptions = true,
-  // The Now Playing menu (Figma player sheet) instead of the list sheet.
-  bool styled = false,
+  // The Now Playing menu (Figma player sheet) applied app-wide to three-dot clicks.
+  bool styled = true,
 }) {
   showModalBottomSheet(
     context: context,
@@ -764,9 +765,12 @@ class _PlayerSongOptionsSheet extends _SongOptionsSheetContent {
     final playback = ref.read(playbackProvider.notifier);
     final bool local = !song.isOnline;
 
-    void snack(String text) => ScaffoldMessenger.of(parentContext).showSnackBar(
-      SnackBar(content: Text(text), behavior: SnackBarBehavior.floating),
-    );
+    void snack(String text) {
+      if (!parentContext.mounted) return;
+      ScaffoldMessenger.of(parentContext).showSnackBar(
+        SnackBar(content: Text(text), behavior: SnackBarBehavior.floating),
+      );
+    }
 
     final download = song.isOnline && song.videoId != null
         ? FutureBuilder<Song?>(
@@ -809,6 +813,21 @@ class _PlayerSongOptionsSheet extends _SongOptionsSheetContent {
           );
 
     final rows = <Widget>[
+      if (song.isOnline)
+        _rowTile(
+          const Icon(
+            Icons.playlist_play_rounded,
+            size: 18,
+            color: Colors.white,
+          ),
+          l10n.playNext,
+          () {
+            AppHaptics.light();
+            playback.addNext(song);
+            Navigator.pop(context);
+            snack(l10n.willPlayNext);
+          },
+        ),
       _rowTile(_svg('menu_queue'), l10n.addToQueue, () {
         AppHaptics.light();
         playback.addToQueue(song);
@@ -884,7 +903,20 @@ class _PlayerSongOptionsSheet extends _SongOptionsSheetContent {
             await NotInterestedStore.hideSong(videoId);
             ref.invalidate(onlineHomeProvider);
             if (context.mounted) Navigator.pop(context);
-            snack(l10n.notInterestedSongHidden);
+            if (!parentContext.mounted) return;
+            ScaffoldMessenger.of(parentContext).showSnackBar(
+              SnackBar(
+                content: Text(l10n.notInterestedSongHidden),
+                behavior: SnackBarBehavior.floating,
+                action: SnackBarAction(
+                  label: l10n.undo,
+                  onPressed: () async {
+                    await NotInterestedStore.unhideSong(videoId);
+                    ref.invalidate(onlineHomeProvider);
+                  },
+                ),
+              ),
+            );
           },
         ),
       if (song.isOnline &&
@@ -894,11 +926,25 @@ class _PlayerSongOptionsSheet extends _SongOptionsSheetContent {
           const Icon(LucideIcons.userX, size: 18, color: Colors.white),
           l10n.blockArtist(song.artist!),
           () async {
+            final artist = song.artist!.trim();
             AppHaptics.light();
-            await NotInterestedStore.blockArtist(song.artist!.trim());
+            await NotInterestedStore.blockArtist(artist);
             ref.invalidate(onlineHomeProvider);
             if (context.mounted) Navigator.pop(context);
-            snack(l10n.artistBlocked);
+            if (!parentContext.mounted) return;
+            ScaffoldMessenger.of(parentContext).showSnackBar(
+              SnackBar(
+                content: Text(l10n.artistBlocked),
+                behavior: SnackBarBehavior.floating,
+                action: SnackBarAction(
+                  label: l10n.undo,
+                  onPressed: () async {
+                    await NotInterestedStore.unblockArtist(artist);
+                    ref.invalidate(onlineHomeProvider);
+                  },
+                ),
+              ),
+            );
           },
         ),
     ];
@@ -906,7 +952,10 @@ class _PlayerSongOptionsSheet extends _SongOptionsSheetContent {
     final bool canEdit = showRenameOption && local;
     final bool canDelete = showDeleteOption && local;
 
-    return Container(
+    final isWide =
+        Responsive.isLandscape(MediaQuery.sizeOf(context)) || UiUtils.isDesktop;
+
+    Widget body = Container(
       decoration: const BoxDecoration(
         color: Color(0xFF080808),
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -1077,5 +1126,16 @@ class _PlayerSongOptionsSheet extends _SongOptionsSheetContent {
         ),
       ),
     );
+
+    if (isWide) {
+      body = Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 480),
+          child: body,
+        ),
+      );
+    }
+
+    return body;
   }
 }

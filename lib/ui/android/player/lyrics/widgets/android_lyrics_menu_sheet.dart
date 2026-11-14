@@ -521,17 +521,29 @@ class _LyricsMenuSheetContent extends ConsumerWidget {
               _MenuSection(
                 children: [
                   // Only the Android lyrics screen has an ambient background.
-                  if (!desktop)
+                  if (!desktop) ...[
                     _MenuSwitchTile(
-                      icon: LucideIcons.palette,
-                      title: l10n.ambientColorBackground,
-                      subtitle: l10n.ambientColorBackgroundDesc,
-                      value: settings.ambientColorBackground,
+                      icon: LucideIcons.sparkles,
+                      title: l10n.enableLyricsGradient,
+                      subtitle: l10n.enableLyricsGradientDesc,
+                      value: settings.enableLyricsGradient,
                       accent: accent,
                       onChanged: (val) => ref
                           .read(settingsProvider.notifier)
-                          .updateAmbientColorBackground(val),
+                          .updateEnableLyricsGradient(val),
                     ),
+                    if (settings.enableLyricsGradient)
+                      _MenuSwitchTile(
+                        icon: LucideIcons.palette,
+                        title: l10n.ambientColorBackground,
+                        subtitle: l10n.ambientColorBackgroundDesc,
+                        value: settings.ambientColorBackground,
+                        accent: accent,
+                        onChanged: (val) => ref
+                            .read(settingsProvider.notifier)
+                            .updateAmbientColorBackground(val),
+                      ),
+                  ],
                   if (desktop)
                     ListTile(
                       contentPadding: const EdgeInsets.only(

@@ -55,7 +55,7 @@ class AnalyzeHighlights extends StatelessWidget {
           label: l10n.analyzeLibraryExplored,
           value: '${(explored * 100).round()}%',
           caption: l10n.analyzeSongsOfTotal(
-            snapshot.uniqueSongsPlayed,
+            snapshot.uniqueLocalPlayed,
             snapshot.totalSongsInLibrary,
           ),
           progress: explored,

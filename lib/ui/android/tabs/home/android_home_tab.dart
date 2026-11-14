@@ -66,12 +66,12 @@ class _AndroidHomeTabState extends ConsumerState<AndroidHomeTab>
   List<String> _visibleRows = const [];
   bool _holdAllowed = false;
 
-  // The 5 s hold that enters reorder mode: a thin ring fills around the
-  // finger from 1 s to 5 s, then ripples spread like a drop on water
+  // The 4 s hold that enters reorder mode: a thin ring fills around the
+  // finger from 1 s to 4 s, then ripples spread like a drop on water
   // (see hold_bloom.dart).
   late final _hold = AnimationController(
     vsync: this,
-    duration: const Duration(seconds: 4),
+    duration: const Duration(seconds: 3),
   );
   late final _bloom = AnimationController(
     vsync: this,
@@ -137,7 +137,7 @@ class _AndroidHomeTabState extends ConsumerState<AndroidHomeTab>
       if (!mounted || !_holdAllowed || !_homeOnTop) return _stopHold();
       if (seconds == 1) {
         _hold.forward(from: 0);
-      } else if (seconds < 5) {
+      } else if (seconds < 4) {
         AppHaptics.tick();
       } else {
         _enterReorder();
@@ -694,7 +694,6 @@ class _AndroidHomeTabState extends ConsumerState<AndroidHomeTab>
         : (false, false);
     final hasOnlineArtists =
         onlineActive &&
-        !onlineFirstLoad &&
         ref.watch(
           onlineArtistsForYouProvider.select(
             (a) => a.value?.isNotEmpty ?? false,
@@ -822,9 +821,11 @@ class _AndroidHomeTabState extends ConsumerState<AndroidHomeTab>
       } else if (section == 'online_feed') {
         if (onlineActive) slivers.add(const OnlineFeedSliver());
       } else if (section == 'online_artists') {
-        if (hasOnlineArtists) slivers.add(const OnlineArtistsSliver());
+        if (onlineActive && (hasOnlineArtists || onlineFirstLoad)) {
+          slivers.add(const OnlineArtistsSliver());
+        }
       } else if (section == 'online_more') {
-        if (onlineActive && hasOnlineMore) {
+        if (onlineActive && (hasOnlineMore || onlineFirstLoad)) {
           slivers.add(const OnlineMoreSliver());
         }
       } else if (section == 'songs' && dateAddedSongs.isNotEmpty) {
@@ -1131,7 +1132,7 @@ class _AndroidHomeTabState extends ConsumerState<AndroidHomeTab>
       }
     }
     _visibleRows = visibleRows;
-    _holdAllowed = !_reordering && !loadingInParts && visibleRows.length >= 2;
+    _holdAllowed = !_reordering && !loadingInParts && !onlineFirstLoad && visibleRows.length >= 2;
 
     final accent = ref.watch(settingsProvider.select((s) => s.accent));
     final orderedSlivers = <Widget>[

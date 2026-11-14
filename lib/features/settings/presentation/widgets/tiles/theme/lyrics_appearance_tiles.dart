@@ -1,5 +1,27 @@
 part of 'theme_settings_tiles.dart';
 
+class EnableLyricsGradientTile extends ConsumerWidget {
+  const EnableLyricsGradientTile({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final settings = ref.watch(settingsProvider);
+    final l10n = AppLocalizations.of(context)!;
+    return SwitchListTile(
+      secondary: const Icon(LucideIcons.sparkles),
+      title: Text(l10n.enableLyricsGradient, style: _tileTitleStyle()),
+      subtitle: Text(
+        l10n.enableLyricsGradientDesc,
+        style: _tileSubtitleStyle(),
+      ),
+      value: settings.enableLyricsGradient,
+      onChanged: (value) {
+        ref.read(settingsProvider.notifier).updateEnableLyricsGradient(value);
+      },
+    );
+  }
+}
+
 class AmbientLyricsBgTile extends ConsumerWidget {
   const AmbientLyricsBgTile({super.key});
 
