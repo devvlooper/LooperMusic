@@ -470,20 +470,26 @@ class Playback extends _$Playback {
     final savedSongIds = settings.lastQueueSongIds;
     final savedIndex = settings.lastQueueIndex;
 
-    if (settings.persistQueue && savedSongIds.isNotEmpty) {
-      final List<Song> loadedSongs = [];
-      for (final id in savedSongIds) {
-        final song = await DbService.isar.songs.get(id);
-        if (song != null) {
-          loadedSongs.add(song);
+    if (settings.persistQueue) {
+      List<Song> loadedSongs = [];
+      int targetIndex = 0;
+      if (savedSongIds.isNotEmpty) {
+        for (final id in savedSongIds) {
+          final song = await DbService.isar.songs.get(id);
+          if (song != null) loadedSongs.add(song);
         }
+        if (savedIndex >= 0 && savedIndex < loadedSongs.length) {
+          targetIndex = savedIndex;
+        }
+      } else if (settings.lastPlayedSongId != null) {
+        final song = await DbService.isar.songs.get(settings.lastPlayedSongId!);
+        if (song != null) loadedSongs = [song];
       }
+
       if (loadedSongs.isNotEmpty) {
         _playlist = loadedSongs;
         _originalPlaylist = List.from(loadedSongs);
-        _currentIndex = (savedIndex >= 0 && savedIndex < loadedSongs.length)
-            ? savedIndex
-            : 0;
+        _currentIndex = targetIndex;
         final song = _playlist[_currentIndex];
         state = state.copyWith(
           queue: List.from(_playlist),
@@ -498,33 +504,6 @@ class Playback extends _$Playback {
         ref.read(lyricsProvider.notifier).fetchForSong(song);
         ref.read(equalizerProvider.notifier).onSongChanged(song);
         _updateWidgetState();
-
-        final initialPos = Duration(milliseconds: settings.lastPositionMs);
-        Future.delayed(const Duration(milliseconds: 500), () async {
-          await play(
-            song,
-            forceDisableCrossfade: true,
-            play: settings.resumeOnStart,
-            initialPosition: initialPos,
-          );
-        });
-      }
-    } else if (settings.persistQueue && settings.lastPlayedSongId != null) {
-      final song = await DbService.isar.songs.get(settings.lastPlayedSongId!);
-      if (song != null) {
-        state = state.copyWith(
-          currentSong: song,
-          isRestoredSession: true,
-          position: Duration(milliseconds: settings.lastPositionMs),
-          duration: song.duration != null
-              ? Duration(milliseconds: song.duration!)
-              : Duration.zero,
-        );
-        ref.read(lyricsProvider.notifier).fetchForSong(song);
-        ref.read(equalizerProvider.notifier).onSongChanged(song);
-        _playlist = [song];
-        _currentIndex = 0;
-        _updateWidgetState(); // Sync initial song data with home screen widgets on launch
 
         final initialPos = Duration(milliseconds: settings.lastPositionMs);
         Future.delayed(const Duration(milliseconds: 500), () async {
@@ -1094,7 +1073,7 @@ class Playback extends _$Playback {
           );
           rethrow;
         }
-      } else {}
+      }
     } finally {
       if (loadId == _loadGeneration) {
         int attempts = 0;
@@ -2041,6 +2020,78 @@ class Playback extends _$Playback {
     }
   }
 
+  /// Reshuffles upcoming songs in the queue following the current track,
+  /// preserving playback continuity without stopping or restarting the active song.
+  Future<void> shuffleUpcomingQueue({String? rotationSongPath}) async {
+    if (_playlist.length <= 1) return;
+
+    final targetSongPath = rotationSongPath ?? state.currentSong?.path;
+    final rotationIdx = targetSongPath != null
+        ? _playlist.indexWhere((s) => s.path == targetSongPath)
+        : -1;
+
+    if (rotationIdx == -1) {
+      if (_currentIndex < 0 || _currentIndex >= _playlist.length - 1) return;
+      final past = _playlist.sublist(0, _currentIndex + 1);
+      final upcoming = List<Song>.from(_playlist.sublist(_currentIndex + 1));
+      if (upcoming.length <= 1) return;
+      upcoming.shuffle();
+      _playlist = [...past, ...upcoming];
+    } else {
+      final List<Song> displayedQueue = [
+        ..._playlist.sublist(rotationIdx),
+        ..._playlist.sublist(0, rotationIdx),
+      ];
+
+      if (displayedQueue.length <= 2) return;
+
+      final currentSong = displayedQueue[0];
+      final upcoming = List<Song>.from(displayedQueue.sublist(1));
+      upcoming.shuffle();
+      final List<Song> shuffledDisplayed = [currentSong, ...upcoming];
+
+      final n = shuffledDisplayed.length;
+      final k = (n - rotationIdx) % n;
+
+      _playlist = [
+        ...shuffledDisplayed.sublist(k),
+        ...shuffledDisplayed.sublist(0, k),
+      ];
+    }
+
+    if (!state.isShuffle) {
+      _originalPlaylist = List.from(_playlist);
+    }
+
+    state = state.copyWith(queue: List.from(_playlist));
+    if (state.currentSong != null) {
+      _currentIndex = _playlist.indexWhere(
+        (s) => s.path == state.currentSong!.path,
+      );
+    }
+    try {
+      await _saveQueueState();
+    } catch (_) {
+      // Best-effort in headless tests
+    }
+  }
+
+  @visibleForTesting
+  void setQueueForTesting(List<Song> queue, {int currentIndex = 0}) {
+    _playlist = List.from(queue);
+    _originalPlaylist = List.from(queue);
+    _currentIndex = currentIndex;
+    state = state.copyWith(
+      queue: List.unmodifiable(_playlist),
+      currentSong: queue.isNotEmpty && currentIndex >= 0 && currentIndex < queue.length
+          ? queue[currentIndex]
+          : null,
+    );
+  }
+
+  @visibleForTesting
+  List<Song> get playlistForTesting => _playlist;
+
   Future<void> reorderQueue(
     int oldIndex,
     int newIndex, {
@@ -2259,6 +2310,12 @@ class Playback extends _$Playback {
     }
   }
 
+  Future<void> _stopPlayerForFileModification() async {
+    // Completely stop player and yield time for the OS to release file handle locks
+    await player.stop();
+    await Future.delayed(const Duration(milliseconds: 500));
+  }
+
   /// Edits song metadata (title, artist, album, year, genre, artPath,
   /// lyrics). If [title] actually changes the song's title, the physical
   /// file is renamed to match (this is the only place a song's title can be
@@ -2311,9 +2368,7 @@ class Playback extends _$Playback {
       if (!collides) {
         try {
           if (isCurrent) {
-            // Completely stop player to release file handle locks
-            await player.stop();
-            await Future.delayed(const Duration(milliseconds: 500));
+            await _stopPlayerForFileModification();
           }
           if (await file.exists()) {
             if (Platform.isAndroid) {
@@ -2431,10 +2486,7 @@ class Playback extends _$Playback {
     final wasPlaying = state.isPlaying;
 
     if (isCurrent) {
-      // Completely stop player to release file handle locks
-      await player.stop();
-      // Wait for player to completely release the file handle
-      await Future.delayed(const Duration(milliseconds: 500));
+      await _stopPlayerForFileModification();
     }
 
     final file = File(song.path);
