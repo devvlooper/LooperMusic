@@ -157,18 +157,14 @@ class _QueueBottomSheetState extends ConsumerState<QueueBottomSheet>
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
               child: Container(
                 decoration: BoxDecoration(
-                  color: accentColor.withOpacity(0.09),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: accentColor.withOpacity(0.25),
-                    width: 1.2,
-                  ),
+                  color: const Color(0xFF282828),
+                  borderRadius: BorderRadius.circular(8),
                 ),
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 child: Row(
                   children: [
                     ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(6),
                       child: OptimizedImage(
                         imagePath: currentSong.artPath,
                         width: 48,
