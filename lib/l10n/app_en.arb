@@ -217,6 +217,8 @@
   "scrollToEnd": "Scroll to end",
   "scrollToTop": "Scroll to top",
   "play": "Play",
+  "pause": "Pause",
+  "skipNext": "Next",
   "playAll": "Play All",
   "playbackAudio": "Playback & Language",
   "playlists": "Playlists",

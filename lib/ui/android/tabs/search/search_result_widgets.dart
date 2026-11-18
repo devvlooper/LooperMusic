@@ -48,55 +48,74 @@ class _Highlighted extends StatelessWidget {
   }
 }
 
+/// A section title in Analyze's header style, with an optional pill action
+/// ("View All ->", "Clear", ...). [quiet] is a count line ("12 songs").
 class _SectionHeader extends StatelessWidget {
   final String title;
   final String? actionLabel;
   final VoidCallback? onAction;
-  // A count line ("12 songs") rather than a section title.
   final bool quiet;
-  final EdgeInsets padding;
 
   const _SectionHeader({
     required this.title,
     this.actionLabel,
     this.onAction,
     this.quiet = false,
-    this.padding = const EdgeInsets.fromLTRB(16, 8, 8, 0),
   });
+
+  static const padding = EdgeInsets.fromLTRB(16, 18, 16, 0);
 
   @override
   Widget build(BuildContext context) {
+    final action = actionLabel == null
+        ? null
+        : _Pill(
+            label: actionLabel!,
+            icon: quiet ? null : LucideIcons.arrowRight,
+            onTap: onAction,
+          );
+    if (!quiet) {
+      return Padding(
+        padding: padding,
+        child: AnalyzeSectionHeader(title: title, trailing: action),
+      );
+    }
     return Padding(
-      padding: padding,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: 44),
-        child: Row(
-          children: [
-            Expanded(
+      padding: padding.copyWith(bottom: 10),
+      child: Row(
+        children: [
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.only(left: 4),
               child: Text(
                 title,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: quiet
-                    ? AppFonts.jostStyle(
-                        color: Colors.white.withValues(alpha: 0.55),
-                        fontSize: 14,
-                      )
-                    : AppFonts.jostStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                      ),
+                style: AppFonts.jostStyle(
+                  color: Colors.white.withValues(alpha: 0.45),
+                  fontSize: 12.5,
+                ),
               ),
             ),
-            if (actionLabel != null)
-              TextButton(onPressed: onAction, child: Text(actionLabel!)),
-          ],
-        ),
+          ),
+          ?action,
+        ],
       ),
     );
   }
 }
+
+/// [sliver] on Analyze's flat 12px card, inset from the screen edges.
+Widget _cardSliver(Widget sliver) => SliverPadding(
+  padding: const EdgeInsets.symmetric(horizontal: 16),
+  sliver: DecoratedSliver(
+    decoration: BoxDecoration(
+      color: Colors.white.withValues(alpha: 0.055),
+      borderRadius: BorderRadius.circular(12),
+    ),
+    sliver: SliverPadding(padding: const EdgeInsets.all(6), sliver: sliver),
+  ),
+);
 
 /// A square or round thumbnail: the artwork at [path], or [icon] on a tinted
 /// tile when there is none.
@@ -175,12 +194,13 @@ class _ResultRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return InkWell(
+      borderRadius: BorderRadius.circular(12),
       onTap: () {
         AppHaptics.light();
         onTap();
       },
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 8, 12, 8),
+        padding: const EdgeInsets.fromLTRB(10, 8, 8, 8),
         child: Row(
           children: [
             thumb,
@@ -232,7 +252,7 @@ class _ArtistBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(12),
       onTap: () {
         AppHaptics.light();
         onTap();
@@ -279,7 +299,7 @@ class _AlbumCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     return InkWell(
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(12),
       onTap: () {
         AppHaptics.light();
         onTap();
@@ -349,8 +369,8 @@ class _TopResultCard extends ConsumerWidget {
     return Material(
       color: isCurrent
           ? colorScheme.primary.withValues(alpha: 0.18)
-          : Colors.white.withValues(alpha: 0.05),
-      borderRadius: BorderRadius.circular(20),
+          : Colors.white.withValues(alpha: 0.055),
+      borderRadius: BorderRadius.circular(12),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: () {
@@ -524,21 +544,6 @@ class _OnlineCardsSliverState extends ConsumerState<_OnlineCardsSliver> {
 
     return SliverMainAxisGroup(
       slivers: [
-        SliverToBoxAdapter(
-          child: OnlineSectionTitle(
-            l10n.onlineMusic,
-            trailing: s.loading
-                ? const Padding(
-                    padding: EdgeInsets.all(12),
-                    child: SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                  )
-                : null,
-          ),
-        ),
         SliverList.builder(
           itemCount: cards.length,
           itemBuilder: (context, i) {

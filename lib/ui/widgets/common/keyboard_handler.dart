@@ -100,12 +100,10 @@ class _KeyboardHandlerState extends ConsumerState<KeyboardHandler> {
     }
 
     // Functional Shortcuts
-    if (key == LogicalKeyboardKey.slash) {
-      ref.read(searchFocusNodeProvider).requestFocus();
-      return true;
-    }
-    if (key == LogicalKeyboardKey.keyF &&
-        HardwareKeyboard.instance.isControlPressed) {
+    if (key == LogicalKeyboardKey.slash ||
+        (key == LogicalKeyboardKey.keyF &&
+            HardwareKeyboard.instance.isControlPressed)) {
+      ref.read(appNavigationProvider.notifier).setItem(NavItem.search);
       ref.read(searchFocusNodeProvider).requestFocus();
       return true;
     }

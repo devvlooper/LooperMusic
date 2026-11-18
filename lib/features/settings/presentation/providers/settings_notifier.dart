@@ -797,15 +797,16 @@ class Settings extends _$Settings {
   Future<void> updateDynamicTheming(bool enabled) => _update((s) {
     s.enableDynamicTheming = enabled;
     if (!enabled) {
-      // If dynamic theming is disabled, ensure accent color resets to default Green (0xFF41C25E)
-      // if the current color is not one of the manual selection options.
+      // If dynamic theming is disabled, reset the accent to the default
+      // (white) when it is not one of the manual swatches.
       const allowedColors = [
+        AppDefaults.accentColor,
         0xFF41C25E,
         0xFFF7EAA6,
         0xFF448AFF,
-      ]; // Green, Yellow, Blue Accent
+      ]; // White, Green, Yellow, Blue Accent
       if (!allowedColors.contains(s.accentColor)) {
-        s.accentColor = 0xFF41C25E;
+        s.accentColor = AppDefaults.accentColor;
       }
     }
     return s;

@@ -165,7 +165,7 @@ class AppSettings {
   bool saveDynamicColor = AppDefaults.saveDynamicColor;
   bool dynamicLyrics = AppDefaults.dynamicLyrics;
   bool blurredArtworkForLyrics = AppDefaults.blurredArtworkForLyrics;
-  int accentColor = AppDefaults.accentColor; // Default Green
+  int accentColor = AppDefaults.accentColor; // Default White
   bool audioFocus = AppDefaults.audioFocus;
   // Unused: audio focus is owned by mpv_audio_kit, which can't honour
   // these (nor pauseOnDuck / permanentAudioFocusChange below). Kept only

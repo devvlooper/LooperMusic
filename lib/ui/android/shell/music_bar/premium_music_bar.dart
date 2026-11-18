@@ -7,6 +7,7 @@ import 'package:flutter/physics.dart';
 import 'package:flutter/rendering.dart';
 import 'package:looper_player/core/utils/motion.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:looper_player/features/playback/presentation/providers/playback/playback_notifier.dart';
 import 'package:looper_player/features/settings/presentation/providers/settings_notifier.dart';
 import 'package:looper_player/ui/android/player/expanded/android_expanded_player.dart';
@@ -50,6 +51,9 @@ enum _FluidDragAxis { none, vertical, horizontal }
 
 class PremiumMusicBarState extends ConsumerState<PremiumMusicBar>
     with TickerProviderStateMixin {
+  /// The mini bar's dark glass (#262626 at 50%, over a backdrop blur).
+  static const Color barColor = Color(0x80262626);
+
   late AnimationController _dragController;
   late final ValueNotifier<double> _expandProgress;
   // Animates restingBottom changes (navbar shown/hidden) - same 300ms
@@ -382,9 +386,11 @@ class PremiumMusicBarState extends ConsumerState<PremiumMusicBar>
       final Size windowSize = MediaQuery.sizeOf(context);
       // Landscape phones are short - shrink the bar to match PremiumNavbar's
       // own compact height (see navbarHeight in android_main_screen.dart, kept
-      // in sync with this) instead of the portrait-tuned 72dp.
+      // in sync with this) instead of the portrait-tuned height.
       final bool isCompact = Responsive.isShort(windowSize);
-      final double barHeight = isCompact ? 56.0 : 72.0;
+      final double barHeight = isCompact
+          ? 56.0
+          : FluidPlayerGeometry.miniHeight;
 
       final Widget bar = Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -436,19 +442,10 @@ class PremiumMusicBarState extends ConsumerState<PremiumMusicBar>
             _dragOffset = Offset.zero;
             _springBarBack(0.0, 0.0);
           },
+          // Play and next take their own taps; the rest opens the player.
           onTapUp: (details) {
             if (_isDragging) return;
-
-            final RenderBox box = context.findRenderObject() as RenderBox;
-            final localX = details.localPosition.dx;
-            final width = box.size.width;
-
-            if (localX > width * 0.75) {
-              AppHaptics.light();
-              ref.read(playbackProvider.notifier).togglePlay();
-            } else {
-              _pushExpandedPlayer(context, settings);
-            }
+            _pushExpandedPlayer(context, settings);
           },
           child: AnimatedBuilder(
             animation: Listenable.merge([_barX, _barY]),
@@ -479,7 +476,7 @@ class PremiumMusicBarState extends ConsumerState<PremiumMusicBar>
                   isPlaying,
                   useBlur,
                   null,
-                  3.0,
+                  16.0,
                   settings,
                   compact: isCompact,
                 ),
@@ -521,7 +518,7 @@ class PremiumMusicBarState extends ConsumerState<PremiumMusicBar>
     // open; the mini bar sits over Home, not over it.
     final bool isBlurActive = useBlur && !settings.disableBlur;
     final Color minimizedBgColor = isBlurActive
-        ? Colors.white.withValues(alpha: 0.05)
+        ? PremiumMusicBarState.barColor
         : Theme.of(context).colorScheme.surfaceContainer;
     final Size windowSize = MediaQuery.sizeOf(context);
     final double musicDarkness = settings.musicDarkness.isNaN
@@ -576,12 +573,7 @@ class PremiumMusicBarState extends ConsumerState<PremiumMusicBar>
       behavior: HitTestBehavior.opaque,
       onTapUp: (details) {
         if (_isDragging) return;
-        if (details.localPosition.dx > _geometry(windowSize).miniWidth * 0.75) {
-          AppHaptics.light();
-          ref.read(playbackProvider.notifier).togglePlay();
-        } else {
-          _pushExpandedPlayer(context, settings);
-        }
+        _pushExpandedPlayer(context, settings);
       },
       child: RepaintBoundary(
         child: _buildMiniPlayerContent(
@@ -1002,8 +994,8 @@ class PremiumMusicBarState extends ConsumerState<PremiumMusicBar>
                                       if (!isBlurActive) return fill;
                                       return BackdropFilter(
                                         filter: ImageFilter.blur(
-                                          sigmaX: 3.0 * (1.0 - p),
-                                          sigmaY: 3.0 * (1.0 - p),
+                                          sigmaX: 16.0 * (1.0 - p),
+                                          sigmaY: 16.0 * (1.0 - p),
                                         ),
                                         child: fill,
                                       );
@@ -1095,12 +1087,14 @@ class PremiumMusicBarState extends ConsumerState<PremiumMusicBar>
                                       }
                                       final double miniFade = (1.0 - p * 3.0)
                                           .clamp(0.0, 1.0);
-                                      final double miniSize = isCompact
-                                          ? 40.0
-                                          : 50.0;
-                                      final double miniTop = isCompact
-                                          ? 8.0
-                                          : 11.0;
+                                      final double miniSize =
+                                          FluidPlayerGeometry.miniArtSize(
+                                            compact: isCompact,
+                                          );
+                                      final double miniTop =
+                                          FluidPlayerGeometry.miniArtTop(
+                                            compact: isCompact,
+                                          );
                                       final Offset origin = geometry.miniOrigin(
                                         p,
                                         stretch: stretch,
@@ -1108,7 +1102,9 @@ class PremiumMusicBarState extends ConsumerState<PremiumMusicBar>
                                       );
                                       return Positioned(
                                         key: const ValueKey('fluid_morph_art'),
-                                        left: origin.dx + 12.0,
+                                        left:
+                                            origin.dx +
+                                            FluidPlayerGeometry.miniArtLeft,
                                         top: origin.dy + miniTop,
                                         width: miniSize,
                                         height: miniSize,
@@ -1116,10 +1112,11 @@ class PremiumMusicBarState extends ConsumerState<PremiumMusicBar>
                                           child: Opacity(
                                             opacity: miniFade,
                                             child: ClipRRect(
-                                              borderRadius:
-                                                  BorderRadius.circular(
-                                                    isCompact ? 26.0 : 32.0,
-                                                  ),
+                                              borderRadius: BorderRadius.circular(
+                                                FluidPlayerGeometry.miniArtRadius(
+                                                  compact: isCompact,
+                                                ),
+                                              ),
                                               child: Stack(
                                                 fit: StackFit.expand,
                                                 children: [

@@ -4,8 +4,8 @@ import 'package:looper_player/core/providers/navigation_provider.dart';
 import 'package:looper_player/core/services/haptics/app_haptics.dart';
 import 'package:looper_player/core/theme/app_fonts.dart';
 
-/// Two-line tab title ("All / Songs", "Your / Library") with round search
-/// and account buttons on the right.
+/// Two-line tab title ("All / Songs", "Your / Library") with a round
+/// account button on the right.
 class LargeTabHeader extends ConsumerWidget {
   final String eyebrow;
   final String title;
@@ -51,12 +51,6 @@ class LargeTabHeader extends ConsumerWidget {
               ],
             ),
           ),
-          RoundIconButton(
-            icon: Icons.search_rounded,
-            tooltip: MaterialLocalizations.of(context).searchFieldLabel,
-            onTap: () => go(NavItem.search),
-          ),
-          const SizedBox(width: 6),
           RoundIconButton(
             icon: Icons.person_rounded,
             onTap: () => go(NavItem.account),

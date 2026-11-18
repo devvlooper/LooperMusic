@@ -578,18 +578,16 @@ class _DiceButtonState extends State<_DiceButton>
 
 const ValueListenable<double> _noStretch = AlwaysStoppedAnimation(0);
 
-/// Home's logo, search and profile buttons, pinned at the top over a blur
+/// Home's logo and profile buttons, pinned at the top over a blur
 /// that fades out downwards (and the soft shade that keeps them readable).
 class HomeTopBar extends StatelessWidget {
   const HomeTopBar({
     super.key,
-    required this.onSearch,
     required this.onProfile,
     this.blur = true,
     this.scrolled,
   });
 
-  final VoidCallback onSearch;
   final VoidCallback onProfile;
 
   /// How far the page is scrolled: over the first [_tuckDistance] px the
@@ -607,7 +605,7 @@ class HomeTopBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final top = MediaQuery.paddingOf(context).top;
     final dpr = MediaQuery.devicePixelRatioOf(context);
-    final row = _HeaderRow(onSearch: onSearch, onProfile: onProfile);
+    final row = _HeaderRow(onProfile: onProfile);
     return ValueListenableBuilder<double>(
       valueListenable: scrolled ?? _noStretch,
       child: row,
@@ -727,9 +725,8 @@ class HomeTopBar extends StatelessWidget {
 }
 
 class _HeaderRow extends ConsumerWidget {
-  const _HeaderRow({required this.onSearch, required this.onProfile});
+  const _HeaderRow({required this.onProfile});
 
-  final VoidCallback onSearch;
   final VoidCallback onProfile;
 
   static const _fill = Color(0x33000000); // black 20%
@@ -760,14 +757,6 @@ class _HeaderRow extends ConsumerWidget {
             child: Center(child: SelectedAvatar(size: 38, maxWidth: 130)),
           ),
         const Spacer(),
-        HomeRoundButton(
-          size: 42,
-          color: _fill,
-          semanticLabel: l10n.search,
-          onTap: onSearch,
-          child: HomeIcons.search(),
-        ),
-        const SizedBox(width: 6),
         HomeRoundButton(
           size: 42,
           color: _fill,

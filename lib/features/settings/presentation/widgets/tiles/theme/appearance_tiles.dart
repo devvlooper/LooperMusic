@@ -257,6 +257,14 @@ class AccentColorTile extends ConsumerWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           ColorCircle(
+            color: const Color(AppDefaults.accentColor),
+            isSelected: settings.accentColor == AppDefaults.accentColor,
+            onTap: () => ref
+                .read(settingsProvider.notifier)
+                .updateAccentColor(AppDefaults.accentColor),
+          ),
+          const SizedBox(width: 8),
+          ColorCircle(
             color: const Color(0xFF41C25E),
             isSelected: settings.accentColor == 0xFF41C25E,
             onTap: () => ref
@@ -299,6 +307,7 @@ class CustomAccentColorTile extends ConsumerWidget {
       trailing: ColorCircle(
         color: settings.accent,
         isSelected:
+            settings.accentColor != AppDefaults.accentColor &&
             settings.accentColor != 0xFF41C25E &&
             settings.accentColor != 0xFFF7EAA6 &&
             settings.accentColor != Colors.blueAccent.value,

@@ -13,10 +13,10 @@ void main() {
   );
 
   group('FluidPlayerGeometry', () {
-    test('collapsed panel is the 72dp mini bar above the resting gap', () {
+    test('collapsed panel is the 66dp mini bar above the resting gap', () {
       expect(
         geometry.panelRect(0),
-        const Rect.fromLTRB(16, 800 - 118 - 72, 384, 800 - 118),
+        const Rect.fromLTRB(15, 800 - 118 - 66, 385, 800 - 118),
       );
     });
 
@@ -24,14 +24,12 @@ void main() {
       expect(geometry.panelRect(1), Offset.zero & phone);
     });
 
-    test('matches the old host geometry at every progress', () {
+    test('panel grows linearly from the mini bar to the screen', () {
       for (double p = 0; p <= 1.0001; p += 0.05) {
         final Rect r = geometry.panelRect(p);
-        // Old host: bottom = restingBottom * (1 - p),
-        // height = 72 + (H - 72) * p, side margin 16 * (1 - p).
         expect(phone.height - r.bottom, closeTo(118 * (1 - p), 1e-9));
-        expect(r.height, closeTo(72 + (800 - 72) * p, 1e-9));
-        expect(r.left, closeTo(16 * (1 - p), 1e-9));
+        expect(r.height, closeTo(66 + (800 - 66) * p, 1e-9));
+        expect(r.left, closeTo(15 * (1 - p), 1e-9));
       }
     });
 
@@ -57,41 +55,41 @@ void main() {
       final Rect start = geometry.morphArtRect(0, target);
       expect(
         start,
-        Rect.fromLTWH(16 + 12, geometry.panelRect(0).top + 11, 50, 50),
+        Rect.fromLTWH(15 + 11, geometry.panelRect(0).top + 9.5, 47, 47),
       );
       expect(geometry.morphArtRect(1, target), target);
     });
 
-    test('morph art in compact mode is 40dp thumbnail with 26dp radius', () {
+    test('morph art in compact mode is 40dp thumbnail with 7dp radius', () {
       const Rect target = Rect.fromLTWH(20, 120, 360, 360);
       final Rect start = geometry.morphArtRect(0, target, compact: true);
       expect(
         start,
-        Rect.fromLTWH(16 + 12, geometry.panelRect(0).top + 8, 40, 40),
+        Rect.fromLTWH(15 + 11, geometry.panelRect(0).top + 8, 40, 40),
       );
-      expect(FluidPlayerGeometry.morphArtRadius(0, compact: true), 26.0);
-      expect(FluidPlayerGeometry.morphArtRadius(0, compact: false), 32.0);
+      expect(FluidPlayerGeometry.morphArtRadius(0, compact: true), 7.0);
+      expect(FluidPlayerGeometry.morphArtRadius(0, compact: false), 8.0);
       expect(FluidPlayerGeometry.morphArtRadius(1, compact: true), 12.0);
     });
 
     test('panel radius stays constant during flight and smoothly reaches 0 at full expansion', () {
-      // In flight: corners do not change (fixed at 36)
-      expect(FluidPlayerGeometry.panelRadiusAt(0.0), 36.0);
-      expect(FluidPlayerGeometry.panelRadiusAt(0.3), 36.0);
-      expect(FluidPlayerGeometry.panelRadiusAt(0.6), 36.0);
-      expect(FluidPlayerGeometry.panelRadiusAt(0.9), 36.0);
-      expect(FluidPlayerGeometry.panelRadiusAt(FluidPlayerGeometry.panelCornerProgressThreshold), 36.0);
+      // In flight: corners do not change (fixed at 15)
+      expect(FluidPlayerGeometry.panelRadiusAt(0.0), 15.0);
+      expect(FluidPlayerGeometry.panelRadiusAt(0.3), 15.0);
+      expect(FluidPlayerGeometry.panelRadiusAt(0.6), 15.0);
+      expect(FluidPlayerGeometry.panelRadiusAt(0.9), 15.0);
+      expect(FluidPlayerGeometry.panelRadiusAt(FluidPlayerGeometry.panelCornerProgressThreshold), 15.0);
 
       // Fully expanded: corners are 0 to seamlessly cover square displays
       expect(FluidPlayerGeometry.panelRadiusAt(1.0), 0.0);
       expect(FluidPlayerGeometry.panelRadiusAt(1.1), 0.0);
 
-      // Small drag from 1.0: smoothly transitions from 0 to 36
+      // Small drag from 1.0: smoothly transitions from 0 to 15
       final double mid = FluidPlayerGeometry.panelRadiusAt(0.97);
-      expect(mid, closeTo(18.0, 0.1));
+      expect(mid, closeTo(7.5, 0.1));
 
       // Monotonic decreasing as p expands towards 1.0
-      double lastRadius = 36.0;
+      double lastRadius = 15.0;
       for (double p = 0.94; p <= 1.0; p += 0.005) {
         final double r = FluidPlayerGeometry.panelRadiusAt(p);
         expect(r, lessThanOrEqualTo(lastRadius));

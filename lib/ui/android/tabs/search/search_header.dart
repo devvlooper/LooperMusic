@@ -1,12 +1,12 @@
 part of 'android_search_tab.dart';
 
+/// The tab title over a pill search field, in Looper Analyze's header type.
 class _SearchHeader extends StatelessWidget {
   final TextEditingController controller;
   final FocusNode focusNode;
   final ValueChanged<String> onChanged;
   final ValueChanged<String> onSubmitted;
   final VoidCallback onClear;
-  final VoidCallback onBack;
 
   const _SearchHeader({
     super.key,
@@ -15,67 +15,127 @@ class _SearchHeader extends StatelessWidget {
     required this.onChanged,
     required this.onSubmitted,
     required this.onClear,
-    required this.onBack,
   });
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(4, 10, 16, 6),
-      child: Row(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          IconButton(
-            icon: const Icon(LucideIcons.arrowLeft, size: 22),
-            color: Colors.white,
-            tooltip: l10n.back,
-            onPressed: onBack,
-          ),
-          Expanded(
-            child: Container(
-              height: 48,
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.07),
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+          Padding(
+            padding: const EdgeInsets.only(left: 4, bottom: 12),
+            child: Text(
+              l10n.search,
+              style: AppFonts.jostStyle(
+                color: Colors.white,
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                letterSpacing: -0.5,
               ),
-              child: TextField(
-                controller: controller,
-                focusNode: focusNode,
-                textInputAction: TextInputAction.search,
-                onChanged: onChanged,
-                onSubmitted: onSubmitted,
-                style: AppFonts.jostStyle(color: Colors.white, fontSize: 15),
-                cursorColor: Theme.of(context).colorScheme.primary,
-                decoration: InputDecoration(
-                  hintText: l10n.searchLibraryHint,
-                  hintStyle: AppFonts.jostStyle(
-                    color: Colors.white.withValues(alpha: 0.45),
-                    fontSize: 15,
-                  ),
-                  prefixIcon: Icon(
-                    LucideIcons.search,
-                    size: 18,
-                    color: Colors.white.withValues(alpha: 0.6),
-                  ),
-                  suffixIcon: ValueListenableBuilder<TextEditingValue>(
-                    valueListenable: controller,
-                    builder: (context, value, _) => value.text.isEmpty
-                        ? const SizedBox.shrink()
-                        : IconButton(
-                            icon: const Icon(LucideIcons.x, size: 18),
-                            color: Colors.white70,
-                            tooltip: l10n.clear,
-                            onPressed: onClear,
-                          ),
-                  ),
-                  border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(vertical: 13),
+            ),
+          ),
+          Container(
+            height: 48,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.055),
+              borderRadius: BorderRadius.circular(24),
+            ),
+            child: TextField(
+              controller: controller,
+              focusNode: focusNode,
+              textInputAction: TextInputAction.search,
+              onChanged: onChanged,
+              onSubmitted: onSubmitted,
+              style: AppFonts.jostStyle(color: Colors.white, fontSize: 15),
+              cursorColor: Theme.of(context).colorScheme.primary,
+              decoration: InputDecoration(
+                hintText: l10n.searchLibraryHint,
+                hintStyle: AppFonts.jostStyle(
+                  color: Colors.white.withValues(alpha: 0.45),
+                  fontSize: 15,
                 ),
+                prefixIcon: Icon(
+                  LucideIcons.search,
+                  size: 18,
+                  color: Colors.white.withValues(alpha: 0.6),
+                ),
+                suffixIcon: ValueListenableBuilder<TextEditingValue>(
+                  valueListenable: controller,
+                  builder: (context, value, _) => value.text.isEmpty
+                      ? const SizedBox.shrink()
+                      : IconButton(
+                          icon: const Icon(LucideIcons.x, size: 18),
+                          color: Colors.white70,
+                          tooltip: l10n.clear,
+                          onPressed: onClear,
+                        ),
+                ),
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(vertical: 13),
               ),
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// A rounded pill button: [accent] filled with black text (Analyze's
+/// selected pill), otherwise the quiet white-6% pill.
+class _Pill extends StatelessWidget {
+  final String label;
+  final VoidCallback? onTap;
+  final bool accent;
+  final IconData? icon;
+
+  const _Pill({
+    required this.label,
+    this.onTap,
+    this.accent = false,
+    this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final accentColor = Theme.of(context).colorScheme.primary;
+    final foreground = accent
+        ? Colors.black
+        : Colors.white.withValues(alpha: 0.85);
+    return Material(
+      color: accent ? accentColor : Colors.white.withValues(alpha: 0.06),
+      borderRadius: BorderRadius.circular(20),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap == null
+            ? null
+            : () {
+                AppHaptics.selection();
+                onTap!();
+              },
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label,
+                style: AppFonts.jostStyle(
+                  color: foreground,
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              if (icon != null) ...[
+                const SizedBox(width: 4),
+                Icon(icon, size: 14, color: foreground),
+              ],
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -99,19 +159,28 @@ class _SelectionBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final accent = Theme.of(context).colorScheme.primary;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(4, 10, 8, 6),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
       child: SizedBox(
         height: 48,
         child: Row(
           children: [
-            IconButton(
-              icon: const Icon(LucideIcons.x, size: 22),
-              color: Colors.white,
-              tooltip: l10n.cancel,
-              onPressed: onCancel,
+            Tooltip(
+              message: l10n.cancel,
+              child: Material(
+                color: Colors.white.withValues(alpha: 0.055),
+                shape: const CircleBorder(),
+                clipBehavior: Clip.antiAlias,
+                child: InkWell(
+                  onTap: onCancel,
+                  child: const SizedBox.square(
+                    dimension: 48,
+                    child: Icon(LucideIcons.x, size: 20, color: Colors.white),
+                  ),
+                ),
+              ),
             ),
+            const SizedBox(width: 14),
             Expanded(
               child: Text(
                 l10n.selectedCount(count),
@@ -119,17 +188,24 @@ class _SelectionBar extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: AppFonts.jostStyle(
                   color: Colors.white,
-                  fontSize: 17,
-                  fontWeight: FontWeight.w600,
+                  fontSize: 19,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: -0.3,
                 ),
               ),
             ),
-            TextButton(onPressed: onSelectAll, child: Text(l10n.selectAll)),
-            IconButton(
-              icon: const Icon(LucideIcons.listPlus, size: 22),
-              color: accent,
-              tooltip: l10n.addToPlaylists,
-              onPressed: onAddToPlaylist,
+            _Pill(label: l10n.selectAll, onTap: onSelectAll),
+            const SizedBox(width: 6),
+            // Short label so the selection count keeps its room; the
+            // tooltip carries the full name.
+            Tooltip(
+              message: l10n.addToPlaylists,
+              child: _Pill(
+                label: l10n.add,
+                icon: LucideIcons.listPlus,
+                accent: true,
+                onTap: onAddToPlaylist,
+              ),
             ),
           ],
         ),
@@ -165,49 +241,53 @@ class _KindChips extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final kinds = counts.keys.toList();
     return SizedBox(
-      height: 46,
+      height: 44,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.fromLTRB(16, 4, 16, 6),
+        padding: const EdgeInsets.fromLTRB(16, 2, 16, 8),
         itemCount: kinds.length,
-        separatorBuilder: (_, _) => const SizedBox(width: 8),
+        separatorBuilder: (_, _) => const SizedBox(width: 6),
         itemBuilder: (context, index) {
           final kind = kinds[index];
           final isSelected = kind == selected;
-          final foreground = isSelected ? colorScheme.onPrimary : Colors.white;
-          return Material(
-            color: isSelected
-                ? colorScheme.primary
-                : Colors.white.withValues(alpha: 0.07),
-            borderRadius: BorderRadius.circular(18),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(18),
-              onTap: isSelected ? null : () => onSelected(kind),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 14),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
+          final foreground = isSelected
+              ? Colors.black
+              : Colors.white.withValues(alpha: 0.6);
+          return GestureDetector(
+            onTap: isSelected ? null : () => onSelected(kind),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 220),
+              curve: Curves.easeOut,
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? colorScheme.primary
+                    : Colors.white.withValues(alpha: 0.06),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    _label(l10n, kind),
+                    style: AppFonts.jostStyle(
+                      color: foreground,
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  if (kind != _SearchKind.all) ...[
+                    const SizedBox(width: 6),
                     Text(
-                      _label(l10n, kind),
+                      '${counts[kind]}',
                       style: AppFonts.jostStyle(
-                        color: foreground,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
+                        color: foreground.withValues(alpha: 0.65),
+                        fontSize: 12,
                       ),
                     ),
-                    if (kind != _SearchKind.all) ...[
-                      const SizedBox(width: 6),
-                      Text(
-                        '${counts[kind]}',
-                        style: AppFonts.jostStyle(
-                          color: foreground.withValues(alpha: 0.65),
-                          fontSize: 13,
-                        ),
-                      ),
-                    ],
                   ],
-                ),
+                ],
               ),
             ),
           );

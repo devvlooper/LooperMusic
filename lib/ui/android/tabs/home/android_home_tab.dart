@@ -911,12 +911,6 @@ class _AndroidHomeTabState extends ConsumerState<AndroidHomeTab>
                   HomeTopBar(
                     blur: statusBarBlur,
                     scrolled: _scrolled,
-                    onSearch: () {
-                      AppHaptics.light();
-                      ref
-                          .read(appNavigationProvider.notifier)
-                          .setItem(NavItem.search);
-                    },
                     onProfile: () {
                       AppHaptics.light();
                       ref
