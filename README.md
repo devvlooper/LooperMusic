@@ -276,13 +276,6 @@ Releases are built by the **Build and Release** workflow (manual, `workflow_disp
 * **Nilesh Suthar** — development
 * **Karan Suthar** — design
 
-### Contributors
-Everyone who has helped build Looper:
-
-<a href="https://github.com/devvlooper/LooperMusic/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=devvlooper/LooperMusic" alt="Contributors" />
-</a>
-
 ### Thanks
 * **[Vinyzu](https://github.com/Vinyzu)** for the dashboard playlists row, the playlist cover collages and the German translations
 * **[YouTutosJeff](https://www.youtube.com/@YouTutosJeff)** for featuring Looper in [10 Mejores APLICACIONES Android 2026](https://youtu.be/KnoETY34sgk)
