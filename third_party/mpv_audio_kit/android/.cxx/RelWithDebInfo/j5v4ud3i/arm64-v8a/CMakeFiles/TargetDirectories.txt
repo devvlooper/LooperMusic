@@ -1,0 +1,3 @@
+/home/hiteshsuthar/.pub-cache/hosted/pub.dev/mpv_audio_kit-0.4.9/android/.cxx/RelWithDebInfo/j5v4ud3i/arm64-v8a/CMakeFiles/mpv_audio_kit_jni.dir
+/home/hiteshsuthar/.pub-cache/hosted/pub.dev/mpv_audio_kit-0.4.9/android/.cxx/RelWithDebInfo/j5v4ud3i/arm64-v8a/CMakeFiles/edit_cache.dir
+/home/hiteshsuthar/.pub-cache/hosted/pub.dev/mpv_audio_kit-0.4.9/android/.cxx/RelWithDebInfo/j5v4ud3i/arm64-v8a/CMakeFiles/rebuild_cache.dir

@@ -1,0 +1,9 @@
+# ninja log v5
+0	34	1792142479328621407	CMakeFiles/mpv_audio_kit_jni.dir/mpv_audio_kit_jni.c.o	2b8f198ca557bc92
+34	60	1792142479355622186	/home/hiteshsuthar/projects/looper_player/build/mpv_audio_kit/intermediates/cxx/RelWithDebInfo/465h3vt1/obj/x86_64/libmpv_audio_kit_jni.so	5e52c700bdda1b79
+1	54	1792151569194051954	/home/hiteshsuthar/projects/looper_player/build/mpv_audio_kit/intermediates/cxx/RelWithDebInfo/465h3vt1/obj/x86_64/libmpv_audio_kit_jni.so	5e52c700bdda1b79
+0	29	1793000003698141997	/home/hiteshsuthar/projects/looper_player/build/mpv_audio_kit/intermediates/cxx/RelWithDebInfo/465h3vt1/obj/x86_64/libmpv_audio_kit_jni.so	5e52c700bdda1b79
+1	31	1793161101321624050	/home/hiteshsuthar/projects/looper_player/build/mpv_audio_kit/intermediates/cxx/RelWithDebInfo/465h3vt1/obj/x86_64/libmpv_audio_kit_jni.so	5e52c700bdda1b79
+0	26	1793813327402608834	/home/hiteshsuthar/projects/looper_player/build/mpv_audio_kit/intermediates/cxx/RelWithDebInfo/465h3vt1/obj/x86_64/libmpv_audio_kit_jni.so	5e52c700bdda1b79
+0	30	1793869818192150014	/home/hiteshsuthar/projects/looper_player/build/mpv_audio_kit/intermediates/cxx/RelWithDebInfo/465h3vt1/obj/x86_64/libmpv_audio_kit_jni.so	5e52c700bdda1b79
+1	31	1793890154321668154	/home/hiteshsuthar/projects/looper_player/build/mpv_audio_kit/intermediates/cxx/RelWithDebInfo/465h3vt1/obj/x86_64/libmpv_audio_kit_jni.so	5e52c700bdda1b79

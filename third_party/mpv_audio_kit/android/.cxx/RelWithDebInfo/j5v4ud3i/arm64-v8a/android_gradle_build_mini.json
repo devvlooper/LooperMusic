@@ -1,0 +1,27 @@
+{
+  "buildFiles": [
+    "/home/hiteshsuthar/.pub-cache/hosted/pub.dev/mpv_audio_kit-0.4.9/android/src/main/cpp/CMakeLists.txt"
+  ],
+  "cleanCommandsComponents": [
+    [
+      "/home/hiteshsuthar/Android/Sdk/cmake/3.22.1/bin/ninja",
+      "-C",
+      "/home/hiteshsuthar/.pub-cache/hosted/pub.dev/mpv_audio_kit-0.4.9/android/.cxx/RelWithDebInfo/j5v4ud3i/arm64-v8a",
+      "clean"
+    ]
+  ],
+  "buildTargetsCommandComponents": [
+    "/home/hiteshsuthar/Android/Sdk/cmake/3.22.1/bin/ninja",
+    "-C",
+    "/home/hiteshsuthar/.pub-cache/hosted/pub.dev/mpv_audio_kit-0.4.9/android/.cxx/RelWithDebInfo/j5v4ud3i/arm64-v8a",
+    "{LIST_OF_TARGETS_TO_BUILD}"
+  ],
+  "libraries": {
+    "mpv_audio_kit_jni::@6890427a1f51a3e7e1df": {
+      "artifactName": "mpv_audio_kit_jni",
+      "abi": "arm64-v8a",
+      "output": "/home/hiteshsuthar/projects/looper_music/build/mpv_audio_kit/intermediates/cxx/RelWithDebInfo/j5v4ud3i/obj/arm64-v8a/libmpv_audio_kit_jni.so",
+      "runtimeFiles": []
+    }
+  }
+}
