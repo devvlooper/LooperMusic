@@ -35,9 +35,17 @@ class FluidPlayerGeometry {
   /// the navbar at a tab root, or just the system inset elsewhere).
   final double restingBottom;
 
-  static const double miniHeight = 72.0;
-  static const double miniMargin = 16.0;
-  static const double panelRadius = 36.0;
+  static const double miniHeight = 66.0;
+  static const double miniMargin = 15.0;
+  static const double panelRadius = 15.0;
+
+  /// The mini bar's artwork thumbnail, shared by the bar itself and the
+  /// morph that flies it into the expanded player. Compact is the 56dp bar
+  /// on short (landscape) windows.
+  static const double miniArtLeft = 11.0;
+  static double miniArtSize({bool compact = false}) => compact ? 40.0 : 47.0;
+  static double miniArtTop({bool compact = false}) => compact ? 8.0 : 9.5;
+  static double miniArtRadius({bool compact = false}) => compact ? 7.0 : 8.0;
 
   /// Progress threshold where the panel corners begin smoothing from [panelRadius]
   /// down to 0 at full expansion. During flight (p <= 0.94), corners remain constant
@@ -120,7 +128,7 @@ class FluidPlayerGeometry {
   double progressVelocity(double pixelsPerSecondDy) =>
       -pixelsPerSecondDy / travel;
 
-  /// Rect of the morphing album art: from the mini bar's 50dp (or 40dp compact) thumbnail
+  /// Rect of the morphing album art: from the mini bar's thumbnail
   /// (riding the panel) to the expanded player's artwork rect.
   Rect morphArtRect(
     double p,
@@ -134,10 +142,11 @@ class FluidPlayerGeometry {
       stretch: stretch,
       horizontalOffset: horizontalOffset,
     );
-    final double miniSize = compact ? 40.0 : 50.0;
-    final double miniTop = compact ? 8.0 : 11.0;
+    final double miniSize = miniArtSize(compact: compact);
+    final double miniTop = miniArtTop(compact: compact);
     final double size = lerpDouble(miniSize, expandedArt.width, p)!;
-    final double left = panel.left + 12.0 + (expandedArt.left - 12.0) * p;
+    final double left =
+        panel.left + miniArtLeft + (expandedArt.left - miniArtLeft) * p;
     final double top = panel.top + miniTop + (expandedArt.top - miniTop) * p;
     return Rect.fromLTWH(left, top, size, size);
   }
@@ -145,7 +154,7 @@ class FluidPlayerGeometry {
   /// Corner radius of the morphing art: the mini thumbnail's 32 (or 26 compact)
   /// to the expanded artwork's 12.
   static double morphArtRadius(double p, {bool compact = false}) =>
-      lerpDouble(compact ? 26.0 : 32.0, 12.0, p)!;
+      lerpDouble(miniArtRadius(compact: compact), 12.0, p)!;
 
   Offset miniOrigin(
     double p, {

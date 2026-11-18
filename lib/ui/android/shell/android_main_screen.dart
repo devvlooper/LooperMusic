@@ -58,32 +58,28 @@ part 'nav_depth_observer.dart';
 GlobalKey<NavigatorState> androidNavigatorKey(Ref ref) =>
     GlobalKey<NavigatorState>();
 
-/// The bottom-nav "root" tab (Home/Songs/Library) currently active, derived
-/// by walking back through navigation history when a pushed sub-view (a
-/// collection, settings, search, ...) is on top. Used via `.select()` so
+/// The bottom-nav "root" tab (Home/Search/Songs/Library) currently active,
+/// derived by walking back through navigation history when a pushed sub-view
+/// (a collection, settings, ...) is on top. Used via `.select()` so
 /// screens only rebuild when this actually changes value, not on every
 /// NavigationState field (isPlayerExpanded, collectionSongs, ...).
+/// The root tabs, in navbar order.
+const _rootTabs = [
+  NavItem.home,
+  NavItem.search,
+  NavItem.songs,
+  NavItem.library,
+];
+
 NavItem _rootNavItem(NavigationState nav) {
-  final active = nav.activeItem;
-  if (active == NavItem.home ||
-      active == NavItem.songs ||
-      active == NavItem.library) {
-    return active;
-  }
+  if (_rootTabs.contains(nav.activeItem)) return nav.activeItem;
   for (final histState in nav.history.reversed) {
-    final histActive = histState.activeItem;
-    if (histActive == NavItem.home ||
-        histActive == NavItem.songs ||
-        histActive == NavItem.library) {
-      return histActive;
-    }
+    if (_rootTabs.contains(histState.activeItem)) return histState.activeItem;
   }
   return NavItem.home;
 }
 
-int _navItemTabIndex(NavItem item) {
-  return item == NavItem.home ? 0 : (item == NavItem.songs ? 1 : 2);
-}
+int _navItemTabIndex(NavItem item) => _rootTabs.indexOf(item);
 
 class AndroidMainScreen extends ConsumerStatefulWidget {
   const AndroidMainScreen({super.key});
@@ -109,11 +105,12 @@ class _AndroidMainScreenState extends ConsumerState<AndroidMainScreen>
 
   final List<Widget> _tabs = [
     const AndroidHomeTab(),
+    const AndroidSearchTab(),
     const AndroidSongsTab(),
     const AndroidLibraryTab(),
   ];
 
-  // The three root tabs stay mounted permanently (see _buildTabStack) so
+  // The root tabs stay mounted permanently (see _buildTabStack) so
   // switching tabs no longer tears down and recreates their state - it used
   // to, via a PageTransitionSwitcher keyed by tab index, which meant e.g.
   // AndroidSongsTab was destroyed and rebuilt from scratch (new
@@ -343,11 +340,7 @@ class _AndroidMainScreenState extends ConsumerState<AndroidMainScreen>
     ref.listen(appNavigationProvider, (previous, next) {
       final isForward = next.history.length >= (previous?.history.length ?? 0);
 
-      if (next.activeItem == NavItem.home) {
-        navigatorKey.currentState?.popUntil((route) => route.isFirst);
-      } else if (next.activeItem == NavItem.songs) {
-        navigatorKey.currentState?.popUntil((route) => route.isFirst);
-      } else if (next.activeItem == NavItem.library) {
+      if (_rootTabs.contains(next.activeItem)) {
         navigatorKey.currentState?.popUntil((route) => route.isFirst);
       } else if (isForward && next.activeItem == NavItem.playlists) {
         navigatorKey.currentState?.push(
@@ -369,10 +362,6 @@ class _AndroidMainScreenState extends ConsumerState<AndroidMainScreen>
               artist: next.activeArtist,
             ),
           ),
-        );
-      } else if (isForward && next.activeItem == NavItem.search) {
-        navigatorKey.currentState?.push(
-          _createPremiumRoute(const AndroidSearchTab()),
         );
       } else if (isForward && next.activeItem == NavItem.account) {
         navigatorKey.currentState?.push(
@@ -478,20 +467,19 @@ class _AndroidMainScreenState extends ConsumerState<AndroidMainScreen>
     // Stable ValueNotifier - watching it never rebuilds this screen.
     final expandProgress = ref.watch(playerExpandProgressProvider);
     final showSupportUsSheet = ref.watch(supportUsSheetVisibleProvider);
-    // Mirrors PremiumNavbar's own compact sizing on a short (landscape
-    // phone) window, so the mini player's resting offset and the navbar's
-    // off-screen slide distance both still match its real height exactly.
+    // PremiumNavbar's real height, so the mini player's resting offset and
+    // the navbar's off-screen slide distance both match it exactly.
     final bool isShortWindow = Responsive.isShort(MediaQuery.sizeOf(context));
     final double navbarHeight =
-        (isShortWindow ? 56.0 + 10.0 : 72.0 + 18.0) +
+        PremiumNavbar.heightFor(compact: isShortWindow) +
         MediaQuery.of(context).padding.bottom;
 
     final baseTheme = Theme.of(context);
     final double systemBottom = MediaQuery.of(context).padding.bottom;
     // Mirrors the music bar slots below (resting bottom + its height).
-    final double musicBarHeight = settings.enableSlideGesture
-        ? FluidPlayerGeometry.miniHeight
-        : (isShortWindow ? 56.0 : 72.0);
+    final double musicBarHeight = isShortWindow && !settings.enableSlideGesture
+        ? 56.0
+        : FluidPlayerGeometry.miniHeight;
     final double barsTop = song != null
         ? (_navAtRoot ? navbarHeight + 4.0 : 16.0 + systemBottom) +
               musicBarHeight
@@ -725,19 +713,19 @@ class _AndroidMainScreenState extends ConsumerState<AndroidMainScreen>
                         opacity: _navAtRoot ? 1.0 : 0.0,
                         duration: const Duration(milliseconds: 250),
                         curve: Curves.easeInOut,
+                        // Starts behind the mini player's middle and is
+                        // near-solid under the tabs, which have no surface.
                         child: Container(
-                          height: 180,
+                          height: navbarHeight + 4.0 + musicBarHeight / 2 + 8,
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
                               begin: Alignment.topCenter,
                               end: Alignment.bottomCenter,
                               colors: [
                                 Colors.transparent,
-                                Colors.black.withValues(alpha: 0.45),
-                                Colors.black.withValues(alpha: 0.8),
-                                Colors.black,
+                                Colors.black.withValues(alpha: 0.95),
                               ],
-                              stops: const [0.0, 0.35, 0.7, 1.0],
+                              stops: const [0.0, 0.61],
                             ),
                           ),
                         ),
@@ -807,29 +795,10 @@ class _AndroidMainScreenState extends ConsumerState<AndroidMainScreen>
                                       );
                                     },
                                     child: PremiumNavbar(
-                                      currentIndex: rootItem == NavItem.home
-                                          ? 0
-                                          : (rootItem == NavItem.songs ? 1 : 2),
-                                      onTap: (index) {
-                                        NavItem target;
-                                        switch (index) {
-                                          case 1:
-                                            target = NavItem.songs;
-                                            break;
-                                          case 2:
-                                            target = NavItem.library;
-                                            break;
-                                          case 0:
-                                          default:
-                                            target = NavItem.home;
-                                            break;
-                                        }
-                                        ref
-                                            .read(
-                                              appNavigationProvider.notifier,
-                                            )
-                                            .setItem(target);
-                                      },
+                                      currentIndex: _navItemTabIndex(rootItem),
+                                      onTap: (index) => ref
+                                          .read(appNavigationProvider.notifier)
+                                          .setItem(_rootTabs[index]),
                                     ),
                                   ),
                                 ),
@@ -928,27 +897,10 @@ class _AndroidMainScreenState extends ConsumerState<AndroidMainScreen>
                             children: [
                               const SizedBox(height: 4),
                               PremiumNavbar(
-                                currentIndex: rootItem == NavItem.home
-                                    ? 0
-                                    : (rootItem == NavItem.songs ? 1 : 2),
-                                onTap: (index) {
-                                  NavItem target;
-                                  switch (index) {
-                                    case 1:
-                                      target = NavItem.songs;
-                                      break;
-                                    case 2:
-                                      target = NavItem.library;
-                                      break;
-                                    case 0:
-                                    default:
-                                      target = NavItem.home;
-                                      break;
-                                  }
-                                  ref
-                                      .read(appNavigationProvider.notifier)
-                                      .setItem(target);
-                                },
+                                currentIndex: _navItemTabIndex(rootItem),
+                                onTap: (index) => ref
+                                    .read(appNavigationProvider.notifier)
+                                    .setItem(_rootTabs[index]),
                               ),
                             ],
                           ),

@@ -1,22 +1,18 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:looper_player/core/theme/app_fonts.dart';
-import 'package:looper_player/core/utils/ui_utils.dart';
-import 'package:looper_player/core/theme/app_icons.dart';
-import 'package:looper_player/features/settings/presentation/providers/settings_notifier.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:looper_player/l10n/app_localizations.dart';
-import 'package:looper_player/core/utils/responsive.dart';
-import '../widgets/premium_section.dart';
 import 'package:looper_player/core/services/haptics/app_haptics.dart';
+import 'package:looper_player/core/theme/app_fonts.dart';
+import 'package:looper_player/core/theme/app_icons.dart';
+import 'package:looper_player/core/utils/responsive.dart';
+import 'package:looper_player/core/utils/ui_utils.dart';
+import 'package:looper_player/l10n/app_localizations.dart';
 
-class PremiumNavbar extends ConsumerWidget {
+/// The root tab bar: four icon-over-label tabs (Home, Search, Songs,
+/// Library) with no surface of their own - they sit on the black fade the
+/// main screen draws behind them.
+class PremiumNavbar extends StatelessWidget {
   final int currentIndex;
-  final Function(int) onTap;
-
-  static final GlobalKey _homeKey = GlobalKey(debugLabel: 'nav_home');
-  static final GlobalKey _songsKey = GlobalKey(debugLabel: 'nav_songs');
-  static final GlobalKey _libraryKey = GlobalKey(debugLabel: 'nav_library');
+  final ValueChanged<int> onTap;
 
   const PremiumNavbar({
     super.key,
@@ -24,198 +20,49 @@ class PremiumNavbar extends ConsumerWidget {
     required this.onTap,
   });
 
+  /// Height above the system inset. The main screen lays the mini player and
+  /// snackbars out against this, so it is the one place the size lives.
+  static double heightFor({required bool compact}) => compact ? 52.0 : 76.0;
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final settings = ref.watch(settingsProvider);
-    final accentColor = settings.accent;
-    final bottomPadding = MediaQuery.of(context).padding.bottom;
-    final useBlur = settings.enableDynamicTheming;
+  Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final bottomPadding = MediaQuery.paddingOf(context).bottom;
+    // Landscape phones are short: tighter padding and smaller icon/label.
+    final bool compact = Responsive.isShort(MediaQuery.sizeOf(context));
+    final items = [
+      (AppIcons.home, l10n.home),
+      (AppIcons.search, l10n.search),
+      (AppIcons.songs, l10n.songs),
+      (AppIcons.library, l10n.library),
+    ];
 
-    // Landscape phones are short - the portrait-tuned 72dp bar plus its
-    // padding (90dp total, see navbarHeight in android_main_screen.dart) ate
-    // a disproportionate slice of the little vertical room available there.
-    // Shrink the bar itself and its icon/label on a short window; untouched
-    // in portrait.
-    final bool isCompact = Responsive.isShort(MediaQuery.sizeOf(context));
-    final double navHeight = isCompact ? 56.0 : 72.0;
-    final double navIconSize =
-        (isCompact ? AppIcons.navbarIcon * 0.78 : AppIcons.navbarIcon).s;
-    final double navFontSize = (isCompact ? 14.0 : 17.0).ts;
-
-    return Container(
+    return Padding(
+      // top + row + bottom == heightFor(compact).
       padding: EdgeInsets.fromLTRB(
-        16,
-        2,
-        16,
-        (isCompact ? 8 : 16) + bottomPadding,
+        20,
+        compact ? 6 : 22,
+        20,
+        (compact ? 4 : 10) + bottomPadding,
       ),
       child: SizedBox(
-        height: navHeight,
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final double gapSize = 6.s;
-
-            final home = _NavItem(
-              key: _homeKey,
-              iconPath: AppIcons.home,
-              label: l10n.home,
-              isSelected: currentIndex == 0,
-              accentColor: accentColor,
-              iconSize: navIconSize,
-              fontSize: navFontSize,
-            );
-
-            final songs = _NavItem(
-              key: _songsKey,
-              iconPath: AppIcons.songs,
-              label: l10n.songs,
-              isSelected: currentIndex == 1,
-              accentColor: accentColor,
-              iconSize: navIconSize,
-              fontSize: navFontSize,
-            );
-
-            final library = _NavItem(
-              key: _libraryKey,
-              iconPath: AppIcons.library,
-              label: l10n.library,
-              isSelected: currentIndex == 2,
-              accentColor: accentColor,
-              iconSize: navIconSize,
-              fontSize: navFontSize,
-            );
-
-            const leftEnd = BorderRadius.only(
-              topLeft: Radius.circular(36),
-              bottomLeft: Radius.circular(36),
-              topRight: Radius.circular(12),
-              bottomRight: Radius.circular(12),
-            );
-            const rightEnd = BorderRadius.only(
-              topLeft: Radius.circular(12),
-              bottomLeft: Radius.circular(12),
-              topRight: Radius.circular(36),
-              bottomRight: Radius.circular(36),
-            );
-
-            VoidCallback tap(int index) => () {
-              AppHaptics.tick();
-              onTap(index);
-            };
-
-            Widget gap() => AnimatedContainer(
-              duration: const Duration(milliseconds: 400),
-              curve: Curves.easeOutCubic,
-              width: gapSize,
-            );
-
-            // One of the two tabs sharing the wide, unselected section.
-            Widget half(int index, Widget item) => Expanded(
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: tap(index),
-                child: Container(
-                  height: double.infinity,
-                  alignment: Alignment.center,
-                  child: item,
+        height: compact ? 42 : 44,
+        child: Row(
+          children: [
+            for (var i = 0; i < items.length; i++)
+              Expanded(
+                child: _NavItem(
+                  iconPath: items[i].$1,
+                  label: items[i].$2,
+                  isSelected: currentIndex == i,
+                  compact: compact,
+                  onTap: () {
+                    AppHaptics.tick();
+                    onTap(i);
+                  },
                 ),
               ),
-            );
-
-            // The selected tab gets a section of its own; the other two
-            // share one, except with Songs selected, where all three stand
-            // alone.
-            List<Widget> children;
-            if (currentIndex == 0) {
-              children = [
-                PremiumSection(
-                  flex: 3,
-                  heroTag: 'nav_morph_1',
-                  isSelected: true,
-                  useBlur: useBlur,
-                  keepSurfaceOnDisableBlur: true,
-                  onTap: tap(0),
-                  borderRadius: leftEnd,
-                  child: home,
-                ),
-                gap(),
-                PremiumSection(
-                  flex: 6,
-                  heroTag: 'nav_morph_2',
-                  isSelected: false,
-                  showLeftBorder: true,
-                  showShadow: false,
-                  useBlur: useBlur,
-                  keepSurfaceOnDisableBlur: true,
-                  borderRadius: rightEnd,
-                  child: Row(children: [half(1, songs), half(2, library)]),
-                ),
-              ];
-            } else if (currentIndex == 1) {
-              children = [
-                PremiumSection(
-                  flex: 3,
-                  heroTag: 'nav_morph_1',
-                  isSelected: false,
-                  useBlur: useBlur,
-                  keepSurfaceOnDisableBlur: true,
-                  onTap: tap(0),
-                  borderRadius: leftEnd,
-                  child: home,
-                ),
-                gap(),
-                PremiumSection(
-                  flex: 3,
-                  heroTag: 'nav_morph_2',
-                  isSelected: true,
-                  useBlur: useBlur,
-                  keepSurfaceOnDisableBlur: true,
-                  onTap: tap(1),
-                  borderRadius: BorderRadius.circular(12),
-                  child: songs,
-                ),
-                gap(),
-                PremiumSection(
-                  flex: 3,
-                  heroTag: 'nav_morph_3',
-                  isSelected: false,
-                  useBlur: useBlur,
-                  keepSurfaceOnDisableBlur: true,
-                  onTap: tap(2),
-                  borderRadius: rightEnd,
-                  child: library,
-                ),
-              ];
-            } else {
-              children = [
-                PremiumSection(
-                  flex: 6,
-                  heroTag: 'nav_morph_1',
-                  isSelected: false,
-                  showRightBorder: true,
-                  showShadow: false,
-                  useBlur: useBlur,
-                  keepSurfaceOnDisableBlur: true,
-                  borderRadius: leftEnd,
-                  child: Row(children: [half(0, home), half(1, songs)]),
-                ),
-                gap(),
-                PremiumSection(
-                  flex: 3,
-                  heroTag: 'nav_morph_2',
-                  isSelected: true,
-                  useBlur: useBlur,
-                  keepSurfaceOnDisableBlur: true,
-                  onTap: tap(2),
-                  borderRadius: rightEnd,
-                  child: library,
-                ),
-              ];
-            }
-
-            return BackdropGroup(child: Row(children: children));
-          },
+          ],
         ),
       ),
     );
@@ -226,65 +73,63 @@ class _NavItem extends StatelessWidget {
   final String iconPath;
   final String label;
   final bool isSelected;
-  final Color accentColor;
-  final double iconSize;
-  final double fontSize;
+  final bool compact;
+  final VoidCallback onTap;
 
   const _NavItem({
-    super.key,
     required this.iconPath,
     required this.label,
     required this.isSelected,
-    required this.accentColor,
-    required this.iconSize,
-    required this.fontSize,
+    required this.compact,
+    required this.onTap,
   });
+
+  static const _inactive = Color(0xFF666666);
+  static const _duration = Duration(milliseconds: 250);
 
   @override
   Widget build(BuildContext context) {
-    final inactiveColor = Colors.white.withOpacity(0.4);
-    final targetColor = isSelected ? accentColor : inactiveColor;
+    final color = isSelected ? Colors.white : _inactive;
+    final iconSize = (compact ? 17.0 : 20.0).s;
 
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        AnimatedScale(
-          scale: isSelected ? 1.05 : 1.0,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOutCubic,
-          child: TweenAnimationBuilder<Color?>(
-            tween: ColorTween(end: targetColor),
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeOutCubic,
-            builder: (context, color, child) {
-              return SvgPicture.asset(
+    return Semantics(
+      button: true,
+      selected: isSelected,
+      label: label,
+      excludeSemantics: true,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            TweenAnimationBuilder<Color?>(
+              tween: ColorTween(end: color),
+              duration: _duration,
+              curve: Curves.easeOutCubic,
+              builder: (context, c, _) => SvgPicture.asset(
                 iconPath,
-                colorFilter: ColorFilter.mode(
-                  color ?? inactiveColor,
-                  BlendMode.srcIn,
-                ),
                 width: iconSize,
                 height: iconSize,
-              );
-            },
-          ),
-        ),
-        const SizedBox(width: 8),
-        Flexible(
-          child: AnimatedDefaultTextStyle(
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeOutCubic,
-            style: AppFonts.jostStyle(
-              textStyle: const TextStyle(inherit: false),
-              color: targetColor,
-              fontSize: fontSize,
-              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-              letterSpacing: 0.2,
+                colorFilter: ColorFilter.mode(c ?? color, BlendMode.srcIn),
+              ),
             ),
-            child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
-          ),
+            SizedBox(height: compact ? 3 : 6),
+            AnimatedDefaultTextStyle(
+              duration: _duration,
+              curve: Curves.easeOutCubic,
+              style: AppFonts.jostStyle(
+                textStyle: const TextStyle(inherit: false),
+                color: color,
+                fontSize: (compact ? 12.0 : 14.0).ts,
+                fontWeight: FontWeight.w500,
+                height: 1.0,
+              ),
+              child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }

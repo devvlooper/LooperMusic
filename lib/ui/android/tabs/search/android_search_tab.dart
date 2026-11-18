@@ -27,6 +27,8 @@ import 'package:looper_player/features/playlists/presentation/screens/playlist_v
 import 'package:looper_player/features/search/domain/artist_credits.dart';
 import 'package:looper_player/features/search/domain/lyric_snippet.dart';
 import 'package:looper_player/features/search/presentation/screens/search_view.dart';
+import 'package:looper_player/features/analyze/presentation/widgets/analyze_common.dart'
+    show AnalyzeCard, AnalyzeSectionHeader;
 import 'package:looper_player/l10n/app_localizations.dart';
 import 'package:looper_player/ui/widgets/common/app_loading_indicator.dart';
 import 'package:looper_player/ui/widgets/common/optimized_image.dart';
@@ -42,8 +44,9 @@ part 'search_results.dart';
 /// overview; the rest list one kind in full.
 enum _SearchKind { all, songs, artists, albums, playlists, genres }
 
-/// The Android search screen: a back arrow and search field, recent searches
-/// while the field is empty, and filterable results once it is not. Songs in
+/// The Search root tab: a pill search field, recent searches while the field
+/// is empty, and filterable results once it is not. Styled after Looper
+/// Analyze (flat 12px cards, pill controls). Songs in
 /// the results can be multi-selected and sent to a playlist in one go.
 class AndroidSearchTab extends ConsumerStatefulWidget {
   const AndroidSearchTab({super.key});
@@ -66,9 +69,6 @@ class _AndroidSearchTabState extends ConsumerState<AndroidSearchTab> {
   void initState() {
     super.initState();
     _controller = TextEditingController(text: ref.read(searchQueryProvider));
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) ref.read(searchFocusNodeProvider).requestFocus();
-    });
   }
 
   @override
@@ -90,11 +90,6 @@ class _AndroidSearchTabState extends ConsumerState<AndroidSearchTab> {
     _controller.clear();
     ref.read(searchQueryProvider.notifier).set('');
     ref.read(searchFocusNodeProvider).requestFocus();
-  }
-
-  void _back() {
-    FocusManager.instance.primaryFocus?.unfocus();
-    ref.read(appNavigationProvider.notifier).goBack();
   }
 
   /// Saves the current query to Recent Searches. Called when the user acts on
@@ -146,6 +141,22 @@ class _AndroidSearchTabState extends ConsumerState<AndroidSearchTab> {
     // Keeps the field in sync when the query changes from outside it (a
     // Recent Searches chip). A new query also means a new result set, so any
     // selection made in the old one is dropped.
+    // Mounted for the app's lifetime as a root tab: focus the field when
+    // the tab is opened, and drop the keyboard when it is left.
+    ref.listen(
+      appNavigationProvider.select((n) => n.activeItem == NavItem.search),
+      (previous, active) {
+        final focus = ref.read(searchFocusNodeProvider);
+        if (!active) {
+          focus.unfocus();
+        } else {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) focus.requestFocus();
+          });
+        }
+      },
+    );
+
     ref.listen(searchQueryProvider, (previous, next) {
       if (_controller.text != next) _controller.text = next;
       if (_selected.isNotEmpty) _clearSelection();
@@ -230,14 +241,11 @@ class _AndroidSearchTabState extends ConsumerState<AndroidSearchTab> {
       );
     }
 
-    // Scaffold with an explicit opaque background, not a bare SafeArea:
-    // this screen is reached via a non-opaque PageRoute (_createPremiumRoute)
-    // meant to let the black root screen underneath show through, but that
-    // compositing isn't reliable on every device/renderer combo (seen as a
-    // white/native-window-background flash on some devices).
-    return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.surface,
-      body: SafeArea(
+    // Transparent like the other root tabs, over the app's background.
+    return Material(
+      type: MaterialType.transparency,
+      child: SafeArea(
+        bottom: false,
         child: Column(
           children: [
             AnimatedSwitcher(
@@ -260,7 +268,6 @@ class _AndroidSearchTabState extends ConsumerState<AndroidSearchTab> {
                       onChanged: _onChanged,
                       onSubmitted: (_) => _remember(),
                       onClear: _clearQuery,
-                      onBack: _back,
                     ),
             ),
             SizedBox(

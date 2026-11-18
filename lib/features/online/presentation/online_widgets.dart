@@ -1973,22 +1973,6 @@ class _OnlineSearchSliverState extends ConsumerState<OnlineSearchSliver> {
 
     return SliverMainAxisGroup(
       slivers: [
-        if (!widget.songsOnly)
-          SliverToBoxAdapter(
-            child: OnlineSectionTitle(
-              l10n.onlineMusic,
-              trailing: s.loading
-                  ? const Padding(
-                      padding: EdgeInsets.all(12),
-                      child: SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                    )
-                  : null,
-            ),
-          ),
         if (s.error != null)
           SliverToBoxAdapter(
             child: _ErrorCard(

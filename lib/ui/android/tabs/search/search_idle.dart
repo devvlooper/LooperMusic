@@ -20,17 +20,17 @@ class _SearchIdle extends ConsumerWidget {
 
     return ListView(
       keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-      padding: const EdgeInsets.fromLTRB(16, 4, 8, 180),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 180),
       children: [
-        _SectionHeader(
+        AnalyzeSectionHeader(
           title: l10n.recentSearches,
-          actionLabel: l10n.clear,
-          onAction: () => ref.read(recentSearchesProvider.notifier).clear(),
-          padding: EdgeInsets.zero,
+          trailing: _Pill(
+            label: l10n.clear,
+            onTap: () => ref.read(recentSearchesProvider.notifier).clear(),
+          ),
         ),
-        const SizedBox(height: 8),
-        Padding(
-          padding: const EdgeInsets.only(right: 8),
+        AnalyzeCard(
+          padding: const EdgeInsets.all(10),
           child: Wrap(
             spacing: 8,
             runSpacing: 8,
@@ -48,9 +48,9 @@ class _SearchIdle extends ConsumerWidget {
             ],
           ),
         ),
-        const SizedBox(height: 28),
+        const SizedBox(height: 16),
         Padding(
-          padding: const EdgeInsets.only(right: 8),
+          padding: const EdgeInsets.only(left: 4),
           child: Text(
             l10n.searchScopeHint,
             style: AppFonts.jostStyle(
@@ -78,7 +78,7 @@ class _RecentChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.white.withValues(alpha: 0.07),
+      color: Colors.white.withValues(alpha: 0.06),
       borderRadius: BorderRadius.circular(20),
       clipBehavior: Clip.antiAlias,
       child: InkWell(

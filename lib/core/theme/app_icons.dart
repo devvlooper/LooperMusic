@@ -13,6 +13,7 @@ class AppIcons {
   static const String play = '${_base}play.svg';
   static const String pause = '${_base}pause.svg';
   static const String next = '${_base}next.svg';
+  static const String miniNext = '${_base}mini_next.svg';
   static const String prev = '${_base}previous.svg';
   static const String shuffle = '${_base}shuffle.svg';
   static const String shuffleHome = '${_base}shuffle_home.svg';

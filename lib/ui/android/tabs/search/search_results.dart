@@ -115,8 +115,10 @@ class _SearchResultsBody extends ConsumerWidget {
           onAction: () => onShowKind(kind),
         ),
       ),
-      SliverList.list(
-        children: [for (final item in items.take(_previewRows)) row(item)],
+      _cardSliver(
+        SliverList.list(
+          children: [for (final item in items.take(_previewRows)) row(item)],
+        ),
       ),
     ];
   }
@@ -129,7 +131,7 @@ class _SearchResultsBody extends ConsumerWidget {
         SliverToBoxAdapter(child: _SectionHeader(title: l10n.topResult)),
         SliverToBoxAdapter(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+            padding: const EdgeInsets.symmetric(horizontal: 16),
             child: _TopResultCard(
               song: songs.first,
               query: query,
@@ -146,8 +148,10 @@ class _SearchResultsBody extends ConsumerWidget {
             onAction: () => onShowKind(_SearchKind.songs),
           ),
         ),
-        SliverList.list(
-          children: [for (final song in moreSongs) _song(l10n, song)],
+        _cardSliver(
+          SliverList.list(
+            children: [for (final song in moreSongs) _song(l10n, song)],
+          ),
         ),
       ],
       if (results.artists.isNotEmpty) ...[
@@ -235,9 +239,11 @@ class _SearchResultsBody extends ConsumerWidget {
           onAction: onSelectAll,
         ),
       ),
-    SliverList.builder(
-      itemCount: results.songs.length,
-      itemBuilder: (context, index) => _song(l10n, results.songs[index]),
+    _cardSliver(
+      SliverList.builder(
+        itemCount: results.songs.length,
+        itemBuilder: (context, index) => _song(l10n, results.songs[index]),
+      ),
     ),
   ];
 
@@ -248,31 +254,43 @@ class _SearchResultsBody extends ConsumerWidget {
       _SearchKind.all => _overview(ref, l10n),
       _SearchKind.songs => _allSongs(l10n),
       _SearchKind.artists => [
-        SliverList.builder(
-          itemCount: results.artists.length,
-          itemBuilder: (context, index) =>
-              _artistRow(ref, l10n, results.artists[index]),
+        const SliverToBoxAdapter(child: SizedBox(height: 4)),
+        _cardSliver(
+          SliverList.builder(
+            itemCount: results.artists.length,
+            itemBuilder: (context, index) =>
+                _artistRow(ref, l10n, results.artists[index]),
+          ),
         ),
       ],
       _SearchKind.albums => [
-        SliverList.builder(
-          itemCount: results.albums.length,
-          itemBuilder: (context, index) =>
-              _albumRow(ref, l10n, results.albums[index]),
+        const SliverToBoxAdapter(child: SizedBox(height: 4)),
+        _cardSliver(
+          SliverList.builder(
+            itemCount: results.albums.length,
+            itemBuilder: (context, index) =>
+                _albumRow(ref, l10n, results.albums[index]),
+          ),
         ),
       ],
       _SearchKind.playlists => [
-        SliverList.builder(
-          itemCount: results.playlists.length,
-          itemBuilder: (context, index) =>
-              _playlistRow(ref, l10n, results.playlists[index]),
+        const SliverToBoxAdapter(child: SizedBox(height: 4)),
+        _cardSliver(
+          SliverList.builder(
+            itemCount: results.playlists.length,
+            itemBuilder: (context, index) =>
+                _playlistRow(ref, l10n, results.playlists[index]),
+          ),
         ),
       ],
       _SearchKind.genres => [
-        SliverList.builder(
-          itemCount: results.genres.length,
-          itemBuilder: (context, index) =>
-              _genreRow(ref, l10n, results.genres[index]),
+        const SliverToBoxAdapter(child: SizedBox(height: 4)),
+        _cardSliver(
+          SliverList.builder(
+            itemCount: results.genres.length,
+            itemBuilder: (context, index) =>
+                _genreRow(ref, l10n, results.genres[index]),
+          ),
         ),
       ],
     };

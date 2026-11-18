@@ -151,7 +151,7 @@ abstract final class AppDefaults {
   static const bool darkTheme = true;
   static const bool enableDynamicTheming = false;
   static const bool saveDynamicColor = true;
-  static const int accentColor = 0xFF41C25E; // Default Green
+  static const int accentColor = 0xFFFFFFFF; // Default White
   static const double defaultAccentVibrancy = 0.3;
   static const bool disableBlur = true;
   static const bool alwaysBlurSheets = false;
@@ -227,7 +227,7 @@ abstract final class AppDefaults {
   static const bool enableLyricsGradient = true;
   static const bool ambientColorBackground = true;
   static const String lyricsAlignment = 'left';
-  static const bool dynamicAccentColor = true;
+  static const bool dynamicAccentColor = false;
   static const String lyricsSyncStyle = 'char';
   static const int defaultLyricsOffsetMs = 200;
   static const String defaultLyricsProvider = 'lrc.red';
