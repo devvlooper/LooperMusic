@@ -103,11 +103,7 @@ class _FavoriteButtonWithGlowState extends State<FavoriteButtonWithGlow>
               useBlur: widget.useBlur,
               forceNoBlur: true,
               showBorder: false,
-              backgroundColor: isFav
-                  ? Theme.of(
-                      context,
-                    ).colorScheme.primary.withValues(alpha: 0.08)
-                  : Colors.transparent,
+              backgroundColor: Colors.transparent,
               onTap: () {
                 if (isFav) {
                   AppHaptics.selection();

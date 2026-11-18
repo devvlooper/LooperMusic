@@ -50,7 +50,7 @@ final class ApkUpdateProvider
   }
 }
 
-String _$apkUpdateHash() => r'a917a0fd7572a332343b47b1094e9aa8d6f7bff4';
+String _$apkUpdateHash() => r'fdc2c34feabebeff90741c6fda52d5a209b41ee7';
 
 /// In-app update for the Android `github` build: finds the newest GitHub
 /// release, downloads the APK for this device and hands it to the system

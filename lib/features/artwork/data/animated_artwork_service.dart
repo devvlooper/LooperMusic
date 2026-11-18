@@ -10,6 +10,7 @@ import 'package:http/http.dart' as http;
 import 'package:looper_player/core/services/apple_web_token.dart';
 import 'package:looper_player/core/services/storage/local_json_store.dart';
 import 'package:looper_player/core/utils/logger_helper.dart';
+import 'package:looper_player/features/artwork/data/youtube_video_artwork.dart';
 import 'package:looper_player/features/artwork/domain/animated_artwork_models.dart';
 import 'package:looper_player/features/artwork/domain/media_match.dart';
 import 'package:looper_player/features/library/domain/models/models.dart';
@@ -1236,13 +1237,25 @@ final animatedArtworkForSongProvider = FutureProvider.autoDispose
     .family<AnimatedArtwork?, Song>((ref, song) async {
       final settings = ref.watch(animatedArtworkSettingsProvider);
       if (settings.mode == AnimatedArtworkMode.never) return null;
+      Future<AnimatedArtwork?> youtube() async {
+        if (!settings.source.usesYoutube || !song.isOnline) return null;
+        if (!await AnimatedArtworkService.instance.isNetworkPermitted()) {
+          return null;
+        }
+        return YoutubeVideoArtwork.resolve(song);
+      }
+
+      if (!settings.source.usesApple) return youtube();
       final cached = AnimatedArtworkService.instance.getCachedSongSync(song);
       if (cached != null) {
-        if (!cached.hasMotion) return null;
-        AnimatedArtworkService.instance._triggerBackgroundDownload(cached);
-        return cached;
+        if (cached.hasMotion) {
+          AnimatedArtworkService.instance._triggerBackgroundDownload(cached);
+          return cached;
+        }
+        return youtube();
       }
-      return AnimatedArtworkService.instance.resolveForSong(song);
+      return await AnimatedArtworkService.instance.resolveForSong(song) ??
+          await youtube();
     });
 
 final animatedArtworkForCollectionProvider = FutureProvider.autoDispose

@@ -102,6 +102,9 @@ class _SectionHeader extends StatelessWidget {
 /// tile when there is none.
 class _Thumb extends StatelessWidget {
   final String? path;
+
+  /// An online thumbnail, used when there is no local [path].
+  final String? url;
   final IconData icon;
   final bool round;
   final bool accent;
@@ -109,6 +112,7 @@ class _Thumb extends StatelessWidget {
 
   const _Thumb({
     this.path,
+    this.url,
     required this.icon,
     this.round = false,
     this.accent = false,
@@ -131,10 +135,11 @@ class _Thumb extends StatelessWidget {
         color: accent ? accentColor : Colors.white.withValues(alpha: 0.5),
       ),
     );
-    final image = path == null
+    final image = path == null && url == null
         ? fallback
         : OptimizedImage(
             imagePath: path,
+            imageUrl: path == null ? url : null,
             width: size,
             height: size,
             placeholder: fallback,
@@ -446,6 +451,141 @@ class _TopResultCard extends ConsumerWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// YouTube results for one card kind under a filter chip (Artists, Albums,
+/// Playlists), loading the next page as the list end scrolls into view.
+class _OnlineCardsSliver extends ConsumerStatefulWidget {
+  const _OnlineCardsSliver({
+    required this.query,
+    required this.kind,
+    required this.onRemember,
+  });
+  final String query;
+  final CollectionKind kind;
+  final VoidCallback onRemember;
+
+  @override
+  ConsumerState<_OnlineCardsSliver> createState() => _OnlineCardsSliverState();
+}
+
+class _OnlineCardsSliverState extends ConsumerState<_OnlineCardsSliver> {
+  /// Cursors already auto-loaded once; a failed one waits for a tap.
+  String? _autoLoaded;
+  String? _failed;
+
+  @override
+  void initState() {
+    super.initState();
+    _search();
+  }
+
+  @override
+  void didUpdateWidget(_OnlineCardsSliver old) {
+    super.didUpdateWidget(old);
+    if (old.query != widget.query) _search();
+  }
+
+  void _search() {
+    final q = widget.query;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) ref.read(onlineSearchProvider.notifier).search(q);
+    });
+  }
+
+  Future<void> _more(String token) async {
+    final ok = await ref
+        .read(onlineSearchProvider.notifier)
+        .loadMoreCards(widget.kind);
+    if (mounted) setState(() => _failed = ok ? null : token);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!ref.watch(onlineActiveProvider)) {
+      return const SliverToBoxAdapter(child: SizedBox.shrink());
+    }
+    final l10n = context.l10n;
+    final s = ref.watch(onlineSearchProvider);
+    final cards = s.cardsOf(widget.kind);
+    final token = s.cardTokens[widget.kind];
+    final loadingMore = s.cardsLoading.contains(widget.kind);
+    final isArtist = widget.kind == CollectionKind.artist;
+    final fallbackSubtitle = switch (widget.kind) {
+      CollectionKind.artist => l10n.artist,
+      CollectionKind.album => l10n.albums,
+      CollectionKind.playlist => l10n.playlists,
+    };
+    if (cards.isEmpty && !s.loading) {
+      return const SliverToBoxAdapter(child: SizedBox.shrink());
+    }
+
+    return SliverMainAxisGroup(
+      slivers: [
+        SliverToBoxAdapter(
+          child: OnlineSectionTitle(
+            l10n.onlineMusic,
+            trailing: s.loading
+                ? const Padding(
+                    padding: EdgeInsets.all(12),
+                    child: SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  )
+                : null,
+          ),
+        ),
+        SliverList.builder(
+          itemCount: cards.length,
+          itemBuilder: (context, i) {
+            final c = cards[i];
+            return _ResultRow(
+              thumb: _Thumb(
+                url: c.thumbnail,
+                icon: isArtist ? LucideIcons.user : LucideIcons.disc3,
+                round: isArtist,
+              ),
+              title: c.title,
+              subtitle: c.subtitle ?? fallbackSubtitle,
+              query: widget.query,
+              onTap: () {
+                widget.onRemember();
+                openOnlineCollection(context, c);
+              },
+            );
+          },
+        ),
+        if (token != null)
+          // A lazy list, so the footer builds (and loads) only when it
+          // scrolls near the screen.
+          SliverList.builder(
+            itemCount: 1,
+            itemBuilder: (context, _) {
+              final failed = _failed == token && !loadingMore;
+              if (!failed && !loadingMore && _autoLoaded != token) {
+                _autoLoaded = token;
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted) _more(token);
+                });
+              }
+              return Center(
+                child: failed
+                    ? TextButton(
+                        onPressed: () => _more(token),
+                        child: Text(l10n.onlineLoadMore),
+                      )
+                    : const Padding(
+                        padding: EdgeInsets.all(16),
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+              );
+            },
+          ),
+      ],
     );
   }
 }

@@ -8,6 +8,7 @@ class AppAssets {
 
   // Images
   static const String logo = 'assets/images/logo.svg';
+  static const String looperUpdateLogo = 'assets/images/looper_update_logo.svg';
   static const String aboutMark = 'assets/images/about/about_mark.svg';
   static const String aboutDownload = 'assets/images/about/about_download.svg';
   static const String aboutInfo = 'assets/images/about/about_info.svg';

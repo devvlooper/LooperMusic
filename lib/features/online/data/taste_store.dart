@@ -8,11 +8,7 @@ class TasteArtist {
   final String? browseId;
   final String? thumbnail;
 
-  Map<String, dynamic> toJson() => {
-    'n': name,
-    'b': browseId,
-    't': thumbnail,
-  };
+  Map<String, dynamic> toJson() => {'n': name, 'b': browseId, 't': thumbnail};
 }
 
 /// What the user said they like in taste setup. Key names are frozen.
@@ -94,8 +90,8 @@ class TasteNotifier extends Notifier<Taste> {
                 ),
               ]
             : state.artists
-                .where((x) => x.name.toLowerCase() != a.name.toLowerCase())
-                .toList(),
+                  .where((x) => x.name.toLowerCase() != a.name.toLowerCase())
+                  .toList(),
         genres: state.genres,
         seen: state.seen,
       ),
@@ -133,10 +129,7 @@ class TasteNotifier extends Notifier<Taste> {
     for (final a in artists) {
       mergedArtists[a.name.toLowerCase()] = a;
     }
-    final mergedGenres = <String>{
-      if (!replace) ...state.genres,
-      ...genres,
-    };
+    final mergedGenres = <String>{if (!replace) ...state.genres, ...genres};
     await _set(
       Taste(
         artists: mergedArtists.values.toList(),
@@ -147,6 +140,4 @@ class TasteNotifier extends Notifier<Taste> {
   }
 }
 
-final tasteProvider = NotifierProvider<TasteNotifier, Taste>(
-  TasteNotifier.new,
-);
+final tasteProvider = NotifierProvider<TasteNotifier, Taste>(TasteNotifier.new);

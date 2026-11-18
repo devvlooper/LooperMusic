@@ -2,6 +2,7 @@ import 'package:looper_player/core/motion/list_wave.dart';
 import 'package:looper_player/core/providers/collection_navigation.dart';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:looper_player/ui/widgets/common/filter_pill.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:looper_player/core/services/haptics/app_haptics.dart';
 import 'package:looper_player/features/online/data/parsers.dart';
@@ -41,7 +42,8 @@ class _AlbumsGridViewState extends ConsumerState<AlbumsGridView> {
         .values[sortOptionIndex.clamp(0, AlbumSortOption.values.length - 1)];
     final albumsAsync = ref.watch(albumsSortedProvider(sortOption));
     final onlineAlbums =
-        ref.watch(onlineAccountAlbumsProvider).value ?? const <OnlineCollection>[];
+        ref.watch(onlineAccountAlbumsProvider).value ??
+        const <OnlineCollection>[];
     final accent = ref.watch(settingsProvider).accent;
 
     return Builder(
@@ -50,19 +52,43 @@ class _AlbumsGridViewState extends ConsumerState<AlbumsGridView> {
         final albums = albumsAsync.requireValue;
 
         final showOnline = onlineAlbums.isNotEmpty;
-        final showLocal = _filter == _AlbumSourceFilter.all ||
+        final showLocal =
+            _filter == _AlbumSourceFilter.all ||
             _filter == _AlbumSourceFilter.onDevice;
-        final showCloud = showOnline &&
+        final showCloud =
+            showOnline &&
             (_filter == _AlbumSourceFilter.all ||
                 _filter == _AlbumSourceFilter.youtube);
 
-        final displayLocal = showLocal ? albums : const <Album>[];
-        // Deduplicate online albums matching local by title
-        final localTitles = {for (final a in albums) a.name.toLowerCase()};
+        final q = CategorySearch.of(context);
+        final displayLocal = showLocal
+            ? [
+                for (final a in albums)
+                  if (CategorySearch.matches(q, [a.name, a.artist])) a,
+              ]
+            : const <Album>[];
+        // Hide online albums already on device: same title and, when
+        // YouTube names one, the same artist ("Greatest Hits" is many albums).
+        final localArtists = <String, List<String>>{};
+        for (final a in albums) {
+          (localArtists[a.name.toLowerCase()] ??= []).add(
+            (a.artist ?? '').toLowerCase(),
+          );
+        }
+        bool onDevice(OnlineCollection a) {
+          final artists = localArtists[a.title.toLowerCase()];
+          if (artists == null) return false;
+          if (a.artists.isEmpty) return true;
+          return artists.any(
+            (l) => a.artists.any((o) => l.contains(o.toLowerCase())),
+          );
+        }
+
         final displayOnline = showCloud
             ? [
                 for (final a in onlineAlbums)
-                  if (!showLocal || !localTitles.contains(a.title.toLowerCase()))
+                  if ((!showLocal || !onDevice(a)) &&
+                      CategorySearch.matches(q, [a.title, ...a.artists]))
                     a,
               ]
             : const <OnlineCollection>[];
@@ -98,33 +124,37 @@ class _AlbumsGridViewState extends ConsumerState<AlbumsGridView> {
               children: [
                 if (showOnline)
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
                     child: SingleChildScrollView(
                       scrollDirection: Axis.horizontal,
                       child: Row(
                         children: [
-                          _buildFilterChip(
-                            label: 'All (${albums.length + onlineAlbums.length})',
+                          FilterPill(
+                            label:
+                                'All (${albums.length + onlineAlbums.length})',
                             isSelected: _filter == _AlbumSourceFilter.all,
                             accent: accent,
-                            onTap: () =>
-                                setState(() => _filter = _AlbumSourceFilter.all),
+                            onTap: () => setState(
+                              () => _filter = _AlbumSourceFilter.all,
+                            ),
                           ),
                           const SizedBox(width: 8),
-                          _buildFilterChip(
+                          FilterPill(
                             label: 'On Device (${albums.length})',
                             isSelected: _filter == _AlbumSourceFilter.onDevice,
                             accent: accent,
                             onTap: () => setState(
-                                () => _filter = _AlbumSourceFilter.onDevice),
+                              () => _filter = _AlbumSourceFilter.onDevice,
+                            ),
                           ),
                           const SizedBox(width: 8),
-                          _buildFilterChip(
+                          FilterPill(
                             label: 'YouTube Music (${onlineAlbums.length})',
                             isSelected: _filter == _AlbumSourceFilter.youtube,
                             accent: accent,
                             onTap: () => setState(
-                                () => _filter = _AlbumSourceFilter.youtube),
+                              () => _filter = _AlbumSourceFilter.youtube,
+                            ),
                           ),
                         ],
                       ),
@@ -146,11 +176,11 @@ class _AlbumsGridViewState extends ConsumerState<AlbumsGridView> {
                             ),
                             gridDelegate:
                                 SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: crossAxisCount,
-                              mainAxisSpacing: 24,
-                              crossAxisSpacing: crossAxisSpacing,
-                              mainAxisExtent: itemWidth + textBlockHeight,
-                            ),
+                                  crossAxisCount: crossAxisCount,
+                                  mainAxisSpacing: 24,
+                                  crossAxisSpacing: crossAxisSpacing,
+                                  mainAxisExtent: itemWidth + textBlockHeight,
+                                ),
                             itemCount: totalDisplayCount,
                             itemBuilder: waveItems((context, index) {
                               if (index < displayLocal.length) {
@@ -159,8 +189,10 @@ class _AlbumsGridViewState extends ConsumerState<AlbumsGridView> {
                                   onTap: () async {
                                     await ref
                                         .read(appNavigationProvider.notifier)
-                                        .showAlbum(album,
-                                            unknownArtist: l10n.unknownArtist);
+                                        .showAlbum(
+                                          album,
+                                          unknownArtist: l10n.unknownArtist,
+                                        );
                                   },
                                   child: Column(
                                     crossAxisAlignment:
@@ -169,8 +201,9 @@ class _AlbumsGridViewState extends ConsumerState<AlbumsGridView> {
                                       AspectRatio(
                                         aspectRatio: 1,
                                         child: ClipRRect(
-                                          borderRadius:
-                                              BorderRadius.circular(16),
+                                          borderRadius: BorderRadius.circular(
+                                            16,
+                                          ),
                                           child: OptimizedImage(
                                             imagePath: album.artPath,
                                             fit: BoxFit.cover,
@@ -190,8 +223,9 @@ class _AlbumsGridViewState extends ConsumerState<AlbumsGridView> {
                                       Text(
                                         album.artist ?? l10n.unknownArtist,
                                         style: AppFonts.jostStyle(
-                                          color: Colors.white
-                                              .withValues(alpha: 0.5),
+                                          color: Colors.white.withValues(
+                                            alpha: 0.5,
+                                          ),
                                           fontSize: 13,
                                         ),
                                         maxLines: 1,
@@ -214,43 +248,6 @@ class _AlbumsGridViewState extends ConsumerState<AlbumsGridView> {
           },
         );
       },
-    );
-  }
-
-  Widget _buildFilterChip({
-    required String label,
-    required bool isSelected,
-    required Color accent,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(20),
-      onTap: () {
-        AppHaptics.selection();
-        onTap();
-      },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? accent.withValues(alpha: 0.22)
-              : Colors.white.withValues(alpha: 0.05),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: isSelected ? accent : Colors.white12,
-            width: 1,
-          ),
-        ),
-        child: Text(
-          label,
-          style: AppFonts.jostStyle(
-            color: isSelected ? Colors.white : Colors.white70,
-            fontSize: 13,
-            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-          ),
-        ),
-      ),
     );
   }
 }

@@ -108,8 +108,6 @@ extension _OnlineHooks on Playback {
 
   void _prefetchOnline() {
     if (_currentIndex < 0 || !_onlineNetworkAllowed) return;
-    unawaited(
-      OnlineCache.instance.prefetch(_playlist.skip(_currentIndex + 1)),
-    );
+    unawaited(OnlineCache.instance.prefetch(_playlist.skip(_currentIndex + 1)));
   }
 }

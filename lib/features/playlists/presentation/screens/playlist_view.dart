@@ -1,4 +1,6 @@
 import 'package:looper_player/core/motion/list_wave.dart';
+import 'package:looper_player/ui/android/tabs/library/categories/category_detail_wrapper.dart'
+    show CategorySearch;
 import 'package:looper_player/core/motion/app_routes.dart';
 import 'package:flutter/material.dart';
 import 'package:looper_player/core/utils/ui_utils.dart';
@@ -118,24 +120,38 @@ class _PlaylistViewState extends ConsumerState<PlaylistView> {
     final l10n = AppLocalizations.of(context)!;
     final playlists = ref.watch(playlistProvider);
     final onlinePlaylistsAsync = ref.watch(onlineAccountPlaylistsProvider);
-    final onlinePlaylists = onlinePlaylistsAsync.value ?? const <OnlineCollection>[];
+    final onlinePlaylists =
+        onlinePlaylistsAsync.value ?? const <OnlineCollection>[];
     final hasActiveSong = ref.watch(
       playbackProvider.select((s) => s.currentSong != null),
     );
     final accent = ref.watch(settingsProvider).accent;
 
     final showOnline = onlinePlaylists.isNotEmpty;
-    final totalCount = playlists.length + (showOnline ? onlinePlaylists.length : 0);
+    final totalCount =
+        playlists.length + (showOnline ? onlinePlaylists.length : 0);
 
-    // Filter items based on active chip
-    final showLocal = _filter == _PlaylistSourceFilter.all ||
+    final showLocal =
+        _filter == _PlaylistSourceFilter.all ||
         _filter == _PlaylistSourceFilter.onDevice;
-    final showCloud = showOnline &&
+    final showCloud =
+        showOnline &&
         (_filter == _PlaylistSourceFilter.all ||
             _filter == _PlaylistSourceFilter.youtube);
 
-    final displayLocal = showLocal ? playlists : const <Playlist>[];
-    final displayOnline = showCloud ? onlinePlaylists : const <OnlineCollection>[];
+    final q = CategorySearch.of(context);
+    final displayLocal = showLocal
+        ? [
+            for (final p in playlists)
+              if (CategorySearch.matches(q, [p.name])) p,
+          ]
+        : const <Playlist>[];
+    final displayOnline = showCloud
+        ? [
+            for (final p in onlinePlaylists)
+              if (CategorySearch.matches(q, [p.title])) p,
+          ]
+        : const <OnlineCollection>[];
     final totalDisplayCount = displayLocal.length + displayOnline.length;
 
     return Scaffold(
@@ -173,30 +189,39 @@ class _PlaylistViewState extends ConsumerState<PlaylistView> {
               children: [
                 if (showOnline)
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
                     child: SingleChildScrollView(
                       scrollDirection: Axis.horizontal,
                       child: Row(
                         children: [
                           FilterPill(
-                            label: 'All (${playlists.length + onlinePlaylists.length})',
+                            label:
+                                'All (${playlists.length + onlinePlaylists.length})',
                             isSelected: _filter == _PlaylistSourceFilter.all,
                             accent: accent,
-                            onTap: () => setState(() => _filter = _PlaylistSourceFilter.all),
+                            onTap: () => setState(
+                              () => _filter = _PlaylistSourceFilter.all,
+                            ),
                           ),
                           const SizedBox(width: 8),
                           FilterPill(
                             label: 'On Device (${playlists.length})',
-                            isSelected: _filter == _PlaylistSourceFilter.onDevice,
+                            isSelected:
+                                _filter == _PlaylistSourceFilter.onDevice,
                             accent: accent,
-                            onTap: () => setState(() => _filter = _PlaylistSourceFilter.onDevice),
+                            onTap: () => setState(
+                              () => _filter = _PlaylistSourceFilter.onDevice,
+                            ),
                           ),
                           const SizedBox(width: 8),
                           FilterPill(
                             label: 'YouTube Music (${onlinePlaylists.length})',
-                            isSelected: _filter == _PlaylistSourceFilter.youtube,
+                            isSelected:
+                                _filter == _PlaylistSourceFilter.youtube,
                             accent: accent,
-                            onTap: () => setState(() => _filter = _PlaylistSourceFilter.youtube),
+                            onTap: () => setState(
+                              () => _filter = _PlaylistSourceFilter.youtube,
+                            ),
                           ),
                         ],
                       ),
@@ -215,25 +240,23 @@ class _PlaylistViewState extends ConsumerState<PlaylistView> {
                             padding: const EdgeInsets.fromLTRB(24, 20, 24, 180),
                             gridDelegate:
                                 const SliverGridDelegateWithMaxCrossAxisExtent(
-                              maxCrossAxisExtent: 200,
-                              childAspectRatio: 0.85,
-                              crossAxisSpacing: 20,
-                              mainAxisSpacing: 20,
-                            ),
+                                  maxCrossAxisExtent: 200,
+                                  childAspectRatio: 0.85,
+                                  crossAxisSpacing: 20,
+                                  mainAxisSpacing: 20,
+                                ),
                             itemCount: totalDisplayCount,
-                            itemBuilder: waveItems(
-                              (context, index) {
-                                if (index < displayLocal.length) {
-                                  return PlaylistCard(
-                                    playlist: displayLocal[index],
-                                  );
-                                }
-                                final onlineIndex = index - displayLocal.length;
-                                return _OnlinePlaylistCard(
-                                  collection: displayOnline[onlineIndex],
+                            itemBuilder: waveItems((context, index) {
+                              if (index < displayLocal.length) {
+                                return PlaylistCard(
+                                  playlist: displayLocal[index],
                                 );
-                              },
-                            ),
+                              }
+                              final onlineIndex = index - displayLocal.length;
+                              return _OnlinePlaylistCard(
+                                collection: displayOnline[onlineIndex],
+                              );
+                            }),
                           ),
                         ),
                 ),
@@ -287,7 +310,16 @@ class _PlaylistViewState extends ConsumerState<PlaylistView> {
 
 class PlaylistCard extends ConsumerWidget {
   final Playlist playlist;
-  const PlaylistCard({super.key, required this.playlist});
+
+  /// Home sets the design's card text; elsewhere the app font.
+  final TextStyle? titleStyle;
+  final TextStyle? subtitleStyle;
+  const PlaylistCard({
+    super.key,
+    required this.playlist,
+    this.titleStyle,
+    this.subtitleStyle,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -326,13 +358,18 @@ class PlaylistCard extends ConsumerWidget {
           const SizedBox(height: 8),
           Text(
             playlist.name,
-            style: AppFonts.jostStyle(fontWeight: FontWeight.normal),
+            style:
+                titleStyle ?? AppFonts.jostStyle(fontWeight: FontWeight.normal),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
           Text(
             context.l10n.songsCount(playlist.songPaths.length),
-            style: AppFonts.jostStyle(color: Colors.grey, fontSize: 12),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style:
+                subtitleStyle ??
+                AppFonts.jostStyle(color: Colors.grey, fontSize: 12),
           ),
         ],
       ),
@@ -401,11 +438,7 @@ class _OnlinePlaylistCard extends StatelessWidget {
           ),
           Row(
             children: [
-              const Icon(
-                LucideIcons.cloud,
-                size: 11,
-                color: Colors.white38,
-              ),
+              const Icon(LucideIcons.cloud, size: 11, color: Colors.white38),
               const SizedBox(width: 4),
               Expanded(
                 child: Text(

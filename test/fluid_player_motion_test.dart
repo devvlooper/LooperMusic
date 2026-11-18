@@ -73,6 +73,31 @@ void main() {
       expect(FluidPlayerGeometry.morphArtRadius(0, compact: false), 32.0);
       expect(FluidPlayerGeometry.morphArtRadius(1, compact: true), 12.0);
     });
+
+    test('panel radius stays constant during flight and smoothly reaches 0 at full expansion', () {
+      // In flight: corners do not change (fixed at 36)
+      expect(FluidPlayerGeometry.panelRadiusAt(0.0), 36.0);
+      expect(FluidPlayerGeometry.panelRadiusAt(0.3), 36.0);
+      expect(FluidPlayerGeometry.panelRadiusAt(0.6), 36.0);
+      expect(FluidPlayerGeometry.panelRadiusAt(0.9), 36.0);
+      expect(FluidPlayerGeometry.panelRadiusAt(FluidPlayerGeometry.panelCornerProgressThreshold), 36.0);
+
+      // Fully expanded: corners are 0 to seamlessly cover square displays
+      expect(FluidPlayerGeometry.panelRadiusAt(1.0), 0.0);
+      expect(FluidPlayerGeometry.panelRadiusAt(1.1), 0.0);
+
+      // Small drag from 1.0: smoothly transitions from 0 to 36
+      final double mid = FluidPlayerGeometry.panelRadiusAt(0.97);
+      expect(mid, closeTo(18.0, 0.1));
+
+      // Monotonic decreasing as p expands towards 1.0
+      double lastRadius = 36.0;
+      for (double p = 0.94; p <= 1.0; p += 0.005) {
+        final double r = FluidPlayerGeometry.panelRadiusAt(p);
+        expect(r, lessThanOrEqualTo(lastRadius));
+        lastRadius = r;
+      }
+    });
   });
 
   group('FluidSectionMotion', () {

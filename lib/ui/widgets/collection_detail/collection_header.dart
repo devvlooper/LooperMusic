@@ -36,378 +36,178 @@ extension _CollectionHeader on CollectionDetailView {
       );
   }
 
-  Widget _buildArt(
-    BuildContext context,
-    bool isNarrow,
-    String? artOverride, {
-    Playlist? playlist,
-    String? imageUrl,
-    Album? album,
-    Artist? artist,
-    WidgetRef? ref,
-  }) {
-    final double size = 140; // Unified size for a cleaner Row look
-    final Widget staticArt;
+  /// Full-bleed hero artwork: the playlist's grid / cover, or the
+  /// album / artist / list art.
+  Widget _heroStill(Playlist? playlist, String? art, String? imageUrl) {
     if (playlist != null) {
-      staticArt = PlaylistArtwork(
-        songPaths: playlist.songPaths,
-        coverPath: playlist.coverPath,
-        size: size,
-        borderRadius: BorderRadius.circular(16),
-      );
-    } else {
-      staticArt = OptimizedImage(
-        imagePath: artOverride,
-        imageUrl: imageUrl,
-        width: size,
-        height: size,
-        borderRadius: BorderRadius.circular(16),
-        placeholder: Container(
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.05),
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: const Icon(LucideIcons.music, size: 48, color: Colors.grey),
+      return FittedBox(
+        fit: BoxFit.cover,
+        clipBehavior: Clip.hardEdge,
+        child: PlaylistArtwork(
+          songPaths: playlist.songPaths,
+          coverPath: playlist.coverPath,
+          size: collectionHeroHeight,
+          borderRadius: BorderRadius.zero,
         ),
       );
     }
-
-    if (ref == null) return staticArt;
-
-    String? mediaSource;
-    if (album != null) {
-      final motion = ref.watch(animatedArtworkForCollectionProvider((
-        artist: album.artist,
-        album: album.name,
-      )));
-      mediaSource = motion.asData?.value?.bestSquareMedia;
-    } else if (artist != null) {
-      final motion = ref.watch(animatedArtworkForArtistProvider(artist.name));
-      mediaSource = motion.asData?.value?.bestSquareMedia;
-    }
-
-    if (mediaSource == null) return staticArt;
-
-    return SizedBox(
-      width: size,
-      height: size,
-      child: AnimatedArtworkWidget(
-        mediaSource: mediaSource,
-        staticFallback: staticArt,
-        borderRadius: BorderRadius.circular(16),
-        fit: BoxFit.cover,
-      ),
-    );
-  }
-
-  /// Artist pages: a full-bleed banner (motion art when there is some)
-  /// with [info] over its faded bottom, like the online artist page.
-  Widget _buildArtistHero(
-    BuildContext context,
-    WidgetRef ref, {
-    required String? art,
-    required String? imageUrl,
-    required Widget info,
-  }) {
-    final banner =
-        ref.watch(animatedArtworkForArtistProvider(title)).asData?.value;
-    final mediaSrc = banner?.bestWideMedia;
-    final still = OptimizedImage(
-      imagePath: banner?.stillUrl == null ? art : null,
-      imageUrl: banner?.stillUrl ?? imageUrl,
+    return OptimizedImage(
+      imagePath: art,
+      imageUrl: imageUrl,
       fit: BoxFit.cover,
       width: double.infinity,
       height: double.infinity,
-      placeholder: ColoredBox(color: Colors.white.withValues(alpha: 0.05)),
-    );
-    return SizedBox(
-      height: 360,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          mediaSrc != null
-              ? AnimatedArtworkWidget(
-                  mediaSource: mediaSrc,
-                  staticFallback: still,
-                  fit: BoxFit.cover,
-                )
-              : still,
-          DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Colors.black.withValues(alpha: 0.15),
-                  Colors.black.withValues(alpha: 0.45),
-                  Theme.of(context).colorScheme.surface,
-                ],
-                stops: const [0.0, 0.55, 1.0],
-              ),
-            ),
-          ),
-          Positioned(left: 16, right: 16, bottom: 16, child: info),
-        ],
+      placeholder: ColoredBox(
+        color: Colors.white.withValues(alpha: 0.05),
+        child: const Center(
+          child: Icon(LucideIcons.music, size: 64, color: Colors.grey),
+        ),
       ),
     );
   }
 
-  Widget _buildInfo(
+  /// The small cover in [CollectionHeroBar].
+  Widget _miniCover(Playlist? playlist, String? art, String? imageUrl) {
+    const size = 42.0;
+    final radius = BorderRadius.circular(4);
+    if (playlist != null) {
+      return PlaylistArtwork(
+        songPaths: playlist.songPaths,
+        coverPath: playlist.coverPath,
+        size: size,
+        borderRadius: radius,
+      );
+    }
+    return OptimizedImage(
+      imagePath: art,
+      imageUrl: imageUrl,
+      width: size,
+      height: size,
+      borderRadius: radius,
+      placeholder: Container(
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.05),
+          borderRadius: radius,
+        ),
+        child: const Icon(LucideIcons.music, size: 16, color: Colors.grey),
+      ),
+    );
+  }
+
+  /// The hero's action row, scrolling sideways when it outgrows the screen.
+  Widget _heroActions(
     BuildContext context,
-    WidgetRef ref,
-    bool isNarrow,
-    String? activeArtworkPath,
-    Playlist? reactivePlaylist,
-    Album? reactiveAlbum,
-    String titleToRender,
-    String? subtitleToRender,
-    List<Song> songsToRender, {
-    bool songsLoading = false,
+    WidgetRef ref, {
+    required bool isArtist,
+    required String title,
+    required List<Song> songs,
+    String? thumbnail,
+    Playlist? playlist,
+    Album? album,
+    Artist? artist,
     bool canReorder = false,
-    Key? titleKey,
-    Artist? reactiveArtist,
   }) {
     final l10n = AppLocalizations.of(context)!;
-    final isArtist = reactivePlaylist == null &&
-        reactiveAlbum == null &&
-        (reactiveArtist != null ||
-            subtitleToRender == l10n.artist ||
-            subtitleToRender == l10n.artists ||
-            subtitleToRender?.toLowerCase() == 'artist');
     // Lit only while this collection is the one playing shuffled.
-    final key = collectionKey(songsToRender);
+    final key = collectionKey(songs);
     final isShuffle = ref.watch(
       playbackProvider.select((s) => s.isShuffle && s.queueSourceKey == key),
     );
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          titleToRender,
-          key: titleKey,
-          style: AppFonts.jostStyle(
-            fontSize: 28,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
+    Widget round(IconData icon, VoidCallback onTap, String label) => Padding(
+      padding: const EdgeInsets.only(left: 12),
+      child: HeroRoundButton(
+        icon: icon,
+        size: 48,
+        semanticLabel: label,
+        onTap: () {
+          AppHaptics.light();
+          onTap();
+        },
+      ),
+    );
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      clipBehavior: Clip.none,
+      child: Row(
+        children: [
+          HeroPillButton(
+            icon: Icons.play_arrow_rounded,
+            label: l10n.play,
+            onTap: () {
+              AppHaptics.medium();
+              ref
+                  .read(playbackProvider.notifier)
+                  .playCollection(songs, sourcePlaylistId: playlist?.id);
+            },
           ),
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-        ),
-        const SizedBox(height: 4),
-        Row(
-          children: [
-            Flexible(
-              child: _buildCollectionSubtitle(
-                reactivePlaylist != null ? l10n.playlist : subtitleToRender,
-                songsToRender,
-                l10n,
-                fontSize: 16,
-                songsLoading: songsLoading,
-                color: Colors.white.withValues(alpha: 0.5),
-              ),
-            ),
-            if (canReorder)
-              IconButton(
-                tooltip: l10n.reorderSongsHint,
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints.tightFor(
-                  width: 32,
-                  height: 32,
-                ),
-                style: IconButton.styleFrom(
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-                onPressed: () => _showReorderHint(context),
-                icon: Icon(
-                  LucideIcons.info,
-                  size: 16,
-                  color: Colors.white.withValues(alpha: 0.5),
-                ),
-              ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        Builder(
-          builder: (context) {
-            final buttons = <Widget>[
-              PremiumSection(
-                borderRadius: BorderRadius.circular(12),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                height: 44,
-                useExpanded: false,
-                onTap: () {
-                  AppHaptics.medium();
-                  final playback = ref.read(playbackProvider.notifier);
-                  playback.playCollection(
-                    songsToRender,
-                    sourcePlaylistId: reactivePlaylist?.id,
-                  );
-                },
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.play_arrow_rounded,
-                      color: Colors.white,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      l10n.play,
-                      style: AppFonts.jostStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              PremiumSection(
-                borderRadius: BorderRadius.circular(12),
-                width: 44,
-                height: 44,
-                useExpanded: false,
-                backgroundColor: isShuffle
-                    ? Colors.white.withValues(alpha: 0.10)
-                    : null,
+          Padding(
+            padding: const EdgeInsets.only(left: 12),
+            child: Semantics(
+              toggled: isShuffle,
+              child: HeroRoundButton(
+                icon: LucideIcons.shuffle,
+                size: 48,
+                semanticLabel: l10n.shuffleTitle,
+                fill: isShuffle
+                    ? Colors.white.withValues(alpha: 0.24)
+                    : const Color(0x17FFFFFF),
                 onTap: () {
                   AppHaptics.light();
                   ref
                       .read(playbackProvider.notifier)
                       .toggleCollectionShuffle(
-                        songsToRender,
-                        sourcePlaylistId: reactivePlaylist?.id,
+                        songs,
+                        sourcePlaylistId: playlist?.id,
                       );
                 },
-                child: Semantics(
-                  label: l10n.shuffleTitle,
-                  toggled: isShuffle,
-                  child: Icon(
-                    LucideIcons.shuffle,
-                    size: 16,
-                    color: isShuffle
-                        ? Colors.white
-                        : Colors.white.withValues(alpha: 0.5),
-                  ),
-                ),
               ),
-              const SizedBox(width: 8),
-              PremiumSection(
-                borderRadius: BorderRadius.circular(12),
-                width: 44,
-                height: 44,
-                useExpanded: false,
-                onTap: () {
-                  AppHaptics.light();
-                  _showSortBottomSheet(context, ref);
-                },
-                child: const Icon(
-                  LucideIcons.arrowUpDown,
-                  size: 16,
-                  color: Colors.white,
-                ),
+            ),
+          ),
+          round(
+            LucideIcons.arrowUpDown,
+            () => _showSortBottomSheet(context, ref),
+            l10n.sortBy,
+          ),
+          if (playlist != null)
+            round(
+              LucideIcons.moreHorizontal,
+              () => _showPlaylistOptions(context, ref, playlist),
+              l10n.playlist,
+            )
+          else if (album != null)
+            round(
+              LucideIcons.edit2,
+              () => _showEditAlbumSheet(context, ref, album),
+              l10n.editAlbumInfo,
+            )
+          else if (artist != null)
+            round(
+              LucideIcons.edit2,
+              () => _showEditArtistSheet(context, artist),
+              l10n.editArtistPicture,
+            ),
+          if (canReorder)
+            round(
+              LucideIcons.info,
+              () => _showReorderHint(context),
+              l10n.reorderSongsHint,
+            ),
+          if (isArtist && ref.watch(onlineActiveProvider))
+            round(
+              LucideIcons.globe,
+              () => _exploreArtistOnline(context, title, thumbnail),
+              l10n.onlineDiscover,
+            ),
+          if (isArtist)
+            Padding(
+              padding: const EdgeInsets.only(left: 12),
+              child: _ArtistFollowButton(
+                artistName: title,
+                thumbnail: thumbnail,
               ),
-              if (isArtist) ...[
-                const SizedBox(width: 8),
-                _ArtistFollowButton(
-                  artistName: titleToRender,
-                  thumbnail: activeArtworkPath,
-                ),
-                if (ref.watch(onlineActiveProvider)) ...[
-                  const SizedBox(width: 8),
-                  PremiumSection(
-                    borderRadius: BorderRadius.circular(12),
-                    width: 44,
-                    height: 44,
-                    useExpanded: false,
-                    onTap: () => _exploreArtistOnline(
-                      context,
-                      titleToRender,
-                      activeArtworkPath,
-                    ),
-                    child: Semantics(
-                      label: l10n.onlineDiscover,
-                      child: const Icon(
-                        LucideIcons.globe,
-                        size: 18,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ],
-              ],
-              if (reactivePlaylist != null) ...[
-                const SizedBox(width: 8),
-                PremiumSection(
-                  borderRadius: BorderRadius.circular(12),
-                  width: 44,
-                  height: 44,
-                  useExpanded: false,
-                  onTap: () =>
-                      _showPlaylistOptions(context, ref, reactivePlaylist),
-                  child: const Icon(
-                    LucideIcons.moreHorizontal,
-                    size: 18,
-                    color: Colors.white,
-                  ),
-                ),
-              ] else if (reactiveAlbum != null) ...[
-                const SizedBox(width: 8),
-                PremiumSection(
-                  borderRadius: BorderRadius.circular(12),
-                  width: 44,
-                  height: 44,
-                  useExpanded: false,
-                  onTap: () {
-                    AppHaptics.light();
-                    _showEditAlbumSheet(context, ref, reactiveAlbum);
-                  },
-                  child: const Icon(
-                    LucideIcons.edit2,
-                    size: 18,
-                    color: Colors.white,
-                  ),
-                ),
-              ] else if (reactiveArtist != null) ...[
-                const SizedBox(width: 8),
-                PremiumSection(
-                  borderRadius: BorderRadius.circular(12),
-                  width: 44,
-                  height: 44,
-                  useExpanded: false,
-                  onTap: () {
-                    AppHaptics.light();
-                    _showEditArtistSheet(context, reactiveArtist);
-                  },
-                  child: const Icon(
-                    LucideIcons.edit2,
-                    size: 18,
-                    color: Colors.white,
-                  ),
-                ),
-              ],
-            ];
-            Widget row(Iterable<Widget> children) => SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              clipBehavior: Clip.none,
-              child: Row(children: [...children]),
-            );
-            // Artist pages: play / shuffle / sort, then follow / explore /
-            // edit on a second row so nothing runs off screen.
-            if (!isArtist || buttons.length <= 6) return row(buttons);
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                row(buttons.take(5)),
-                const SizedBox(height: 8),
-                row(buttons.skip(6)),
-              ],
-            );
-          },
-        ),
-      ],
+            ),
+        ],
+      ),
     );
   }
 }
@@ -416,10 +216,12 @@ class _ArtistFollowButton extends ConsumerWidget {
   const _ArtistFollowButton({
     required this.artistName,
     this.thumbnail,
+    this.height = 48,
   });
 
   final String artistName;
   final String? thumbnail;
+  final double height;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -427,42 +229,16 @@ class _ArtistFollowButton extends ConsumerWidget {
     final following = ref.watch(
       tasteProvider.select((t) => t.hasArtist(artistName)),
     );
-    final theme = Theme.of(context);
-    final primaryColor = theme.colorScheme.primary;
-
-    return PremiumSection(
-      borderRadius: BorderRadius.circular(12),
-      height: 44,
-      useExpanded: false,
-      padding: const EdgeInsets.symmetric(horizontal: 14),
-      backgroundColor: following
-          ? primaryColor.withValues(alpha: 0.22)
-          : Colors.white.withValues(alpha: 0.08),
+    return HeroPillButton(
+      icon: following ? Icons.check_circle_rounded : LucideIcons.plus,
+      label: following ? l10n.onlineFollowing : l10n.onlineFollow,
+      height: height,
       onTap: () {
         AppHaptics.light();
-        ref.read(tasteProvider.notifier).toggleArtist(
-              TasteArtist(artistName, thumbnail: thumbnail),
-            );
+        ref
+            .read(tasteProvider.notifier)
+            .toggleArtist(TasteArtist(artistName, thumbnail: thumbnail));
       },
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            following ? LucideIcons.check : LucideIcons.plus,
-            size: 16,
-            color: following ? primaryColor : Colors.white,
-          ),
-          const SizedBox(width: 6),
-          Text(
-            following ? l10n.onlineFollowing : l10n.onlineFollow,
-            style: AppFonts.jostStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: following ? primaryColor : Colors.white,
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

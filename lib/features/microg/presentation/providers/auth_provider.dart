@@ -22,13 +22,16 @@ class AuthNotifier extends Notifier<AuthState> {
         unawaited(_syncAccountData());
       }
     }
+
     source.addListener(listener);
     ref.onDispose(() => source.removeListener(listener));
-    unawaited(AccountAuth.instance.restore().then((_) {
-      if (AccountAuth.instance.signedIn) {
-        unawaited(_syncAccountData());
-      }
-    }));
+    unawaited(
+      AccountAuth.instance.restore().then((_) {
+        if (AccountAuth.instance.signedIn) {
+          unawaited(_syncAccountData());
+        }
+      }),
+    );
     return source.value;
   }
 
@@ -36,7 +39,9 @@ class AuthNotifier extends Notifier<AuthState> {
     final artists = await AccountDataSync.sync(force: force);
     ref.read(accountDataRevisionProvider.notifier).bump();
     if (artists.isNotEmpty) {
-      await ref.read(tasteProvider.notifier).mergeAccountTaste(artists: artists);
+      await ref
+          .read(tasteProvider.notifier)
+          .mergeAccountTaste(artists: artists);
       TasteProfileStore.invalidate();
     }
   }

@@ -12,6 +12,9 @@ import 'package:looper_player/core/services/screen_awake.dart';
 import 'package:looper_player/core/services/system_navigation_bar.dart';
 import 'package:looper_player/core/utils/song_metadata.dart';
 import 'package:looper_player/core/utils/ui_utils.dart';
+import 'package:looper_player/features/artwork/data/animated_artwork_service.dart';
+import 'package:looper_player/features/artwork/domain/animated_artwork_models.dart';
+import 'package:looper_player/features/artwork/presentation/widgets/animated_artwork_widget.dart';
 import 'package:looper_player/features/library/domain/models/models.dart';
 import 'package:looper_player/features/playback/domain/lyric_models.dart';
 import 'package:looper_player/features/playback/presentation/providers/lyrics/lyrics_notifier.dart';
@@ -26,11 +29,14 @@ import 'package:looper_player/ui/widgets/common/optimized_image.dart';
 
 import '../../shell/music_bar/fluid_player_motion.dart';
 import '../lyrics/lyrics_route.dart';
+import 'android_expanded_player.dart';
 import 'favorite_button.dart';
-import 'player_backgrounds.dart';
 import 'player_lyric_line.dart';
 import 'player_style_picker.dart';
-import 'position_reporter.dart';
+import 'quality_details_sheet.dart';
+import 'package:looper_player/features/playback/data/audio_analyzer.dart';
+import 'package:looper_player/features/settings/domain/quality_badge_style.dart';
+import 'package:looper_player/ui/widgets/player/quality_badge.dart';
 
 /// The two Figma Now Playing layouts (Settings > Now Playing > Player Style).
 /// The classic layout lives in AndroidExpandedPlayer and is untouched; these
@@ -64,6 +70,7 @@ const double _controlsX = 352;
 /// frame's bottom so they hug the screen bottom on any aspect ratio.
 class _Spec {
   final double chevronFromBottom;
+  final double? starFromBottom;
   final double prevFromBottom;
   final double playFromBottom;
   final double nextFromBottom;
@@ -72,6 +79,7 @@ class _Spec {
   final double bigTitleBottomFromBottom;
   const _Spec({
     required this.chevronFromBottom,
+    this.starFromBottom,
     required this.prevFromBottom,
     required this.playFromBottom,
     required this.nextFromBottom,
@@ -81,7 +89,8 @@ class _Spec {
   });
 
   static const arc = _Spec(
-    chevronFromBottom: 336,
+    chevronFromBottom: 401.5,
+    starFromBottom: 336,
     prevFromBottom: 271.5,
     playFromBottom: 205.5,
     nextFromBottom: 140.5,
@@ -90,7 +99,8 @@ class _Spec {
     bigTitleBottomFromBottom: 59,
   );
   static const linear = _Spec(
-    chevronFromBottom: 407,
+    chevronFromBottom: 472.5,
+    starFromBottom: 407,
     prevFromBottom: 345.5,
     playFromBottom: 279.5,
     nextFromBottom: 214.5,
@@ -142,6 +152,8 @@ class StyledPlayerLayout extends ConsumerStatefulWidget {
 class _StyledPlayerLayoutState extends ConsumerState<StyledPlayerLayout>
     with _StyledArt<StyledPlayerLayout> {
   @override
+  PlayerLayoutStyle get _style => widget.style;
+  @override
   Song get _song => widget.song;
   @override
   bool get _enableSlide => widget.enableSlide;
@@ -176,10 +188,14 @@ class _StyledPlayerLayoutState extends ConsumerState<StyledPlayerLayout>
         final double w = box.maxWidth;
         final double h = box.maxHeight;
         final double sx = w / _designW;
+        final double bottomPad = MediaQuery.paddingOf(context).bottom;
         // Vertical sizes shrink on screens shorter than the frame's ratio so
         // the top art and the bottom controls never overlap.
-        final double s = math.min(sx, h / _designH);
-        final double bottomPad = MediaQuery.paddingOf(context).bottom;
+        final double availableH = h - bottomPad;
+        final double s = math.min(
+          sx,
+          math.min(h / _designH, availableH / (_designH - _designBottomInset)),
+        );
         double fromBottom(double d) => (d - _designBottomInset) * s + bottomPad;
         final double cx = _controlsX * sx;
 
@@ -252,22 +268,20 @@ class _StyledPlayerLayoutState extends ConsumerState<StyledPlayerLayout>
               ),
             ),
 
-            // Small title + artist at the bottom (lyrics view; the linear
-            // style always, since its big title sits above the seek row).
-            if (hasLyrics || widget.style == PlayerLayoutStyle.linear || widget.style == PlayerLayoutStyle.card)
+            // Small title + artist at the bottom (lyrics view).
+            if (hasLyrics)
               Positioned(
                 left: 30 * sx,
                 right: (_designW - 320) * sx,
-                bottom: fromBottom(widget.style == PlayerLayoutStyle.card ? 63 : 51),
+                bottom: fromBottom(
+                  widget.style == PlayerLayoutStyle.card ? 63 : 51,
+                ),
                 child: fade(
-                  hasLyrics || widget.style == PlayerLayoutStyle.linear
-                      ? _SmallTitle(
-                          song: song,
-                          scale: s,
-                          onTap: widget.onShowOptions,
-                          showHqBadge: widget.style == PlayerLayoutStyle.card,
-                        )
-                      : const SizedBox.shrink(),
+                  _SmallTitle(
+                    song: song,
+                    scale: s,
+                    onTap: widget.onShowOptions,
+                  ),
                   FluidSectionMotion.songInfo,
                 ),
               ),
@@ -297,6 +311,26 @@ class _StyledPlayerLayoutState extends ConsumerState<StyledPlayerLayout>
               ),
 
             // Right-hand controls.
+            if (spec.starFromBottom != null)
+              centeredAt(
+                cx,
+                spec.starFromBottom!,
+                fade(
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: SizedBox(
+                      width: 56,
+                      height: 56,
+                      child: FavoriteButtonWithGlow(
+                        song: song,
+                        ref: ref,
+                        useBlur: false,
+                      ),
+                    ),
+                  ),
+                  FluidSectionMotion.utilityRow,
+                ),
+              ),
             centeredAt(
               cx,
               spec.prevFromBottom,
@@ -473,11 +507,12 @@ class _StyledPlayerLayoutState extends ConsumerState<StyledPlayerLayout>
   // Linear style: a square of art at the top fading into the background.
   Widget _linearArt(double sx, double s) {
     final double side = 412.856 * sx;
+    final double artH = math.min(side, 370 * s);
     return Positioned(
       left: (_designW * sx - side) / 2,
       top: -5.83 * s,
       width: side,
-      height: side,
+      height: artH,
       child: _reportArt(
         _artGestures(
           _hero(
@@ -544,6 +579,7 @@ class _StyledPlayerLayoutState extends ConsumerState<StyledPlayerLayout>
 
 /// Artwork pieces shared by the portrait and landscape styled layouts.
 mixin _StyledArt<T extends ConsumerStatefulWidget> on ConsumerState<T> {
+  PlayerLayoutStyle get _style;
   Song get _song;
   bool get _enableSlide;
   VoidCallback get _onShowLyrics;
@@ -591,9 +627,11 @@ mixin _StyledArt<T extends ConsumerStatefulWidget> on ConsumerState<T> {
     child: _LyricsBlock(scale: s),
   );
 
+  double _artDragDx = 0.0;
+
   // Shared artwork gestures: tap opens lyrics, swipe skips, double tap on a
   // side seeks 10s, long press opens the song menu (no top bar here) and
-  // a ~5 s hold opens the style picker.
+  // a ~3 s hold opens the style picker.
   Widget _artGestures(Widget child) => LayoutBuilder(
     // The art's own width decides the side, not the whole layout's.
     builder: (context, box) => GestureDetector(
@@ -604,13 +642,19 @@ mixin _StyledArt<T extends ConsumerStatefulWidget> on ConsumerState<T> {
         ref.read(playbackProvider.notifier).seekRelative(left ? -10 : 10);
       },
       onDoubleTap: () {},
+      onHorizontalDragStart: (_) => _artDragDx = 0.0,
+      onHorizontalDragUpdate: (details) => _artDragDx += details.delta.dx,
       onHorizontalDragEnd: (details) {
         final v = details.primaryVelocity ?? 0;
-        if (v.abs() < 300) return;
+        final bool isNext = _artDragDx < -50 || v < -300;
+        final bool isPrev = _artDragDx > 50 || v > 300;
+        _artDragDx = 0.0;
+        if (!isNext && !isPrev) return;
         AppHaptics.light();
         final playback = ref.read(playbackProvider.notifier);
-        v < 0 ? playback.skipNext() : playback.skipPrevious(force: true);
+        isNext ? playback.skipNext() : playback.skipPrevious(force: true);
       },
+      onHorizontalDragCancel: () => _artDragDx = 0.0,
       child: HoldForPlayerStyles(onLongPress: _onShowOptions, child: child),
     ),
   );
@@ -623,15 +667,44 @@ mixin _StyledArt<T extends ConsumerStatefulWidget> on ConsumerState<T> {
           child: child,
         );
 
-  Widget _artImage() {
-    final art = _song.artPath;
+  Widget _artImage() => _StyledArtwork(song: _song, style: _style);
+}
+
+class _StyledArtwork extends ConsumerWidget {
+  final Song song;
+  final PlayerLayoutStyle style;
+  const _StyledArtwork({required this.song, required this.style});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final art = song.artPath;
     final dpr = MediaQuery.devicePixelRatioOf(context);
-    return OptimizedImage(
-      key: ValueKey(_song.id),
+    final staticArt = OptimizedImage(
+      key: ValueKey(song.id),
       imagePath: art != null && !art.startsWith('http') ? art : null,
       imageUrl: art != null && art.startsWith('http') ? art : null,
       fit: BoxFit.cover,
       cacheWidth: (MediaQuery.sizeOf(context).width * dpr).toInt(),
+    );
+
+    final motionSettings = ref.watch(animatedArtworkSettingsProvider);
+    if (!motionSettings.isAlbumCoverAnimated(style.name) ||
+        motionSettings.mode == AnimatedArtworkMode.never) {
+      return staticArt;
+    }
+
+    final motionAsync = ref.watch(animatedArtworkForSongProvider(song));
+    final mediaSource = motionAsync.asData?.value?.bestSquareMedia;
+    if (mediaSource == null) {
+      return staticArt;
+    }
+
+    return RepaintBoundary(
+      child: AnimatedArtworkWidget(
+        mediaSource: mediaSource,
+        staticFallback: staticArt,
+        fit: BoxFit.cover,
+      ),
     );
   }
 }
@@ -1127,7 +1200,9 @@ final _activeColorProvider = Provider<Color>(
     settingsProvider.select((s) {
       final style = PlayerLayoutStyle.fromSetting(s.playerStyle);
       if (style == PlayerLayoutStyle.classic) return s.accent;
-      return (s.cardAccentColors || s.playerStyleAccent) ? s.accent : Colors.white;
+      return (s.cardAccentColors || s.playerStyleAccent)
+          ? s.accent
+          : Colors.white;
     }),
   ),
 );
@@ -1219,9 +1294,7 @@ class _LyricsBlockState extends ConsumerState<_LyricsBlock> {
     final isPlaying = ref.watch(playbackProvider.select((p) => p.isPlaying));
     ScreenAwake.set(
       this,
-      lines.isNotEmpty &&
-          TickerMode.valuesOf(context).enabled &&
-          isPlaying,
+      lines.isNotEmpty && TickerMode.valuesOf(context).enabled && isPlaying,
     );
     if (lines.isEmpty) return const SizedBox.shrink();
     final index = synced
@@ -1363,30 +1436,105 @@ class _LyricsBlockState extends ConsumerState<_LyricsBlock> {
   }
 }
 
-class _HqBadge extends StatelessWidget {
+class _StyledQualityBadge extends ConsumerWidget {
+  final Song song;
   final double scale;
-  const _HqBadge({required this.scale});
+  final double leftMargin;
+
+  const _StyledQualityBadge({
+    required this.song,
+    required this.scale,
+    this.leftMargin = 0,
+  });
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
+  Widget build(BuildContext context, WidgetRef ref) {
+    final show = ref.watch(settingsProvider.select((s) => s.showQualityBadge));
+    if (!show) return const SizedBox.shrink();
+
+    String path = '';
+    try {
+      path = song.path;
+    } catch (_) {
+      path = '';
+    }
+
+    final cachedAnalysis = path.isNotEmpty
+        ? AudioAnalyzer.getCachedAnalysis(path)
+        : null;
+    final QualityInfo qualityInfo = cachedAnalysis != null
+        ? QualityInfo.fromAnalysis(cachedAnalysis)
+        : ref
+                  .watch(currentSongAnalysisProvider)
+                  .whenOrNull(
+                    data: (a) => a == null ? null : QualityInfo.fromAnalysis(a),
+                  ) ??
+              (path.isNotEmpty
+                  ? QualityInfo.fromPath(path)
+                  : const QualityInfo(tier: QualityTier.high));
+
+    final settings = ref.watch(settingsProvider);
+    final style = QualityBadgeStyle.fromSettings(settings);
+    final text = QualityBadge.textFor(
+      context,
+      qualityInfo,
+      style,
+      shortTier: true,
+    );
+
+    final Color? tint = QualityBadge.tintFor(
+      style,
+      qualityInfo,
+      Theme.of(context).colorScheme.primary,
+    );
+    final Color textColor = tint ?? Colors.white.withValues(alpha: 0.5);
+
+    final Widget? icon = QualityBadge.iconWidget(
+      style.icon,
+      10 * scale,
+      textColor,
+    );
+
+    final badgeContent = Container(
       padding: EdgeInsets.symmetric(horizontal: 5 * scale, vertical: 2 * scale),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.05),
+        color: (tint ?? Colors.white).withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(3 * scale),
         border: Border.all(
-          color: Colors.white.withValues(alpha: 0.05),
+          color: (tint ?? Colors.white).withValues(alpha: 0.05),
           width: 1,
         ),
       ),
-      child: Text(
-        'HQ',
-        style: TextStyle(
-          fontFamily: 'DM Sans',
-          fontWeight: FontWeight.w700,
-          fontSize: 12 * scale,
-          color: Colors.white.withValues(alpha: 0.5),
-        ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          if (icon != null) ...[icon, SizedBox(width: 3 * scale)],
+          Text(
+            text,
+            maxLines: 1,
+            style: TextStyle(
+              fontFamily: 'DM Sans',
+              fontWeight: FontWeight.w700,
+              fontSize: 12 * scale,
+              color: textColor,
+            ),
+          ),
+        ],
+      ),
+    );
+
+    return Padding(
+      padding: EdgeInsets.only(left: leftMargin),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () {
+          AppHaptics.light();
+          if (path.isNotEmpty) {
+            showQualityDetailsSheet(context, song);
+          }
+        },
+        child: badgeContent,
       ),
     );
   }
@@ -1397,13 +1545,11 @@ class _SmallTitle extends StatelessWidget {
   final double scale;
   final VoidCallback onTap;
   final double titleAlpha;
-  final bool showHqBadge;
   const _SmallTitle({
     required this.song,
     required this.scale,
     required this.onTap,
     this.titleAlpha = 0.5,
-    this.showHqBadge = false,
   });
 
   @override
@@ -1434,10 +1580,11 @@ class _SmallTitle extends StatelessWidget {
                   ),
                 ),
               ),
-              if (showHqBadge) ...[
-                SizedBox(width: 6 * scale),
-                _HqBadge(scale: scale),
-              ],
+              _StyledQualityBadge(
+                song: song,
+                scale: scale,
+                leftMargin: 6 * scale,
+              ),
             ],
           ),
           Text(
@@ -1510,25 +1657,38 @@ class _BigTitle extends StatelessWidget {
             ),
           ),
           SizedBox(height: 3 * scale),
-          ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: 260 * scale),
-            child: Text(
-              artistAlbumLabel(
-                song,
-                AppLocalizations.of(context)!,
-                showAlbum: false,
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Flexible(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(maxWidth: 260 * scale),
+                  child: Text(
+                    artistAlbumLabel(
+                      song,
+                      AppLocalizations.of(context)!,
+                      showAlbum: false,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontFamily: 'Stack Sans Text',
+                      fontWeight: FontWeight.w700,
+                      fontSize: 25 * scale,
+                      height: 30 / 25,
+                      letterSpacing: -0.5 * scale,
+                      color: Colors.white.withValues(alpha: 0.3),
+                    ),
+                  ),
+                ),
               ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontFamily: 'Stack Sans Text',
-                fontWeight: FontWeight.w700,
-                fontSize: 25 * scale,
-                height: 30 / 25,
-                letterSpacing: -0.5 * scale,
-                color: Colors.white.withValues(alpha: 0.3),
+              _StyledQualityBadge(
+                song: song,
+                scale: scale,
+                leftMargin: 8 * scale,
               ),
-            ),
+            ],
           ),
         ],
       ),
@@ -1906,6 +2066,8 @@ class StyledLandscapeLayout extends ConsumerStatefulWidget {
 
 class _StyledLandscapeLayoutState extends ConsumerState<StyledLandscapeLayout>
     with _StyledArt<StyledLandscapeLayout> {
+  @override
+  PlayerLayoutStyle get _style => widget.style;
   // Landscape player: both system bars hidden once it is fully open, back
   // once fully collapsed, so the inset change relayouts at rest and never
   // mid-motion. Only mounted in landscape, so rotating away releases it.
@@ -2004,7 +2166,8 @@ class _StyledLandscapeLayoutState extends ConsumerState<StyledLandscapeLayout>
         final Offset chevron = switch (style) {
           PlayerLayoutStyle.arc => const Offset(39, 37),
           PlayerLayoutStyle.linear => const Offset(39, 39),
-          PlayerLayoutStyle.card || PlayerLayoutStyle.classic => const Offset(54, 45),
+          PlayerLayoutStyle.card ||
+          PlayerLayoutStyle.classic => const Offset(54, 45),
         };
         final double textLeft = arc ? 526 : 437;
         final double lyricsTop = arc ? 27 : 46;
@@ -2285,11 +2448,24 @@ class _LandscapeBigTitle extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            song.title,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: style(1),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Flexible(
+                child: Text(
+                  song.title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: style(1),
+                ),
+              ),
+              _StyledQualityBadge(
+                song: song,
+                scale: scale,
+                leftMargin: 10 * scale,
+              ),
+            ],
           ),
           Text(
             artistAlbumLabel(

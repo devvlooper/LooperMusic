@@ -4,11 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:looper_player/core/motion/app_routes.dart';
 import 'package:looper_player/core/motion/looper_scroll_physics.dart';
-import 'package:looper_player/core/motion/scroll_stage.dart';
 import 'package:looper_player/core/services/haptics/app_haptics.dart';
 import 'package:looper_player/core/theme/app_fonts.dart';
 import 'package:looper_player/features/library/domain/models/models.dart';
 import 'package:looper_player/features/library/presentation/widgets/songs/song_tile.dart';
+import 'package:looper_player/ui/widgets/common/home_design_kit.dart';
+import 'package:looper_player/ui/widgets/sheets/song_options_bottom_sheet.dart';
 import 'package:looper_player/features/online/data/online_downloader.dart';
 import 'package:looper_player/features/online/data/parsers.dart';
 import 'package:looper_player/features/online/data/taste_store.dart';
@@ -18,10 +19,7 @@ import 'package:looper_player/features/online/presentation/online_widgets.dart';
 import 'package:looper_player/ui/widgets/common/optimized_image.dart';
 import 'package:looper_player/features/playback/presentation/providers/playback/playback_notifier.dart';
 import 'package:looper_player/l10n/app_localizations.dart';
-import 'package:looper_player/ui/android/widgets/premium_section.dart';
-import 'package:looper_player/ui/widgets/collection_detail/collection_pinned_bar.dart';
-import 'package:looper_player/features/artwork/data/animated_artwork_service.dart';
-import 'package:looper_player/features/artwork/presentation/widgets/animated_artwork_widget.dart';
+import 'package:looper_player/ui/widgets/collection_detail/collection_hero.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 /// An online album, playlist or artist: header, play/shuffle, the song
@@ -38,7 +36,6 @@ class OnlineCollectionScreen extends ConsumerStatefulWidget {
 class _OnlineCollectionScreenState
     extends ConsumerState<OnlineCollectionScreen> {
   late final ScrollController _controller = ScrollController();
-  final GlobalKey _titleKey = GlobalKey();
 
   @override
   void dispose() {
@@ -61,34 +58,25 @@ class _OnlineCollectionScreenState
 
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
+      // The hero runs under the status bar; loading / error keep the inset.
       body: SafeArea(
+        top: !page.hasValue,
         child: page.when(
           loading: () => Column(
             children: [
+              // Same button and spot as CollectionHeroBar once loaded.
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-                child: Row(
-                  children: [
-                    PremiumSection(
-                      useExpanded: false,
-                      borderRadius: const BorderRadius.only(
-                        topLeft: Radius.circular(32),
-                        bottomLeft: Radius.circular(32),
-                        topRight: Radius.circular(10),
-                        bottomRight: Radius.circular(10),
-                      ),
-                      width: 48,
-                      height: 48,
-                      backgroundColor: Colors.white.withValues(alpha: 0.04),
-                      useBlur: true,
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
+                child: SizedBox(
+                  height: 48,
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: HeroRoundButton(
+                      icon: LucideIcons.arrowLeft,
+                      size: 40,
                       onTap: () => Navigator.of(context).maybePop(),
-                      child: const Icon(
-                        LucideIcons.chevronLeft,
-                        color: Colors.white,
-                        size: 20,
-                      ),
                     ),
-                  ],
+                  ),
                 ),
               ),
               const Expanded(child: Center(child: CircularProgressIndicator())),
@@ -96,30 +84,19 @@ class _OnlineCollectionScreenState
           ),
           error: (e, _) => Column(
             children: [
+              // Same button and spot as CollectionHeroBar once loaded.
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-                child: Row(
-                  children: [
-                    PremiumSection(
-                      useExpanded: false,
-                      borderRadius: const BorderRadius.only(
-                        topLeft: Radius.circular(32),
-                        bottomLeft: Radius.circular(32),
-                        topRight: Radius.circular(10),
-                        bottomRight: Radius.circular(10),
-                      ),
-                      width: 48,
-                      height: 48,
-                      backgroundColor: Colors.white.withValues(alpha: 0.04),
-                      useBlur: true,
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
+                child: SizedBox(
+                  height: 48,
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: HeroRoundButton(
+                      icon: LucideIcons.arrowLeft,
+                      size: 40,
                       onTap: () => Navigator.of(context).maybePop(),
-                      child: const Icon(
-                        LucideIcons.chevronLeft,
-                        color: Colors.white,
-                        size: 20,
-                      ),
                     ),
-                  ],
+                  ),
                 ),
               ),
               Expanded(
@@ -156,412 +133,185 @@ class _OnlineCollectionScreenState
             final title = p.title.isEmpty ? widget.collection.title : p.title;
             final subtitle = p.subtitle ?? widget.collection.subtitle;
 
-            return CustomScrollView(
-              controller: _controller,
-              physics: const LooperScrollPhysics(),
-              slivers: [
-                SliverPersistentHeader(
-                  pinned: true,
-                  delegate: CollectionPinnedBar(
-                    controller: _controller,
-                    titleKey: _titleKey,
-                    title: title,
-                    imageUrl: art,
-                    onBack: () => Navigator.of(context).maybePop(),
-                    onAdd: songs.isNotEmpty
-                        ? () {
-                            AppHaptics.light();
-                            ref
-                                .read(downloadsProvider.notifier)
-                                .enqueueAll(p.songs);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  l10n.downloadQueued(songs.length),
-                                ),
-                                behavior: SnackBarBehavior.floating,
-                              ),
-                            );
-                          }
-                        : null,
-                    actionIcon: LucideIcons.download,
-                  ),
-                ),
-                if (isArtist)
-                  SliverToBoxAdapter(
-                    child: LayoutBuilder(
-                      builder: (context, constraints) {
-                        final motionArt = ref.watch(
-                          animatedArtworkForArtistProvider(title),
-                        );
-                        final banner = motionArt.asData?.value;
-                        final mediaSrc = banner?.bestWideMedia;
-                        final still = banner?.stillUrl ?? art;
-                        final logo = banner?.logoUrl;
+            final totalMs = songs.fold<int>(0, (a, s) => a + (s.duration ?? 0));
+            final meta = [
+              if (songs.isNotEmpty) l10n.songsCount(songs.length),
+              if (totalMs >= 60000) l10n.minutesShort(totalMs ~/ 60000),
+            ].join(' \u2022 ');
+            // Artists show their audience ("239M monthly audience").
+            final metaLine = isArtist && subtitle != null
+                ? subtitle
+                : meta.isNotEmpty
+                ? meta
+                : (subtitle ?? '');
+            void play({bool shuffle = false}) {
+              AppHaptics.light();
+              ref
+                  .read(playbackProvider.notifier)
+                  .playCollection(songs, shuffle: shuffle);
+            }
 
-                        return SizedBox(
-                          height: 320,
-                          width: constraints.maxWidth,
-                          child: Stack(
-                            fit: StackFit.expand,
-                            children: [
-                              mediaSrc != null
-                                  ? AnimatedArtworkWidget(
-                                      mediaSource: mediaSrc,
-                                      staticFallback: OptimizedImage(
-                                        imageUrl: still,
-                                        fit: BoxFit.cover,
-                                        width: double.infinity,
-                                        height: double.infinity,
-                                      ),
-                                      fit: BoxFit.cover,
-                                    )
-                                  : OptimizedImage(
-                                      imageUrl: still,
-                                      fit: BoxFit.cover,
-                                      width: double.infinity,
-                                      height: double.infinity,
-                                    ),
-                              DecoratedBox(
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    begin: Alignment.topCenter,
-                                    end: Alignment.bottomCenter,
-                                    colors: [
-                                      Colors.black.withValues(alpha: 0.15),
-                                      Colors.black.withValues(alpha: 0.45),
-                                      Theme.of(context).colorScheme.surface,
-                                    ],
-                                    stops: const [0.0, 0.55, 1.0],
-                                  ),
-                                ),
-                              ),
-                              Positioned(
-                                left: 16,
-                                right: 16,
-                                bottom: 16,
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    if (logo != null)
-                                      Semantics(
-                                        label: title,
-                                        child: Padding(
-                                          padding: const EdgeInsets.only(
-                                            bottom: 8,
-                                          ),
-                                          child: OptimizedImage(
-                                            imageUrl: logo,
-                                            // No box while loading / on error.
-                                            placeholder:
-                                                const SizedBox.shrink(),
-                                            height: 56,
-                                            width:
-                                                56 * (banner?.logoAspect ?? 3),
-                                            fit: BoxFit.contain,
-                                          ),
-                                        ),
-                                      ),
-                                    Text(
-                                      title,
-                                      key: _titleKey,
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: AppFonts.jostStyle(
-                                        fontSize: 30,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.white,
-                                        shadows: const [
-                                          Shadow(
-                                            color: Colors.black54,
-                                            blurRadius: 12,
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    if (subtitle != null && subtitle.isNotEmpty)
-                                      Text(
-                                        subtitle,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: AppFonts.jostStyle(
-                                          fontSize: 14,
-                                          color: Colors.white.withValues(
-                                            alpha: 0.8,
-                                          ),
-                                        ),
-                                      ),
-                                    if (songs.isNotEmpty) ...[
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        l10n.songsCount(songs.length),
-                                        style: AppFonts.jostStyle(
-                                          fontSize: 12,
-                                          color: Colors.white60,
-                                        ),
-                                      ),
-                                    ],
-                                    const SizedBox(height: 14),
-                                    Wrap(
-                                      spacing: 12,
-                                      runSpacing: 10,
-                                      crossAxisAlignment:
-                                          WrapCrossAlignment.center,
-                                      children: [
-                                        if (songs.isNotEmpty) ...[
-                                          FilledButton.icon(
-                                            onPressed: () {
-                                              AppHaptics.light();
-                                              ref
-                                                  .read(
-                                                    playbackProvider.notifier,
-                                                  )
-                                                  .playCollection(songs);
-                                            },
-                                            icon: const Icon(
-                                              LucideIcons.play,
-                                              size: 18,
-                                            ),
-                                            label: Text(l10n.playAll),
-                                          ),
-                                          OutlinedButton.icon(
-                                            onPressed: () {
-                                              AppHaptics.light();
-                                              ref
-                                                  .read(
-                                                    playbackProvider.notifier,
-                                                  )
-                                                  .playCollection(
-                                                    songs,
-                                                    shuffle: true,
-                                                  );
-                                            },
-                                            icon: const Icon(
-                                              LucideIcons.shuffle,
-                                              size: 18,
-                                            ),
-                                            label: Text(l10n.shuffleTitle),
-                                          ),
-                                        ],
-                                        _FollowButton(
-                                          collection: widget.collection,
-                                          title: title,
-                                          thumbnail: art,
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
-                  )
-                else
-                  SliverToBoxAdapter(
-                    child: LayoutBuilder(
-                      builder: (context, constraints) {
-                        final isNarrow = constraints.maxWidth < 450;
-                        final motionArt = ref.watch(
-                          animatedArtworkForCollectionProvider((
-                            artist: subtitle,
-                            album: title,
-                          )),
-                        );
-                        final mediaSrc =
-                            motionArt.asData?.value?.bestSquareMedia;
+            Widget follow({double height = 48}) => _FollowButton(
+              collection: widget.collection,
+              title: title,
+              thumbnail: art,
+              height: height,
+            );
 
-                        final staticOnlineArt = OnlineArt(
-                          url: art,
-                          size: 140,
-                          round: false,
-                          icon: LucideIcons.disc3,
-                        );
-
-                        final artWidget = ScrollStage(
-                          controller: _controller,
-                          length: 220,
-                          child: Container(
-                            decoration: BoxDecoration(
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.3),
-                                  blurRadius: 16,
-                                  offset: const Offset(0, 8),
-                                ),
-                              ],
-                            ),
-                            child: mediaSrc != null
-                                ? SizedBox(
-                                    width: 140,
-                                    height: 140,
-                                    child: AnimatedArtworkWidget(
-                                      mediaSource: mediaSrc,
-                                      staticFallback: staticOnlineArt,
-                                      borderRadius: BorderRadius.circular(16),
-                                      fit: BoxFit.cover,
-                                    ),
-                                  )
-                                : staticOnlineArt,
-                          ),
-                        );
-
-                        final infoWidget = Column(
-                          crossAxisAlignment: isNarrow
-                              ? CrossAxisAlignment.center
-                              : CrossAxisAlignment.start,
+            return Stack(
+              children: [
+                CustomScrollView(
+                  controller: _controller,
+                  physics: const LooperScrollPhysics(),
+                  slivers: [
+                    SliverToBoxAdapter(
+                      child: CollectionHero(
+                        isArtist: isArtist,
+                        title: title,
+                        meta: metaLine,
+                        albumArtist: subtitle,
+                        album: isArtist ? null : title,
+                        still: OptimizedImage(
+                          imageUrl: art,
+                          fit: BoxFit.cover,
+                          width: double.infinity,
+                          height: double.infinity,
+                        ),
+                        actions: Row(
                           children: [
-                            Text(
-                              title,
-                              key: _titleKey,
-                              textAlign: isNarrow
-                                  ? TextAlign.center
-                                  : TextAlign.start,
-                              style: AppFonts.jostStyle(
-                                fontSize: 26,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            if (subtitle != null && subtitle.isNotEmpty)
-                              Text(
-                                subtitle,
-                                textAlign: isNarrow
-                                    ? TextAlign.center
-                                    : TextAlign.start,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: AppFonts.jostStyle(
-                                  fontSize: 14,
-                                  color: Colors.white.withValues(alpha: 0.6),
-                                ),
-                              ),
                             if (songs.isNotEmpty) ...[
-                              const SizedBox(height: 4),
-                              Text(
-                                l10n.songsCount(songs.length),
-                                style: AppFonts.jostStyle(
-                                  fontSize: 13,
-                                  color: Colors.white38,
-                                ),
+                              HeroPillButton(
+                                icon: Icons.play_arrow_rounded,
+                                label: l10n.play,
+                                onTap: play,
+                              ),
+                              const SizedBox(width: 12),
+                              HeroRoundButton(
+                                icon: LucideIcons.shuffle,
+                                size: 48,
+                                onTap: () => play(shuffle: true),
                               ),
                             ],
-                            const SizedBox(height: 16),
-                            Wrap(
-                              spacing: 12,
-                              runSpacing: 10,
-                              alignment: isNarrow
-                                  ? WrapAlignment.center
-                                  : WrapAlignment.start,
-                              crossAxisAlignment: WrapCrossAlignment.center,
-                              children: [
-                                if (songs.isNotEmpty) ...[
-                                  FilledButton.icon(
-                                    onPressed: () {
-                                      AppHaptics.light();
-                                      ref
-                                          .read(playbackProvider.notifier)
-                                          .playCollection(songs);
-                                    },
-                                    icon: const Icon(
-                                      LucideIcons.play,
-                                      size: 18,
+                            if (!isArtist && songs.isNotEmpty) ...[
+                              const SizedBox(width: 12),
+                              HeroRoundButton(
+                                icon: LucideIcons.download,
+                                size: 48,
+                                onTap: () {
+                                  AppHaptics.light();
+                                  ref
+                                      .read(downloadsProvider.notifier)
+                                      .enqueueAll(p.songs);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        l10n.downloadQueued(songs.length),
+                                      ),
+                                      behavior: SnackBarBehavior.floating,
                                     ),
-                                    label: Text(l10n.playAll),
-                                  ),
-                                  OutlinedButton.icon(
-                                    onPressed: () {
-                                      AppHaptics.light();
-                                      ref
-                                          .read(playbackProvider.notifier)
-                                          .playCollection(songs, shuffle: true);
-                                    },
-                                    icon: const Icon(
-                                      LucideIcons.shuffle,
-                                      size: 18,
-                                    ),
-                                    label: Text(l10n.shuffleTitle),
-                                  ),
-                                ],
-                              ],
+                                  );
+                                },
+                              ),
+                            ],
+                            // Follow takes the rest, right-aligned, and only
+                            // shrinks (ellipsizing) when the row runs out.
+                            Expanded(
+                              child: Align(
+                                alignment: Alignment.centerRight,
+                                child: isArtist ? follow() : null,
+                              ),
                             ),
                           ],
-                        );
-
-                        return Container(
-                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                          child: isNarrow
-                              ? Column(
-                                  crossAxisAlignment: CrossAxisAlignment.center,
-                                  children: [
-                                    Center(child: artWidget),
-                                    const SizedBox(height: 18),
-                                    infoWidget,
-                                  ],
-                                )
-                              : Row(
-                                  crossAxisAlignment: CrossAxisAlignment.center,
-                                  children: [
-                                    artWidget,
-                                    const SizedBox(width: 20),
-                                    Expanded(child: infoWidget),
-                                  ],
-                                ),
-                        );
-                      },
-                    ),
-                  ),
-                if (isArtist && songs.isNotEmpty)
-                  SliverToBoxAdapter(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        OnlineSectionTitle(
-                          l10n.songs,
-                          trailing:
-                              (p.moreSongsBrowseId != null || songs.length > 5)
-                              ? ViewAllHeaderButton(
-                                  onTap: () {
-                                    Navigator.of(context).push(
-                                      riseRoute(
-                                        OnlineViewAllScreen(
-                                          title: l10n.songs,
-                                          initialSongs: p.songs,
-                                          browseId: p.moreSongsBrowseId,
-                                          params: p.moreSongsParams,
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                )
-                              : null,
                         ),
-                        _ArtistSongPages(songs: songs, l10n: l10n),
-                      ],
+                      ),
                     ),
-                  )
-                else if (!isArtist)
-                  SliverList.builder(
-                    itemCount: songs.length,
-                    itemBuilder: (context, i) => SongTile(
-                      key: ValueKey('online-page-$i-${songs[i].path}'),
-                      song: songs[i],
-                      songs: songs,
-                      l10n: l10n,
-                      collectionIndex: i,
+                    if (isArtist && songs.isNotEmpty)
+                      SliverToBoxAdapter(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Two lines ("Top" over "Songs"), like every shelf.
+                            HomeSectionHeader(
+                              title: splitShelfTitle(l10n.topSongs).$2,
+                              label: splitShelfTitle(l10n.topSongs).$1,
+                              padding: const EdgeInsets.fromLTRB(
+                                21,
+                                15,
+                                16,
+                                12,
+                              ),
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  HeroRoundButton(
+                                    icon: Icons.play_arrow_rounded,
+                                    size: 41,
+                                    fill: const Color(0x1AFFFFFF),
+                                    onTap: play,
+                                  ),
+                                  if (p.moreSongsBrowseId != null ||
+                                      songs.length > 5) ...[
+                                    const SizedBox(width: 8),
+                                    ViewAllHeaderButton(
+                                      onTap: () {
+                                        Navigator.of(context).push(
+                                          riseRoute(
+                                            OnlineViewAllScreen(
+                                              title: l10n.topSongs,
+                                              initialSongs: p.songs,
+                                              browseId: p.moreSongsBrowseId,
+                                              params: p.moreSongsParams,
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                            _ArtistSongPages(online: p.songs, songs: songs),
+                          ],
+                        ),
+                      )
+                    else if (!isArtist)
+                      SliverList.builder(
+                        itemCount: songs.length,
+                        itemBuilder: (context, i) => SongTile(
+                          key: ValueKey('online-page-$i-${songs[i].path}'),
+                          song: songs[i],
+                          songs: songs,
+                          l10n: l10n,
+                          collectionIndex: i,
+                        ),
+                      ),
+                    if (p.shelves.isNotEmpty)
+                      SliverList.builder(
+                        itemCount: p.shelves.length,
+                        itemBuilder: (_, i) =>
+                            OnlineShelfView(shelf: p.shelves[i]),
+                      ),
+                    const SliverToBoxAdapter(child: SizedBox(height: 180)),
+                  ],
+                ),
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  child: CollectionHeroBar(
+                    controller: _controller,
+                    title: title,
+                    meta: metaLine,
+                    cover: OptimizedImage(
+                      imageUrl: art,
+                      width: 42,
+                      height: 42,
+                      borderRadius: BorderRadius.circular(4),
                     ),
+                    onBack: () => Navigator.of(context).maybePop(),
+                    trailing: isArtist ? follow(height: 40) : null,
                   ),
-                if (p.shelves.isNotEmpty)
-                  SliverList.builder(
-                    itemCount: p.shelves.length,
-                    itemBuilder: (_, i) => OnlineShelfView(shelf: p.shelves[i]),
-                  ),
-                const SliverToBoxAdapter(child: SizedBox(height: 180)),
+                ),
               ],
             );
           },
@@ -577,10 +327,12 @@ class _FollowButton extends ConsumerWidget {
     required this.collection,
     required this.title,
     this.thumbnail,
+    this.height = 48,
   });
   final OnlineCollection collection;
   final String title;
   final String? thumbnail;
+  final double height;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -590,103 +342,136 @@ class _FollowButton extends ConsumerWidget {
       tasteProvider.select((t) => t.hasArtist(artistName)),
     );
 
-    return following
-        ? FilledButton.tonalIcon(
-            onPressed: () {
-              AppHaptics.light();
-              ref
-                  .read(tasteProvider.notifier)
-                  .toggleArtist(
-                    TasteArtist(
-                      artistName,
-                      browseId: collection.browseId,
-                      thumbnail: thumbnail ?? collection.thumbnail,
-                    ),
-                  );
-            },
-            icon: const Icon(LucideIcons.check, size: 18),
-            label: Text(l10n.onlineFollowing),
-          )
-        : OutlinedButton.icon(
-            onPressed: () {
-              AppHaptics.light();
-              ref
-                  .read(tasteProvider.notifier)
-                  .toggleArtist(
-                    TasteArtist(
-                      artistName,
-                      browseId: collection.browseId,
-                      thumbnail: thumbnail ?? collection.thumbnail,
-                    ),
-                  );
-            },
-            icon: const Icon(LucideIcons.plus, size: 18),
-            label: Text(l10n.onlineFollow),
-          );
+    return HeroPillButton(
+      icon: following ? Icons.check_circle_rounded : LucideIcons.plus,
+      label: following ? l10n.onlineFollowing : l10n.onlineFollow,
+      height: height,
+      onTap: () {
+        AppHaptics.light();
+        ref
+            .read(tasteProvider.notifier)
+            .toggleArtist(
+              TasteArtist(
+                artistName,
+                browseId: collection.browseId,
+                thumbnail: thumbnail ?? collection.thumbnail,
+              ),
+            );
+      },
+    );
   }
 }
 
+/// Top songs as numbered columns of four that page sideways, the next
+/// column peeking in at the edge.
 class _ArtistSongPages extends StatelessWidget {
-  const _ArtistSongPages({required this.songs, required this.l10n});
+  const _ArtistSongPages({required this.online, required this.songs});
 
+  final List<OnlineSong> online;
   final List<Song> songs;
-  final AppLocalizations l10n;
+
+  static const _perColumn = 4;
+  static const _rowHeight = 56.0;
+  static const _columnWidth = 330.0;
 
   @override
   Widget build(BuildContext context) {
-    final chunks = <List<Song>>[];
-    for (var i = 0; i < songs.length; i += 5) {
-      chunks.add(songs.sublist(i, math.min(i + 5, songs.length)));
-    }
-    if (chunks.isEmpty) return const SizedBox.shrink();
+    if (songs.isEmpty) return const SizedBox.shrink();
+    final columns = (songs.length / _perColumn).ceil();
+    Widget column(int c) => Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (
+          var i = c * _perColumn;
+          i < math.min((c + 1) * _perColumn, songs.length);
+          i++
+        )
+          _TopSongRow(online: online, songs: songs, index: i),
+      ],
+    );
+    final height = math.min(_perColumn, songs.length) * _rowHeight;
+    if (columns == 1) return column(0);
+    return LayoutBuilder(
+      builder: (context, constraints) => SizedBox(
+        height: height,
+        child: PageView.builder(
+          controller: PageController(
+            viewportFraction: math.min(1, _columnWidth / constraints.maxWidth),
+          ),
+          padEnds: false,
+          physics: const LooperScrollPhysics(),
+          itemCount: columns,
+          itemBuilder: (context, c) => column(c),
+        ),
+      ),
+    );
+  }
+}
 
-    final firstCount = chunks.first.length;
-    final height = firstCount * 72.0;
+class _TopSongRow extends ConsumerWidget {
+  const _TopSongRow({
+    required this.online,
+    required this.songs,
+    required this.index,
+  });
 
-    if (chunks.length == 1) {
-      return Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (var i = 0; i < chunks.first.length; i++)
-            SongTile(
-              key: ValueKey('online-artist-0-$i-${chunks.first[i].path}'),
-              song: chunks.first[i],
-              songs: songs,
-              l10n: l10n,
-              collectionIndex: i,
+  final List<OnlineSong> online;
+  final List<Song> songs;
+  final int index;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final song = songs[index];
+    final artist = song.artist;
+    return InkWell(
+      onTap: () => playOnlineSongs(ref, online, index),
+      child: SizedBox(
+        height: _ArtistSongPages._rowHeight,
+        child: Row(
+          children: [
+            SizedBox(
+              width: 55,
+              child: Text(
+                '${index + 1}',
+                textAlign: TextAlign.center,
+                style: homeCardTitle(),
+              ),
             ),
-        ],
-      );
-    }
-
-    return SizedBox(
-      height: height,
-      child: PageView.builder(
-        controller: PageController(viewportFraction: 0.92),
-        padEnds: false,
-        physics: const LooperScrollPhysics(),
-        itemCount: chunks.length,
-        itemBuilder: (context, pageIndex) {
-          final chunk = chunks[pageIndex];
-          return Padding(
-            padding: const EdgeInsets.only(right: 6),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                for (var j = 0; j < chunk.length; j++)
-                  SongTile(
-                    key: ValueKey(
-                      'online-artist-$pageIndex-$j-${chunk[j].path}',
-                    ),
-                    song: chunk[j],
-                    songs: songs,
-                    l10n: l10n,
-                    collectionIndex: pageIndex * 5 + j,
+            OnlineArt(url: online[index].thumbnail, size: 42),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    song.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: homeCardTitle(),
                   ),
-              ],
+                  if (artist != null && artist.isNotEmpty)
+                    Text(
+                      artist,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: homeCardTitle(size: 14).copyWith(color: kHomeGrey),
+                    ),
+                ],
+              ),
             ),
-          );
-        },
+            IconButton(
+              icon: const Icon(Icons.more_vert, color: Colors.white),
+              tooltip: MaterialLocalizations.of(context).showMenuTooltip,
+              onPressed: () => showSongOptionsBottomSheet(
+                context: context,
+                ref: ref,
+                song: song,
+                showEqualizerAndTechnicalInfoOptions: false,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

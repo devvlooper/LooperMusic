@@ -233,7 +233,6 @@ class GuestTasteEngine {
     });
     artistSeeds.sort((a, b) => b.score.compareTo(a.score));
 
-    // Sort seeds descending by score
     onlineSeeds.sort((a, b) => b.score.compareTo(a.score));
     scoredLocalSongs.sort((a, b) => b.score.compareTo(a.score));
 

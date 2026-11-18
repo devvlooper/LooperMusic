@@ -423,7 +423,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                                     compact: isNarrowLayout,
                                                   ),
                                                 ],
-                                                if (ref.watch(onlineActiveProvider)) ...[
+                                                if (ref.watch(
+                                                  onlineActiveProvider,
+                                                )) ...[
                                                   const SizedBox(width: 12),
                                                   const OnlineStatusIndicator(),
                                                 ],

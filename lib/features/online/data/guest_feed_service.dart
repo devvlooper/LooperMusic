@@ -52,7 +52,7 @@ class GuestFeedService {
     bool force = false,
   }) async {
     try {
-      final (shelves, _) = await OnlineApi.home(automatic: !force, pages: 2);
+      final (shelves, _, _) = await OnlineApi.home(automatic: !force, pages: 2);
       if (shelves.isNotEmpty) return shelves;
     } catch (e) {
       LoggerHelper.write('$_tag: Level 0 home fallback failed', e);

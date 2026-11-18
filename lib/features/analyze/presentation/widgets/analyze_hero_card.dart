@@ -26,7 +26,6 @@ class AnalyzeHeroCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return AnalyzeCard(
       padding: const EdgeInsets.all(14),
-      radius: 28,
       gradient: LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
@@ -39,7 +38,7 @@ class AnalyzeHeroCard extends ConsumerWidget {
         children: [
           Container(
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(8),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withValues(alpha: 0.35),
@@ -51,7 +50,7 @@ class AnalyzeHeroCard extends ConsumerWidget {
             child: SongArtwork(
               song: stat.song,
               size: 118,
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(8),
               cacheWidth: 320,
               cacheHeight: 320,
             ),

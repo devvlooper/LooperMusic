@@ -122,9 +122,7 @@ extension _DashboardSections on HomeDashboard {
             final song = songs[index];
             final isSuggested = suggestedPaths.contains(song.path);
             final isCurrent = ref.watch(
-              playbackProvider.select(
-                (s) => s.currentSong?.path == song.path,
-              ),
+              playbackProvider.select((s) => s.currentSong?.path == song.path),
             );
 
             return InkWell(

@@ -45,20 +45,92 @@ class _OnlineViewAllScreenState extends ConsumerState<OnlineViewAllScreen> {
   final GlobalKey _titleKey = GlobalKey();
 
   late final List<OnlineSong> _songs = List.from(widget.initialSongs);
-  late final List<OnlineCollection> _collections =
-      List.from(widget.initialCollections);
+  late final List<OnlineCollection> _collections = List.from(
+    widget.initialCollections,
+  );
 
   String? _continuationToken;
   bool _isLoadingInitial = false;
   bool _isLoadingMore = false;
   bool _hasAttemptedFirstFetch = false;
 
+  /// Mixes and Discover have no YouTube "more" page (none, or an RD radio
+  /// id `browse` can't page), so they grow by radio of the listed songs.
+  late final bool _radioMode =
+      widget.browseId == null || widget.browseId!.startsWith('RD');
+  int _seedIndex = 0;
+  int _radioMisses = 0;
+  static const _radioCap = 500;
+
+  bool get _hasMore =>
+      _continuationToken != null ||
+      (_radioMode &&
+          _seedIndex < _songs.length &&
+          _songs.length < _radioCap &&
+          _radioMisses < 3);
+
   @override
   void initState() {
     super.initState();
     _controller.addListener(_onScroll);
-    if (widget.browseId != null) {
+    if (widget.browseId?.startsWith('RD') == true) {
+      unawaited(_fetchRadioInitial());
+    } else if (widget.browseId != null) {
       unawaited(_fetchInitial());
+    } else {
+      _fillScreen();
+    }
+  }
+
+  /// A list too short to scroll would never reach the end; load on.
+  void _fillScreen() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _controller.hasClients) _onScroll();
+    });
+  }
+
+  Future<void> _fetchRadioInitial() async {
+    if (_songs.isEmpty) setState(() => _isLoadingInitial = true);
+    try {
+      final songs = await OnlineApi.radioPlaylist(
+        widget.browseId!,
+        automatic: true,
+      );
+      if (!mounted) return;
+      setState(() {
+        final seen = {for (final s in _songs) s.videoId};
+        _songs.addAll(songs.where((s) => seen.add(s.videoId)));
+        _seedIndex = 1; // the first song's radio is this list
+        _isLoadingInitial = false;
+      });
+      _fillScreen();
+    } catch (_) {
+      if (mounted) setState(() => _isLoadingInitial = false);
+    }
+  }
+
+  Future<void> _loadRadioMore() async {
+    final seed = _songs[_seedIndex++];
+    setState(() => _isLoadingMore = true);
+    try {
+      final songs = await OnlineApi.radio(seed.videoId, automatic: true);
+      if (!mounted) return;
+      setState(() {
+        final seen = {for (final s in _songs) s.videoId};
+        final before = _songs.length;
+        _songs.addAll(songs.where((s) => seen.add(s.videoId)));
+        _radioMisses = _songs.length == before ? _radioMisses + 1 : 0;
+        _isLoadingMore = false;
+      });
+      _fillScreen();
+    } catch (_) {
+      // Count failures too, so a dead network can't loop.
+      if (mounted) {
+        setState(() {
+          _radioMisses++;
+          _isLoadingMore = false;
+        });
+      }
     }
   }
 
@@ -73,8 +145,8 @@ class _OnlineViewAllScreenState extends ConsumerState<OnlineViewAllScreen> {
     if (_controller.position.extentAfter < 350 &&
         !_isLoadingMore &&
         !_isLoadingInitial &&
-        _continuationToken != null) {
-      _loadMore();
+        _hasMore) {
+      _continuationToken != null ? _loadMore() : _loadRadioMore();
     }
   }
 
@@ -106,6 +178,7 @@ class _OnlineViewAllScreenState extends ConsumerState<OnlineViewAllScreen> {
         _continuationToken = token;
         _isLoadingInitial = false;
       });
+      _fillScreen();
     } catch (_) {
       if (mounted) setState(() => _isLoadingInitial = false);
     }
@@ -136,6 +209,7 @@ class _OnlineViewAllScreenState extends ConsumerState<OnlineViewAllScreen> {
         _continuationToken = nextToken;
         _isLoadingMore = false;
       });
+      _fillScreen();
     } catch (_) {
       if (mounted) setState(() => _isLoadingMore = false);
     }
@@ -145,7 +219,8 @@ class _OnlineViewAllScreenState extends ConsumerState<OnlineViewAllScreen> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final totalCount = _songs.length + _collections.length;
-    final isArtistMode = widget.kind == CollectionKind.artist ||
+    final isArtistMode =
+        widget.kind == CollectionKind.artist ||
         (_collections.isNotEmpty &&
             _collections.every((c) => c.kind == CollectionKind.artist));
 
@@ -193,8 +268,8 @@ class _OnlineViewAllScreenState extends ConsumerState<OnlineViewAllScreen> {
                       isArtistMode
                           ? '$totalCount ${l10n.artists.toLowerCase()}'
                           : (_songs.isNotEmpty
-                              ? '$totalCount ${l10n.songs.toLowerCase()}'
-                              : '$totalCount ${l10n.albums.toLowerCase()}'),
+                                ? '$totalCount ${l10n.songs.toLowerCase()}'
+                                : '$totalCount ${l10n.albums.toLowerCase()}'),
                       style: AppFonts.jostStyle(
                         fontSize: 13,
                         color: Colors.white38,
@@ -218,10 +293,9 @@ class _OnlineViewAllScreenState extends ConsumerState<OnlineViewAllScreen> {
                               AppHaptics.light();
                               final shuffled = List<OnlineSong>.from(_songs)
                                 ..shuffle();
-                              ref.read(playbackProvider.notifier).setPlaylist(
-                                    [for (final s in shuffled) s.toSong()],
-                                    initialIndex: 0,
-                                  );
+                              ref.read(playbackProvider.notifier).setPlaylist([
+                                for (final s in shuffled) s.toSong(),
+                              ], initialIndex: 0);
                             },
                             icon: const Icon(LucideIcons.shuffle, size: 18),
                             label: Text(l10n.shuffleTitle),
@@ -265,15 +339,14 @@ class _OnlineViewAllScreenState extends ConsumerState<OnlineViewAllScreen> {
                         sliver: SliverGrid.builder(
                           gridDelegate:
                               const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 3,
-                            mainAxisSpacing: 18,
-                            crossAxisSpacing: 14,
-                            childAspectRatio: 0.74,
-                          ),
+                                crossAxisCount: 3,
+                                mainAxisSpacing: 18,
+                                crossAxisSpacing: 14,
+                                childAspectRatio: 0.74,
+                              ),
                           itemCount: _collections.length,
-                          itemBuilder: (context, i) => _GridArtistCard(
-                            artist: _collections[i],
-                          ),
+                          itemBuilder: (context, i) =>
+                              _GridArtistCard(artist: _collections[i]),
                         ),
                       )
                     : SliverPadding(
@@ -281,20 +354,19 @@ class _OnlineViewAllScreenState extends ConsumerState<OnlineViewAllScreen> {
                         sliver: SliverGrid.builder(
                           gridDelegate:
                               const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 2,
-                            mainAxisSpacing: 18,
-                            crossAxisSpacing: 14,
-                            childAspectRatio: 0.76,
-                          ),
+                                crossAxisCount: 2,
+                                mainAxisSpacing: 18,
+                                crossAxisSpacing: 14,
+                                childAspectRatio: 0.76,
+                              ),
                           itemCount: _collections.length,
-                          itemBuilder: (context, i) => _GridCollectionCard(
-                            collection: _collections[i],
-                          ),
+                          itemBuilder: (context, i) =>
+                              _GridCollectionCard(collection: _collections[i]),
                         ),
                       ),
 
-              // Bottom Pagination Loading Indicator
-              if (_isLoadingMore)
+              // Bottom Pagination Loading Indicator, while more can come
+              if (_isLoadingMore || _hasMore)
                 const SliverToBoxAdapter(
                   child: Padding(
                     padding: EdgeInsets.symmetric(vertical: 24),

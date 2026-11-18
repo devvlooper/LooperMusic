@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:looper_player/core/theme/app_fonts.dart';
-import 'package:looper_player/ui/android/widgets/premium_section.dart';
 
 /// Shared "nothing here yet" layout (icon badge + bold title + dimmed
 /// subtitle, optionally followed by an action) - used so every empty grid/
@@ -11,6 +10,7 @@ class EmptyStateCard extends StatelessWidget {
   final IconData icon;
   final String title;
   final String? subtitle;
+  /// Ignored: empty states are neutral (no accent) in the current design.
   final Color? accentColor;
   final Widget? action;
 
@@ -25,17 +25,14 @@ class EmptyStateCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final accent = accentColor ?? Theme.of(context).colorScheme.primary;
-
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24.0),
-        child: PremiumSection(
-          borderRadius: BorderRadius.circular(24),
-          useBlur: true,
-          // Static background behind it: a live blur looks the same.
-          forceNoBlur: true,
-          useExpanded: false,
+        child: Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFF282828),
+            borderRadius: BorderRadius.circular(8),
+          ),
           padding: const EdgeInsets.symmetric(vertical: 40.0, horizontal: 24.0),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -46,16 +43,12 @@ class EmptyStateCard extends StatelessWidget {
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Colors.white.withValues(alpha: 0.02),
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.04),
-                    width: 1.5,
-                  ),
+                  color: Colors.white.withValues(alpha: 0.06),
                 ),
                 child: Icon(
                   icon,
                   size: 48,
-                  color: accent.withValues(alpha: 0.8),
+                  color: Colors.white70,
                 ),
               ),
               const SizedBox(height: 24),

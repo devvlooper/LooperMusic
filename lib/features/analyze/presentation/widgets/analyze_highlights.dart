@@ -132,7 +132,6 @@ class _HighlightCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return AnalyzeCard(
       padding: const EdgeInsets.fromLTRB(14, 13, 14, 13),
-      radius: 20,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

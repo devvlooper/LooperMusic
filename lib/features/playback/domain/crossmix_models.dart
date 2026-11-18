@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:looper_player/features/library/domain/models/models.dart';
+import 'package:looper_player/features/settings/domain/app_defaults.dart';
 
 /// Available transition blend styles for Crossmix.
 enum TransitionStyle {
@@ -22,10 +23,10 @@ enum TransitionStyle {
 /// Settings for Crossmix audio transitions.
 class CrossmixSettings {
   const CrossmixSettings({
-    this.crossfadeEnabled = false,
-    this.durationSeconds = 6.0,
-    this.smartTransitions = true,
-    this.beatMixing = true,
+    this.crossfadeEnabled = AppDefaults.crossfadeEnabled,
+    this.durationSeconds = AppDefaults.crossmixDurationSeconds,
+    this.smartTransitions = AppDefaults.crossmixSmartTransitions,
+    this.beatMixing = AppDefaults.crossmixBeatMixing,
   });
 
   /// Master switch for crossfade transitions between songs.
@@ -40,36 +41,34 @@ class CrossmixSettings {
   /// Stage 3: Beat-matched transitions (experimental, off by default).
   final bool beatMixing;
 
-  Duration get duration => Duration(
-        milliseconds: (durationSeconds.clamp(1.0, 12.0) * 1000).round(),
-      );
+  Duration get duration =>
+      Duration(milliseconds: (durationSeconds.clamp(1.0, 12.0) * 1000).round());
 
   CrossmixSettings copyWith({
     bool? crossfadeEnabled,
     double? durationSeconds,
     bool? smartTransitions,
     bool? beatMixing,
-  }) =>
-      CrossmixSettings(
-        crossfadeEnabled: crossfadeEnabled ?? this.crossfadeEnabled,
-        durationSeconds: durationSeconds ?? this.durationSeconds,
-        smartTransitions: smartTransitions ?? this.smartTransitions,
-        beatMixing: beatMixing ?? this.beatMixing,
-      );
+  }) => CrossmixSettings(
+    crossfadeEnabled: crossfadeEnabled ?? this.crossfadeEnabled,
+    durationSeconds: durationSeconds ?? this.durationSeconds,
+    smartTransitions: smartTransitions ?? this.smartTransitions,
+    beatMixing: beatMixing ?? this.beatMixing,
+  );
 
   Map<String, dynamic> toJson() => {
-        'crossfadeEnabled': crossfadeEnabled,
-        'durationSeconds': durationSeconds,
-        'smartTransitions': smartTransitions,
-        'beatMixing': beatMixing,
-      };
+    'crossfadeEnabled': crossfadeEnabled,
+    'durationSeconds': durationSeconds,
+    'smartTransitions': smartTransitions,
+    'beatMixing': beatMixing,
+  };
 
   factory CrossmixSettings.fromJson(Map<String, dynamic> json) =>
       CrossmixSettings(
         crossfadeEnabled: json['crossfadeEnabled'] as bool? ?? false,
         durationSeconds:
             (json['durationSeconds'] as num?)?.toDouble().clamp(1.0, 12.0) ??
-                6.0,
+            6.0,
         smartTransitions: json['smartTransitions'] as bool? ?? true,
         beatMixing: json['beatMixing'] as bool? ?? true,
       );
@@ -120,17 +119,17 @@ class CrossmixAnalysis {
   Duration get leadOut => Duration(milliseconds: math.max(0, leadOutMs));
 
   Map<String, dynamic> toJson() => {
-        'songId': songId,
-        'leadInMs': leadInMs,
-        'leadOutMs': leadOutMs,
-        'hasFadeOut': hasFadeOut,
-        if (bpm != null) 'bpm': bpm,
-        if (tempoConfidence != null) 'tempoConfidence': tempoConfidence,
-        if (beatGridMs.isNotEmpty) 'beatGridMs': beatGridMs,
-        if (energyProfile.isNotEmpty) 'energyProfile': energyProfile,
-        if (fileSize != null) 'fileSize': fileSize,
-        if (analyzedAt != null) 'analyzedAt': analyzedAt,
-      };
+    'songId': songId,
+    'leadInMs': leadInMs,
+    'leadOutMs': leadOutMs,
+    'hasFadeOut': hasFadeOut,
+    if (bpm != null) 'bpm': bpm,
+    if (tempoConfidence != null) 'tempoConfidence': tempoConfidence,
+    if (beatGridMs.isNotEmpty) 'beatGridMs': beatGridMs,
+    if (energyProfile.isNotEmpty) 'energyProfile': energyProfile,
+    if (fileSize != null) 'fileSize': fileSize,
+    if (analyzedAt != null) 'analyzedAt': analyzedAt,
+  };
 
   factory CrossmixAnalysis.fromJson(Map<String, dynamic> json) =>
       CrossmixAnalysis(
@@ -140,11 +139,13 @@ class CrossmixAnalysis {
         hasFadeOut: json['hasFadeOut'] as bool? ?? false,
         bpm: (json['bpm'] as num?)?.toDouble(),
         tempoConfidence: (json['tempoConfidence'] as num?)?.toDouble(),
-        beatGridMs: (json['beatGridMs'] as List?)
+        beatGridMs:
+            (json['beatGridMs'] as List?)
                 ?.map((e) => (e as num).toInt())
                 .toList() ??
             const [],
-        energyProfile: (json['energyProfile'] as List?)
+        energyProfile:
+            (json['energyProfile'] as List?)
                 ?.map((e) => (e as num).toDouble())
                 .toList() ??
             const [],
@@ -209,5 +210,7 @@ class TransitionPlan {
 
   /// Whether this plan is an active crossfade overlap.
   bool get hasOverlap =>
-      overlapDuration > Duration.zero && style != TransitionStyle.gapless && style != TransitionStyle.cut;
+      overlapDuration > Duration.zero &&
+      style != TransitionStyle.gapless &&
+      style != TransitionStyle.cut;
 }

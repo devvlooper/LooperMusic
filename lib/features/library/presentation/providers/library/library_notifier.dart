@@ -481,7 +481,8 @@ class Library extends _$Library {
         await OnlinePlayback.persist([song]);
       }
       await DbService.isar.writeTxn(() async {
-        final dbSong = await DbService.isar.songs.getByPath(song.path) ??
+        final dbSong =
+            await DbService.isar.songs.getByPath(song.path) ??
             await DbService.isar.songs.get(song.id);
         if (dbSong != null) {
           dbSong.isFavorite = newFavorite;
@@ -555,7 +556,6 @@ class Library extends _$Library {
         final remainingSongs = await DbService.isar.songs.where().findAll();
         final activeAlbumNames = remainingSongs.map((s) => s.album).toSet();
 
-        // Load all albums and artists
         final allAlbums = await DbService.isar.albums.where().findAll();
         final albumsToDelete = allAlbums
             .where((a) => !activeAlbumNames.contains(a.name))
@@ -699,6 +699,15 @@ class Library extends _$Library {
     _isFetchingArtistImages = true;
     try {
       final allArtists = await DbService.isar.artists.where().findAll();
+      // Drop Deezer's blank silhouette saved by older versions (the white box).
+      for (final artist in allArtists) {
+        final path = artist.artistImageUrl;
+        if (path == null || artist.artistImageLocked) continue;
+        if (path.startsWith('http')) continue;
+        if (!await ArtistImageService.isSavedPlaceholder(path)) continue;
+        await _replaceArtistImage(artist, null, locked: false);
+        artist.artistImageUrl = null;
+      }
       final artists = allArtists
           .where((a) => a.artistImageUrl == null && !a.artistImageLocked)
           .toList();
@@ -1010,9 +1019,7 @@ class Library extends _$Library {
       case SongSortStrategy.album:
         return isAsc
             ? _localSongs().sortByAlbum().thenByTrackNumber()
-            : _localSongs()
-                  .sortByAlbumDesc()
-                  .thenByTrackNumber();
+            : _localSongs().sortByAlbumDesc().thenByTrackNumber();
       case SongSortStrategy.duration:
         return isAsc
             ? _localSongs().sortByDuration()
@@ -1269,7 +1276,9 @@ Stream<List<Song>> topSongs(Ref ref) {
 @Riverpod(keepAlive: true)
 List<Song> homeQuickPicks(Ref ref) {
   final (songs, previewReady, previewQuickPicks) = ref.watch(
-    libraryProvider.select((s) => (s.songs, s.previewReady, s.previewQuickPicks)),
+    libraryProvider.select(
+      (s) => (s.songs, s.previewReady, s.previewQuickPicks),
+    ),
   );
   final source = (songs.isEmpty && previewReady) ? previewQuickPicks : songs;
   // Ties go newest first, then by path - the same order as the cold-start
@@ -1298,62 +1307,30 @@ final homeQuickPicksMixedDataProvider = Provider<QuickPicksMixed>((ref) {
     return QuickPicksMixed(own, const {});
   }
 
-  final own = ref.watch(homeQuickPicksProvider);
-  final forYouOnline = ref.watch(onlineHomeProvider.select((s) => s.forYou));
-
-  final ownTitlesAndArtists = <String>{};
-  final ownPaths = <String>{};
-  for (final s in own) {
-    ownPaths.add(s.path);
-    final norm = OnlinePlayback.normalizeTitle(s.title);
-    final artist = s.artist?.trim().toLowerCase() ?? '';
-    ownTitlesAndArtists.add('$norm|$artist');
+  // Online mode: picks are online songs only. Offline songs come in only
+  // when online has nothing (failed / empty); while it first loads the row
+  // stays hidden rather than flashing the offline list.
+  final (forYou, shelves, firstLoad) = ref.watch(
+    onlineHomeProvider.select(
+      (s) => (s.forYou, s.shelves, s.loading && s.shelves.isEmpty),
+    ),
+  );
+  // Guests (no account) never get For you; use the home shelves' songs.
+  final source = forYou.isNotEmpty
+      ? forYou
+      : [for (final shelf in shelves) ...shelf.songs];
+  final seen = <String>{};
+  final online = <Song>[];
+  for (final o in source) {
+    if (!seen.add(o.path)) continue;
+    online.add(o.toSong());
+    if (online.length == 18) break;
   }
-
-  final deduplicatedSuggestions = <Song>[];
-  for (final o in forYouOnline) {
-    final s = o.toSong();
-    if (ownPaths.contains(s.path)) continue;
-    final norm = OnlinePlayback.normalizeTitle(s.title);
-    final artist = s.artist?.trim().toLowerCase() ?? '';
-    if (ownTitlesAndArtists.contains('$norm|$artist')) continue;
-    deduplicatedSuggestions.add(s);
+  if (online.isNotEmpty) {
+    return QuickPicksMixed(online, {for (final s in online) s.path});
   }
-
-  if (own.isEmpty) {
-    final list = deduplicatedSuggestions.take(18).toList();
-    final paths = {for (final s in list) s.path};
-    return QuickPicksMixed(list, paths);
-  }
-
-  final mixed = <Song>[];
-  final suggestedPaths = <String>{};
-  var ownIdx = 0;
-  var sugIdx = 0;
-
-  for (var page = 0; page < 3; page++) {
-    final pageSongs = <Song>[];
-    for (var i = 0; i < 4 && ownIdx < own.length; i++) {
-      pageSongs.add(own[ownIdx++]);
-    }
-    for (var i = 0; i < 2 && sugIdx < deduplicatedSuggestions.length; i++) {
-      final s = deduplicatedSuggestions[sugIdx++];
-      pageSongs.add(s);
-      suggestedPaths.add(s.path);
-    }
-    while (pageSongs.length < 6 && ownIdx < own.length) {
-      pageSongs.add(own[ownIdx++]);
-    }
-    while (pageSongs.length < 6 && sugIdx < deduplicatedSuggestions.length) {
-      final s = deduplicatedSuggestions[sugIdx++];
-      pageSongs.add(s);
-      suggestedPaths.add(s.path);
-    }
-    mixed.addAll(pageSongs);
-    if (ownIdx >= own.length && sugIdx >= deduplicatedSuggestions.length) break;
-  }
-
-  return QuickPicksMixed(mixed, suggestedPaths);
+  if (firstLoad) return const QuickPicksMixed([], {});
+  return QuickPicksMixed(ref.watch(homeQuickPicksProvider), const {});
 });
 
 final homeQuickPicksMixedProvider = Provider<List<Song>>((ref) {
@@ -1371,7 +1348,9 @@ final homeQuickPicksSuggestedPathsProvider = Provider<Set<String>>((ref) {
 @Riverpod(keepAlive: true)
 List<Song> homeRecentlyAdded(Ref ref) {
   final (songs, previewReady, previewRecentlyAdded) = ref.watch(
-    libraryProvider.select((s) => (s.songs, s.previewReady, s.previewRecentlyAdded)),
+    libraryProvider.select(
+      (s) => (s.songs, s.previewReady, s.previewRecentlyAdded),
+    ),
   );
   final source = (songs.isEmpty && previewReady) ? previewRecentlyAdded : songs;
   // Ties by path, matching the cold-start preview query.

@@ -162,7 +162,7 @@ jobs:
               echo "::error::No $abi APK found in $dir (see listing above)"
               exit 1
             fi
-            cp "$src" "$out/looper-music-v${VERSION}-${abi}-release.apk"
+            cp "$src" "$out/looper-player-v${VERSION}-${abi}-online-release.apk"
           done
 
       - name: Verify APK Signatures

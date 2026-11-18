@@ -6,6 +6,7 @@ import 'package:looper_player/core/theme/app_fonts.dart';
 import 'package:looper_player/core/utils/responsive.dart';
 import 'package:looper_player/features/playback/presentation/providers/equalizer/equalizer_notifier.dart';
 import 'package:looper_player/core/services/haptics/app_haptics.dart';
+import 'equalizer_curve_math.dart';
 
 class InteractiveEqualizerGraph extends ConsumerStatefulWidget {
   final EqualizerState eqState;
@@ -142,20 +143,13 @@ class _InteractiveGraphPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final colWidth = size.width / 18;
-    final trackTop = 16.0;
-    final trackBottom = size.height - 24.0;
-    final trackHeight = trackBottom - trackTop;
-
-    double getMappedY(double gain) {
-      final percent = ((gain + 20) / 40).clamp(0.0, 1.0);
-      final thumbBottom = percent * trackHeight;
-      return trackBottom - thumbBottom;
-    }
-
-    double getMappedX(int index) {
-      return (index + 0.5) * colWidth;
-    }
+    final geo = EqualizerCurveGeometry(
+      width: size.width,
+      height: size.height,
+      bandCount: 18,
+      trackTop: 16.0,
+      bottomPadding: 24.0,
+    );
 
     // 1. Draw grid lines (dB)
     final gridPaint = Paint()
@@ -168,7 +162,7 @@ class _InteractiveGraphPainter extends CustomPainter {
 
     const dbValues = [-20.0, -10.0, 0.0, 10.0, 20.0];
     for (final db in dbValues) {
-      final y = getMappedY(db);
+      final y = geo.mapY(db);
       if (db == 0.0) {
         canvas.drawLine(Offset(0, y), Offset(size.width, y), dashedPaint);
       } else {
@@ -212,11 +206,11 @@ class _InteractiveGraphPainter extends CustomPainter {
       '20k',
     ];
     for (int i = 0; i < 18; i++) {
-      final x = getMappedX(i);
+      final x = geo.mapX(i);
       // Freq vertical line (drawn extremely faintly)
       canvas.drawLine(
-        Offset(x, trackTop),
-        Offset(x, trackBottom),
+        Offset(x, geo.trackTop),
+        Offset(x, geo.trackBottom),
         Paint()
           ..color = Colors.white.withValues(alpha: 0.02)
           ..strokeWidth = 1.0,
@@ -242,23 +236,9 @@ class _InteractiveGraphPainter extends CustomPainter {
 
     if (gains.length < 2) return;
 
-    Path buildCubicPath(List<double> values) {
-      final p = Path();
-      p.moveTo(getMappedX(0), getMappedY(values[0]));
-      for (int i = 0; i < values.length - 1; i++) {
-        final x1 = getMappedX(i);
-        final y1 = getMappedY(values[i]);
-        final x2 = getMappedX(i + 1);
-        final y2 = getMappedY(values[i + 1]);
-        final stepX = x2 - x1;
-        p.cubicTo(x1 + stepX / 2, y1, x2 - stepX / 2, y2, x2, y2);
-      }
-      return p;
-    }
-
     // AutoEQ preview curve (dashed)
     if (enabled && autoEqGains != null && autoEqGains!.length >= gains.length) {
-      final autoEqPath = buildCubicPath(autoEqGains!);
+      final autoEqPath = geo.buildCubicPath(autoEqGains!);
       final dashPaint = Paint()
         ..color = accentColor.withValues(alpha: 0.35)
         ..style = PaintingStyle.stroke
@@ -276,7 +256,7 @@ class _InteractiveGraphPainter extends CustomPainter {
 
     // 3. Draw smooth curve path
     final curveColor = enabled ? accentColor : Colors.grey;
-    final path = buildCubicPath(gains);
+    final path = geo.buildCubicPath(gains);
 
     // Shadow glow
     canvas.drawPath(
@@ -300,8 +280,8 @@ class _InteractiveGraphPainter extends CustomPainter {
 
     // Fill under path
     final fillPath = Path.from(path)
-      ..lineTo(getMappedX(gains.length - 1), trackBottom)
-      ..lineTo(getMappedX(0), trackBottom)
+      ..lineTo(geo.mapX(gains.length - 1), geo.trackBottom)
+      ..lineTo(geo.mapX(0), geo.trackBottom)
       ..close();
 
     final gradient = LinearGradient(
@@ -324,7 +304,7 @@ class _InteractiveGraphPainter extends CustomPainter {
       final sumGains = List.generate(gains.length, (i) {
         return (gains[i] + autoEqGains![i]).clamp(-20.0, 20.0);
       });
-      final sumPath = buildCubicPath(sumGains);
+      final sumPath = geo.buildCubicPath(sumGains);
       canvas.drawPath(
         sumPath,
         Paint()
@@ -340,8 +320,8 @@ class _InteractiveGraphPainter extends CustomPainter {
       ..style = PaintingStyle.fill;
 
     for (int i = 0; i < gains.length; i++) {
-      final x = getMappedX(i);
-      final y = getMappedY(gains[i]);
+      final x = geo.mapX(i);
+      final y = geo.mapY(gains[i]);
       final isDragged = i == activeDragIndex;
 
       if (isDragged && enabled) {

@@ -116,6 +116,7 @@ flutter:
     - assets/avatars/
     - assets/icons/android/
     - assets/icons/desktop/
+    - assets/icons/library/
     - assets/icons/player_styles/
     - assets/icons/settings/
     - assets/icons/social/

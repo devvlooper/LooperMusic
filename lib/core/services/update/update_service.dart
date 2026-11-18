@@ -77,21 +77,76 @@ class UpdateService {
     } catch (e) {}
   }
 
-  /// The latest GitHub release when it is newer than this build, null when
-  /// this build is up to date. Throws when GitHub can't be reached.
-  static Future<GithubRelease?> fetchNewerRelease() async {
-    final PackageInfo packageInfo = await PackageInfo.fromPlatform();
+  /// The newest build on GitHub, without comparing it to this one: the latest
+  /// release, or on Android the APKs uploaded by hand to `media/<edition>/`
+  /// when those are newer. Throws when neither can be reached.
+  static Future<GithubRelease> fetchLatestRelease() async {
+    final found = (await Future.wait([
+      _fetchRelease().then<GithubRelease?>((r) => r, onError: (_) => null),
+      if (Platform.isAndroid)
+        _fetchMediaBuild().then<GithubRelease?>((r) => r, onError: (_) => null),
+    ])).whereType<GithubRelease>().toList();
+    if (found.isEmpty) throw const HttpException('GitHub unreachable');
+    // On a tie the release wins (it has notes), unless its APKs aren't up yet.
+    return found.reduce(
+      (a, b) =>
+          b.tag.isNotEmpty &&
+              (a.waitingForMyApk || isNewerVersion(a.tag, b.tag))
+          ? b
+          : a,
+    );
+  }
+
+  static Future<dynamic> _getJson(String url) async {
     final response = await http
-        .get(Uri.parse(repoUrl))
+        .get(Uri.parse(url))
         .timeout(const Duration(seconds: 20));
     if (response.statusCode != 200) {
       throw HttpException('GitHub answered ${response.statusCode}');
     }
-    final release = GithubRelease.fromJson(
-      json.decode(response.body) as Map<String, dynamic>,
-      fallbackHtmlUrl: fallbackHtmlUrl,
+    return json.decode(response.body);
+  }
+
+  static Future<GithubRelease> _fetchRelease() async => GithubRelease.fromJson(
+    await _getJson(repoUrl) as Map<String, dynamic>,
+    fallbackHtmlUrl: fallbackHtmlUrl,
+  );
+
+  static Future<GithubRelease> _fetchMediaBuild() async {
+    final build = GithubRelease.fromContents(
+      await _getJson('${AppLinks.githubMediaBuildsApi}/$apkEdition')
+          as List<dynamic>,
+      htmlUrl: '${AppLinks.githubMediaBuildsWeb}/$apkEdition',
     );
+    if (build.tag.isEmpty) return build;
+    return GithubRelease(
+      tag: build.tag,
+      htmlUrl: build.htmlUrl,
+      notes: await _fetchMediaNotes(build.tag),
+      apks: build.apks,
+    );
+  }
+
+  /// `media/release-notes/<tag>.md` (the same file the release workflow
+  /// uses), or '' when it is missing or unreachable.
+  static Future<String> _fetchMediaNotes(String tag) async {
+    try {
+      final response = await http
+          .get(Uri.parse('${AppLinks.githubMediaRaw}/release-notes/$tag.md'))
+          .timeout(const Duration(seconds: 20));
+      return response.statusCode == 200 ? response.body.trim() : '';
+    } catch (_) {
+      return '';
+    }
+  }
+
+  /// The latest GitHub release when it is newer than this build, null when
+  /// this build is up to date. Throws when GitHub can't be reached.
+  static Future<GithubRelease?> fetchNewerRelease() async {
+    final PackageInfo packageInfo = await PackageInfo.fromPlatform();
+    final release = await fetchLatestRelease();
     if (release.tag.isEmpty ||
+        release.waitingForMyApk ||
         !isNewerVersion(packageInfo.version, release.tag)) {
       return null;
     }

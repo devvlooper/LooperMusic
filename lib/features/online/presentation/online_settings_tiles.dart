@@ -83,7 +83,7 @@ List<Widget> onlineDownloadTiles(WidgetRef ref) =>
     : const [];
 
 /// Animated artwork look (player-screen only), shown under Now Playing.
-List<Widget> animatedArtworkTiles(WidgetRef ref) {
+List<Widget> animatedArtworkTiles(WidgetRef ref, {bool classic = true}) {
   // Animated artwork is fetched online, so it hides with online music.
   if (!onlineAvailable ||
       !ref.watch(onlineSettingsProvider.select((s) => s.enabled))) {
@@ -94,10 +94,10 @@ List<Widget> animatedArtworkTiles(WidgetRef ref) {
       AnimatedArtworkMode.never;
   return [
     const _AnimatedArtworkModeTile(),
-    if (artworkOn) ...const [
-      _AnimateAlbumCoverTile(),
-      _ImmersiveBackgroundTile(),
-      _AmbientGlowTile(),
+    if (artworkOn) ...[
+      const _AnimatedArtworkSourceTile(),
+      const _AnimateAlbumCoverTile(),
+      if (classic) ...const [_ImmersiveBackgroundTile(), _AmbientGlowTile()],
     ],
   ];
 }
@@ -876,21 +876,65 @@ class _AnimatedArtworkModeTile extends ConsumerWidget {
   }
 }
 
+/// Apple motion covers, the song's YouTube Music video, or Apple then
+/// YouTube.
+class _AnimatedArtworkSourceTile extends ConsumerWidget {
+  const _AnimatedArtworkSourceTile();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final s = ref.watch(animatedArtworkSettingsProvider);
+    String label(AnimatedArtworkSource src) => switch (src) {
+      AnimatedArtworkSource.apple => 'Apple Music',
+      AnimatedArtworkSource.youtube => 'YouTube video',
+      AnimatedArtworkSource.appleThenYoutube => 'Apple, then YouTube',
+    };
+    return ListTile(
+      leading: const Icon(LucideIcons.clapperboard),
+      title: Text('Artwork Source', style: _title()),
+      subtitle: Text(
+        s.source.usesYoutube
+            ? 'Online songs show their music video (muted, in time with '
+                  'the song when it matches). Uses more data.'
+            : 'Motion covers from Apple Music',
+        style: _sub(),
+      ),
+      trailing: DropdownButton<AnimatedArtworkSource>(
+        value: s.source,
+        underline: const SizedBox.shrink(),
+        dropdownColor: Theme.of(context).colorScheme.surfaceContainerHigh,
+        style: AppFonts.settingsStyle(color: Colors.white),
+        items: [
+          for (final src in AnimatedArtworkSource.values)
+            DropdownMenuItem(value: src, child: Text(label(src))),
+        ],
+        onChanged: (src) {
+          if (src == null) return;
+          ref
+              .read(animatedArtworkSettingsProvider.notifier)
+              .update((curr) => curr.copyWith(source: src));
+        },
+      ),
+    );
+  }
+}
+
 class _AnimateAlbumCoverTile extends ConsumerWidget {
   const _AnimateAlbumCoverTile();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final style = ref.watch(settingsProvider.select((s) => s.playerStyle));
     final s = ref.watch(animatedArtworkSettingsProvider);
     return _Switch(
       icon: LucideIcons.disc,
       title: 'Now Playing Artwork Motion',
       subtitle: 'Animate album cover on now playing screen when available',
-      value: s.animateAlbumCover,
+      value: s.isAlbumCoverAnimated(style),
       onChanged: (val) {
         ref
             .read(animatedArtworkSettingsProvider.notifier)
-            .update((curr) => curr.copyWith(animateAlbumCover: val));
+            .update((curr) => curr.withAlbumCoverForStyle(style, val));
       },
     );
   }

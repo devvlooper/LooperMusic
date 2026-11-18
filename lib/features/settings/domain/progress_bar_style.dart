@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:looper_player/features/library/domain/models/models.dart';
+import 'package:looper_player/features/settings/domain/app_defaults.dart';
 
 /// How the thumb (the handle at the current position) is drawn.
 enum ProgressThumbStyle { pill, round, none }
@@ -54,14 +55,15 @@ class ProgressBarStyle {
     this.growThumbOnDrag = true,
   });
 
-  static const double defaultThickness = 6;
-  static const double defaultWaveHeight = 4;
-  static const double defaultWaveLength = 45;
-  static const double defaultWaveSpeed = 0.05;
-  static const double defaultThumbWidth = 6;
-  static const double defaultThumbHeight = 16;
-  static const double defaultThumbGap = 7.25;
-  static const double defaultInactiveOpacity = 0.23;
+  static const double defaultThickness = AppDefaults.progressBarThickness;
+  static const double defaultWaveHeight = AppDefaults.progressWaveHeight;
+  static const double defaultWaveLength = AppDefaults.progressWaveLength;
+  static const double defaultWaveSpeed = AppDefaults.progressWaveSpeed;
+  static const double defaultThumbWidth = AppDefaults.progressThumbWidth;
+  static const double defaultThumbHeight = AppDefaults.progressThumbHeight;
+  static const double defaultThumbGap = AppDefaults.progressThumbGap;
+  static const double defaultInactiveOpacity =
+      AppDefaults.progressInactiveOpacity;
 
   static const ProgressBarStyle defaults = ProgressBarStyle();
 

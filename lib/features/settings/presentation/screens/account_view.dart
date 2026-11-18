@@ -1,3 +1,4 @@
+import 'package:looper_player/ui/widgets/common/setup_kit.dart';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
@@ -23,7 +24,8 @@ import 'package:looper_player/l10n/app_localizations.dart';
 import 'package:looper_player/ui/widgets/common/scrolling_text.dart';
 
 /// Card fill used by the Account and Settings screens (Figma devvlooper).
-const kAccountCard = Color(0x0DFFFFFF);
+// Opaque: 5% white over #0A0A0A, so the animated backdrop stays behind it.
+const kAccountCard = Color(0xFF161616);
 const _lime = Color(0xFFC0E200);
 
 /// Name greeted on the Account screen: the user's own, else the signed-in
@@ -227,115 +229,117 @@ class AccountView extends ConsumerWidget {
       },
       child: Material(
         color: Theme.of(context).colorScheme.surface,
-        child: SafeArea(
-          child: ListView(
-            physics: const LooperScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(22, 12, 22, 140),
-            children: [
-              Row(
-                children: [
-                  IconButton(
-                    onPressed: back,
-                    tooltip: MaterialLocalizations.of(
-                      context,
-                    ).backButtonTooltip,
-                    // Figma ships this arrow pointing up-right, rotated -135°.
-                    icon: Transform.rotate(
-                      angle: -2.356,
-                      child: SvgPicture.asset(
-                        SettingsIcons.arrow,
-                        width: 12.6,
-                        height: 12.6,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    l10n.account,
-                    style: AppFonts.jostStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                      letterSpacing: -0.32,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-              const _HeroCard(),
-              const SizedBox(height: 17),
-              SizedBox(
-                height: 128,
-                child: Row(
+        child: SetupBackground(
+          child: SafeArea(
+            child: ListView(
+              physics: const LooperScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(22, 12, 22, 140),
+              children: [
+                Row(
                   children: [
-                    Expanded(
-                      flex: 144,
-                      child: _StatCard(
-                        label: '${l10n.accountViewStats} >',
-                        onTap: () => nav.setItem(NavItem.analyze),
-                        child: const _TodayListening(),
+                    IconButton(
+                      onPressed: back,
+                      tooltip: MaterialLocalizations.of(
+                        context,
+                      ).backButtonTooltip,
+                      // Figma ships this arrow pointing up-right, rotated -135°.
+                      icon: Transform.rotate(
+                        angle: -2.356,
+                        child: SvgPicture.asset(
+                          SettingsIcons.arrow,
+                          width: 12.6,
+                          height: 12.6,
+                        ),
                       ),
                     ),
-                    const SizedBox(width: 15),
-                    Expanded(
-                      flex: 198,
-                      child: _StatCard(
-                        label: '${l10n.accountVersionAbout} >',
-                        onTap: () => nav.showSettingsCategory(
-                          id: 'about',
-                          title: l10n.catAbout,
-                        ),
-                        child: Row(
-                          children: [
-                            Flexible(
-                              child: FittedBox(
-                                child: Text(
-                                  ref.watch(appVersionProvider).value ?? '',
-                                  style: _big,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 18),
-                            SvgPicture.asset(
-                              SettingsIcons.forward,
-                              width: 38,
-                              height: 27,
-                            ),
-                          ],
-                        ),
+                    const SizedBox(width: 4),
+                    Text(
+                      l10n.account,
+                      style: AppFonts.jostStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                        letterSpacing: -0.32,
                       ),
                     ),
                   ],
                 ),
-              ),
-              const SizedBox(height: 26),
-              Padding(
-                padding: const EdgeInsets.only(left: 1, bottom: 12),
-                child: Text(
-                  l10n.settingsGroupTitle,
-                  style: AppFonts.jostStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: -0.32,
+                const SizedBox(height: 24),
+                const _HeroCard(),
+                const SizedBox(height: 17),
+                SizedBox(
+                  height: 128,
+                  child: Row(
+                    children: [
+                      Expanded(
+                        flex: 144,
+                        child: _StatCard(
+                          label: '${l10n.accountViewStats} >',
+                          onTap: () => nav.setItem(NavItem.analyze),
+                          child: const _TodayListening(),
+                        ),
+                      ),
+                      const SizedBox(width: 15),
+                      Expanded(
+                        flex: 198,
+                        child: _StatCard(
+                          label: '${l10n.accountVersionAbout} >',
+                          onTap: () => nav.showSettingsCategory(
+                            id: 'about',
+                            title: l10n.catAbout,
+                          ),
+                          child: Row(
+                            children: [
+                              Flexible(
+                                child: FittedBox(
+                                  child: Text(
+                                    ref.watch(appVersionProvider).value ?? '',
+                                    style: _big,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 18),
+                              SvgPicture.asset(
+                                SettingsIcons.forward,
+                                width: 38,
+                                height: 27,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ),
-              _NavRow(
-                svg: SettingsIcons.gear,
-                title: l10n.accountOpenSettings,
-                onTap: () => nav.setItem(NavItem.settings),
-              ),
-              const SizedBox(height: 12),
-              _NavRow(
-                svg: SettingsIcons.userCircle,
-                title: l10n.accountSettings,
-                onTap: () => nav.showSettingsCategory(
-                  id: 'account',
-                  title: l10n.account,
+                const SizedBox(height: 26),
+                Padding(
+                  padding: const EdgeInsets.only(left: 1, bottom: 12),
+                  child: Text(
+                    l10n.settingsGroupTitle,
+                    style: AppFonts.jostStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: -0.32,
+                    ),
+                  ),
                 ),
-              ),
-            ],
+                _NavRow(
+                  svg: SettingsIcons.gear,
+                  title: l10n.accountOpenSettings,
+                  onTap: () => nav.setItem(NavItem.settings),
+                ),
+                const SizedBox(height: 12),
+                _NavRow(
+                  svg: SettingsIcons.userCircle,
+                  title: l10n.accountSettings,
+                  onTap: () => nav.showSettingsCategory(
+                    id: 'account',
+                    title: l10n.account,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -592,32 +596,46 @@ class _NavRow extends StatelessWidget {
           height: 56,
           child: Row(
             children: [
-              const SizedBox(width: 16),
+              const SizedBox(width: 18),
+              Expanded(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppFonts.jostStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: -0.32,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    SvgPicture.asset(
+                      SettingsIcons.chevron,
+                      width: 5,
+                      height: 10,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
               Container(
-                width: 27,
-                height: 27,
+                width: 30,
+                height: 30,
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(5),
+                  borderRadius: BorderRadius.circular(6),
                 ),
                 child: Center(
-                  child: SvgPicture.asset(svg, width: 13, height: 13),
+                  child: SvgPicture.asset(svg, width: 17, height: 17),
                 ),
               ),
-              const SizedBox(width: 13),
-              Expanded(
-                child: Text(
-                  title,
-                  style: AppFonts.jostStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: -0.32,
-                  ),
-                ),
-              ),
-              SvgPicture.asset(SettingsIcons.chevron, width: 7, height: 14),
-              const SizedBox(width: 18),
+              const SizedBox(width: 16),
             ],
           ),
         ),

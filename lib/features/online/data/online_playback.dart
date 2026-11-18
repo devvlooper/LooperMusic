@@ -90,13 +90,14 @@ abstract final class OnlinePlayback {
   static Future<Song?> localTwin(Song online) async {
     final title = normalizeTitle(online.title);
     if (title.isEmpty) return null;
-    final firstWord = title.split(' ').first;
+    // The longest word narrows best. No row limit: rows come oldest first,
+    // so a cap on a common word ("I", "Love") cut off fresh downloads.
+    final word = title.split(' ').reduce((a, b) => b.length > a.length ? b : a);
     final candidates = await DbService.isar.songs
         .filter()
         .not()
         .pathStartsWith('yt:')
-        .titleContains(firstWord, caseSensitive: false)
-        .limit(200)
+        .titleContains(word, caseSensitive: false)
         .findAll();
     final onlineArtists = creditedArtists(
       online,

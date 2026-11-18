@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:looper_player/core/services/storage/local_json_store.dart';
 import 'package:looper_player/features/online/data/stream_resolver.dart';
+import 'package:looper_player/features/settings/domain/app_defaults.dart';
 
 enum OnlineQuality { high, normal, low }
 
@@ -11,16 +12,16 @@ enum OnlineQuality { high, normal, low }
 /// schema, so adding them needs no migration.
 class OnlineSettings {
   const OnlineSettings({
-    this.enabled = false,
-    this.disclaimerAccepted = false,
+    this.enabled = AppDefaults.onlineEnabled,
+    this.disclaimerAccepted = AppDefaults.onlineDisclaimerAccepted,
     this.qualityWifi = OnlineQuality.high,
     this.qualityMobile = OnlineQuality.normal,
-    this.cachePlayed = true,
-    this.cachePlayedOnMobile = true,
-    this.preload = true,
-    this.preloadOnMobile = true,
-    this.cacheLimitMB = 5120,
-    this.preferLocal = true,
+    this.cachePlayed = AppDefaults.onlineCachePlayed,
+    this.cachePlayedOnMobile = AppDefaults.onlineCachePlayedOnMobile,
+    this.preload = AppDefaults.onlinePreload,
+    this.preloadOnMobile = AppDefaults.onlinePreloadOnMobile,
+    this.cacheLimitMB = AppDefaults.onlineCacheLimitMB,
+    this.preferLocal = AppDefaults.onlinePreferLocal,
     this.downloadDir,
     this.downloadQuality = OnlineQuality.high,
     this.contentRegion,
@@ -120,7 +121,7 @@ class OnlineSettings {
   }
 
   factory OnlineSettings.fromJson(Map j) => OnlineSettings(
-    enabled: j['enabled'] as bool? ?? false,
+    enabled: j['enabled'] as bool? ?? AppDefaults.onlineEnabled,
     disclaimerAccepted: j['disclaimerAccepted'] as bool? ?? false,
     qualityWifi: _q(j['qualityWifi'], OnlineQuality.high),
     qualityMobile: _q(j['qualityMobile'], OnlineQuality.normal),

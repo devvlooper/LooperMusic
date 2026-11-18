@@ -12,8 +12,10 @@ import 'package:looper_player/features/online/data/online_settings.dart';
 /// Online streaming ships only outside the Play build (personal use; it
 /// talks to YouTube's private API). Desktop builds have no flavor. Widget
 /// tests never reach the network.
-final bool onlineAvailable =
-    appFlavor != 'play' && !Platform.environment.containsKey('FLUTTER_TEST');
+bool debugOnlineAvailableOverride = false;
+bool get onlineAvailable =>
+    debugOnlineAvailableOverride ||
+    (appFlavor != 'play' && !Platform.environment.containsKey('FLUTTER_TEST'));
 
 /// One InnerTube client identity. A stream URL is bound to the client that
 /// resolved it (`c=` on the URL), so fetches send that client's User-Agent.

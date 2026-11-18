@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:looper_player/ui/widgets/common/home_design_kit.dart';
 import 'package:looper_player/core/providers/navigation_provider.dart';
 import 'package:looper_player/core/utils/logger_helper.dart';
 import 'package:looper_player/features/online/data/online_api.dart';
@@ -28,6 +29,7 @@ import 'package:looper_player/ui/android/widgets/library_skeletons.dart';
 import 'package:looper_player/ui/widgets/common/app_skeleton.dart';
 import 'package:looper_player/ui/widgets/common/optimized_image.dart';
 import 'package:looper_player/ui/widgets/common/mochy_card_row.dart';
+import 'package:looper_player/ui/widgets/common/song_playback_overlay.dart';
 import 'package:looper_player/ui/widgets/sheets/song_options_bottom_sheet.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
@@ -186,7 +188,7 @@ class OnlineArt extends StatelessWidget {
     required this.size,
     this.round = false,
     this.icon = LucideIcons.music,
-    this.cornerRadius = 12,
+    this.cornerRadius = 5,
   });
   final String? url;
   final double size;
@@ -236,12 +238,12 @@ class _Card extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 140,
+      width: 148,
       child: InkWell(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(5),
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.all(4),
+          padding: const EdgeInsets.fromLTRB(4, 4, 16, 4),
           child: Column(
             crossAxisAlignment: round
                 ? CrossAxisAlignment.center
@@ -282,24 +284,26 @@ class _Card extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 8),
-              Text(
-                title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: AppFonts.jostStyle(
-                  color: Colors.white,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
+              Padding(
+                padding: const EdgeInsets.only(left: 3),
+                child: Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppFonts.jostStyle(color: Colors.white, fontSize: 16),
                 ),
               ),
               if (subtitle != null)
-                Text(
-                  subtitle!,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppFonts.jostStyle(
-                    color: Colors.white.withValues(alpha: 0.6),
-                    fontSize: 12,
+                Padding(
+                  padding: const EdgeInsets.only(left: 3),
+                  child: Text(
+                    subtitle!,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppFonts.jostStyle(
+                      color: Colors.white.withValues(alpha: 0.5),
+                      fontSize: 14,
+                    ),
                   ),
                 ),
             ],
@@ -319,7 +323,7 @@ class OnlineSongCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final s = songs[index];
     return _Card(
-      art: OnlineArt(url: s.thumbnail, size: 132),
+      art: OnlineArt(url: s.thumbnail, size: 128),
       title: s.title,
       subtitle: s.artist,
       onTap: () => playOnlineSongs(ref, songs, index),
@@ -343,7 +347,7 @@ class OnlineCollectionCard extends StatelessWidget {
       isRadio: collection.isRadio,
       art: OnlineArt(
         url: collection.thumbnail,
-        size: 132,
+        size: 128,
         round: artist,
         icon: artist ? LucideIcons.user : LucideIcons.disc3,
       ),
@@ -355,32 +359,17 @@ class OnlineCollectionCard extends StatelessWidget {
 }
 
 class OnlineSectionTitle extends StatelessWidget {
-  const OnlineSectionTitle(this.title, {super.key, this.trailing});
+  const OnlineSectionTitle(this.title, {super.key, this.trailing, this.name});
   final String title;
   final Widget? trailing;
 
+  /// The artist or song the title is about; it becomes the big title.
+  final String? name;
+
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 20, 8, 8),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: AppFonts.jostStyle(
-                color: Colors.white,
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-          ?trailing,
-        ],
-      ),
-    );
+    final (label, main) = splitShelfTitle(title, name: name);
+    return HomeSectionHeader(title: main, label: label, trailing: trailing);
   }
 }
 
@@ -389,34 +378,10 @@ class ViewAllHeaderButton extends StatelessWidget {
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    return PremiumSection(
-      borderRadius: BorderRadius.circular(32),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-      height: 32,
-      useExpanded: false,
-      useBlur: true,
-      forceNoBlur: true,
-      backgroundColor: Colors.white.withValues(alpha: 0.05),
-      onTap: onTap,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            l10n.viewAll,
-            style: AppFonts.jostStyle(
-              color: Colors.white,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(width: 4),
-          const Icon(LucideIcons.arrowRight, size: 14, color: Colors.white),
-        ],
-      ),
-    );
-  }
+  Widget build(BuildContext context) => HomeViewAllPill(
+    label: AppLocalizations.of(context)!.viewAll,
+    onTap: onTap,
+  );
 }
 
 class _ViewAllCircleItem extends StatelessWidget {
@@ -427,16 +392,16 @@ class _ViewAllCircleItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 4),
       child: InkWell(
-        borderRadius: BorderRadius.circular(40),
+        borderRadius: BorderRadius.circular(30),
         onTap: onTap,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 80,
-              height: 80,
+              width: 60,
+              height: 60,
               decoration: BoxDecoration(
                 color: Colors.white.withValues(alpha: 0.06),
                 shape: BoxShape.circle,
@@ -450,19 +415,15 @@ class _ViewAllCircleItem extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 10),
             SizedBox(
-              width: 80,
+              width: 90,
               child: Text(
                 l10n.viewAll,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,
-                style: AppFonts.jostStyle(
-                  color: Colors.white,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
+                style: AppFonts.jostStyle(color: Colors.white, fontSize: 14),
               ),
             ),
           ],
@@ -517,6 +478,8 @@ class OnlineShelfView extends StatelessWidget {
         return FeaturedReleaseShelf(shelf: shelf);
       case OnlineShelfType.playlistPreview:
         return PlaylistPreviewShelf(shelf: shelf);
+      case OnlineShelfType.mixCards:
+        return MixCardShelf(shelf: shelf);
       case OnlineShelfType.standardCards:
         return _StandardCardShelf(shelf: shelf);
     }
@@ -546,6 +509,7 @@ class _HeroSpotlightShelf extends ConsumerWidget {
       children: [
         OnlineSectionTitle(
           shelfTitle(l10n, shelf),
+          name: shelf.args.firstOrNull,
           trailing: hasViewAll
               ? ViewAllHeaderButton(
                   onTap: () => openShelfViewAll(context, shelf),
@@ -557,7 +521,7 @@ class _HeroSpotlightShelf extends ConsumerWidget {
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             physics: CardSnapPhysics(extent: cardWidth + 14),
-            padding: const EdgeInsets.symmetric(horizontal: 14),
+            padding: const EdgeInsets.symmetric(horizontal: 19),
             itemCount: math.min(10, total),
             itemBuilder: (context, i) {
               final isSong = i < shelf.songs.length;
@@ -575,7 +539,7 @@ class _HeroSpotlightShelf extends ConsumerWidget {
               return Padding(
                 padding: const EdgeInsets.only(right: 14),
                 child: InkWell(
-                  borderRadius: BorderRadius.circular(18),
+                  borderRadius: BorderRadius.circular(5),
                   onTap: () {
                     if (song != null) {
                       playOnlineSongs(ref, shelf.songs, i);
@@ -587,7 +551,7 @@ class _HeroSpotlightShelf extends ConsumerWidget {
                     width: cardWidth,
                     height: shelfHeight - 10,
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(18),
+                      borderRadius: BorderRadius.circular(5),
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black.withValues(alpha: 0.35),
@@ -597,7 +561,7 @@ class _HeroSpotlightShelf extends ConsumerWidget {
                       ],
                     ),
                     child: ClipRRect(
-                      borderRadius: BorderRadius.circular(18),
+                      borderRadius: BorderRadius.circular(5),
                       child: Stack(
                         fit: StackFit.expand,
                         children: [
@@ -645,7 +609,7 @@ class _HeroSpotlightShelf extends ConsumerWidget {
                             child: Row(
                               children: [
                                 ClipRRect(
-                                  borderRadius: BorderRadius.circular(12),
+                                  borderRadius: BorderRadius.circular(5),
                                   child: Stack(
                                     children: [
                                       OnlineArt(
@@ -767,21 +731,22 @@ class _MultiRowTrackShelf extends ConsumerWidget {
       360.0,
       MediaQuery.sizeOf(context).width * 0.88,
     );
-    final shelfHeight = scaler.scale(246.0);
+    final shelfHeight = scaler.scale(236.0);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         OnlineSectionTitle(
           shelfTitle(l10n, shelf),
+          name: shelf.args.firstOrNull,
           trailing: TrackShelfActions(shelf: shelf, hasViewAll: hasViewAll),
         ),
         SizedBox(
           height: shelfHeight,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
-            physics: CardSnapPhysics(extent: columnWidth),
-            padding: const EdgeInsets.symmetric(horizontal: 14),
+            physics: CardSnapPhysics(extent: columnWidth + 12),
+            padding: const EdgeInsets.symmetric(horizontal: 19),
             itemCount: math.min(6, columnCount),
             itemBuilder: (context, colIndex) {
               final startIndex = colIndex * songsPerColumn;
@@ -793,7 +758,7 @@ class _MultiRowTrackShelf extends ConsumerWidget {
                 child: Padding(
                   padding: const EdgeInsets.only(right: 12),
                   child: Column(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       for (var r = 0; r < colSongs.length; r++)
                         _MultiRowTrackItem(
@@ -869,60 +834,109 @@ class _MultiRowTrackItem extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(10),
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(6, 4, 0, 4),
-        child: Row(
-          children: [
-            OnlineArt(
-              url: song.thumbnail,
-              size: 46,
-              icon: LucideIcons.music,
-              cornerRadius: 4,
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    song.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppFonts.jostStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
+    final isCurrent = ref.watch(
+      playbackProvider.select((s) {
+        final cur = s.currentSong;
+        if (cur == null) return false;
+        if (cur.path == song.path) return true;
+        return cur.title == song.title && cur.artist == song.artist;
+      }),
+    );
+    final isPlaying = ref.watch(playbackProvider.select((s) => s.isPlaying));
+    final accent = ref.watch(settingsProvider.select((s) => s.accent));
+
+    final String subtitle = () {
+      final artist = song.artist ?? '';
+      final album = song.album;
+      if (album != null && album.isNotEmpty && album != song.title) {
+        return '$artist • $album';
+      }
+      return artist;
+    }();
+
+    return Material(
+      type: MaterialType.transparency,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(5),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(5),
+            color: isCurrent
+                ? accent.withValues(alpha: 0.12)
+                : Colors.transparent,
+          ),
+          child: Row(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(5),
+                child: Stack(
+                  children: [
+                    OnlineArt(
+                      url: song.thumbnail,
+                      size: 42,
+                      icon: LucideIcons.music,
                     ),
-                  ),
-                  if (song.artist != null)
+                    if (isCurrent)
+                      Positioned.fill(
+                        child: SongPlaybackOverlay(
+                          isPlaying: isPlaying,
+                          indicatorSize: 20,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
                     Text(
-                      song.artist!,
+                      song.title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: AppFonts.jostStyle(
-                        color: Colors.white.withValues(alpha: 0.6),
-                        fontSize: 12,
+                        color: isCurrent ? accent : Colors.white,
+                        fontSize: 16,
                       ),
                     ),
-                ],
+                    if (subtitle.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppFonts.jostStyle(
+                          color: isCurrent
+                              ? accent.withValues(alpha: 0.75)
+                              : Colors.white.withValues(alpha: 0.5),
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
               ),
-            ),
-            IconButton(
-              visualDensity: VisualDensity.compact,
-              icon: const Icon(Icons.more_vert, size: 20, color: Colors.grey),
-              tooltip: MaterialLocalizations.of(context).showMenuTooltip,
-              onPressed: () => showSongOptionsBottomSheet(
-                context: context,
-                ref: ref,
-                song: song.toSong(),
-                showEqualizerAndTechnicalInfoOptions: false,
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                icon: Icon(
+                  Icons.more_vert_rounded,
+                  size: 22,
+                  color: Colors.white,
+                ),
+                tooltip: MaterialLocalizations.of(context).showMenuTooltip,
+                onPressed: () => showSongOptionsBottomSheet(
+                  context: context,
+                  ref: ref,
+                  song: song.toSong(),
+                  showEqualizerAndTechnicalInfoOptions: false,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -950,6 +964,7 @@ class _GenreGridShelf extends StatelessWidget {
       children: [
         OnlineSectionTitle(
           shelfTitle(l10n, shelf),
+          name: shelf.args.firstOrNull,
           trailing: hasViewAll
               ? ViewAllHeaderButton(
                   onTap: () => openShelfViewAll(context, shelf),
@@ -960,7 +975,7 @@ class _GenreGridShelf extends StatelessWidget {
           height: shelfHeight,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 14),
+            padding: const EdgeInsets.symmetric(horizontal: 19),
             itemCount: math.min(10, colCount),
             itemBuilder: (context, colIndex) {
               final startIndex = colIndex * itemsPerCol;
@@ -1009,7 +1024,7 @@ class _GenreGridItem extends ConsumerWidget {
     final solidColor = _genreColor(title);
 
     return InkWell(
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(5),
       onTap: () {
         if (collection != null) {
           openOnlineCollection(context, collection!);
@@ -1021,7 +1036,7 @@ class _GenreGridItem extends ConsumerWidget {
         width: 170,
         height: 64,
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(5),
           color: solidColor,
           border: Border.all(
             color: Colors.white.withValues(alpha: 0.1),
@@ -1029,7 +1044,7 @@ class _GenreGridItem extends ConsumerWidget {
           ),
         ),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(5),
           child: Stack(
             children: [
               if (thumb != null && thumb.isNotEmpty)
@@ -1090,69 +1105,69 @@ class _ArtistCircleShelf extends StatelessWidget {
     final total = shelf.collections.length;
     final displayCount = math.min(15, total);
     final hasViewAll = total > 15 || shelf.moreBrowseId != null;
-    final shelfHeight = scaler.scale(154.0);
+    final shelfHeight = scaler.scale(112.0);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        OnlineSectionTitle(
-          shelfTitle(l10n, shelf),
-          trailing: hasViewAll
-              ? ViewAllHeaderButton(
-                  onTap: () => openShelfViewAll(context, shelf),
-                )
-              : null,
-        ),
-        SizedBox(
-          height: shelfHeight,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            itemCount: displayCount + (hasViewAll ? 1 : 0),
-            itemBuilder: (context, i) {
-              if (i >= displayCount) {
-                return _ViewAllCircleItem(
-                  onTap: () => openShelfViewAll(context, shelf),
-                );
-              }
-              final artist = shelf.collections[i];
-              return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 6),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(48),
-                  onTap: () => openOnlineCollection(context, artist),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      OnlineArt(
-                        url: artist.thumbnail,
-                        size: 96,
-                        round: true,
-                        icon: LucideIcons.user,
-                      ),
-                      const SizedBox(height: 8),
-                      SizedBox(
-                        width: 96,
-                        child: Text(
-                          artist.title,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          textAlign: TextAlign.center,
-                          style: AppFonts.jostStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
+    return ScrollControllerScope(
+      builder: (context, controller) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          OnlineSectionTitle(
+            shelfTitle(l10n, shelf),
+            name: shelf.args.firstOrNull,
+            // The row still ends in a View All circle when there is more.
+            trailing: HomeRowArrows(controller: controller),
+          ),
+          SizedBox(
+            height: shelfHeight,
+            child: ListView.builder(
+              controller: controller,
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 15),
+              itemCount: displayCount + (hasViewAll ? 1 : 0),
+              itemBuilder: (context, i) {
+                if (i >= displayCount) {
+                  return _ViewAllCircleItem(
+                    onTap: () => openShelfViewAll(context, shelf),
+                  );
+                }
+                final artist = shelf.collections[i];
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(30),
+                    onTap: () => openOnlineCollection(context, artist),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        OnlineArt(
+                          url: artist.thumbnail,
+                          size: 60,
+                          round: true,
+                          icon: LucideIcons.user,
+                        ),
+                        const SizedBox(height: 10),
+                        SizedBox(
+                          width: 90,
+                          child: Text(
+                            artist.title,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
+                            style: AppFonts.jostStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                            ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-              );
-            },
+                );
+              },
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -1179,6 +1194,7 @@ class _StandardCardShelf extends StatelessWidget {
       children: [
         OnlineSectionTitle(
           shelfTitle(l10n, shelf),
+          name: shelf.args.firstOrNull,
           trailing: hasViewAll
               ? ViewAllHeaderButton(
                   onTap: () => openShelfViewAll(context, shelf),
@@ -1189,7 +1205,7 @@ class _StandardCardShelf extends StatelessWidget {
           height: shelfHeight,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 19),
             itemCount: displayCount + (hasViewAll ? 1 : 0),
             itemBuilder: (context, i) {
               if (i >= displayCount) {
@@ -1201,8 +1217,8 @@ class _StandardCardShelf extends StatelessWidget {
                 return _Card(
                   round: isArtistShelf,
                   art: Container(
-                    width: 132,
-                    height: 132,
+                    width: 128,
+                    height: 128,
                     decoration: BoxDecoration(
                       color: Colors.white.withValues(alpha: 0.06),
                       shape: isArtistShelf
@@ -1210,7 +1226,7 @@ class _StandardCardShelf extends StatelessWidget {
                           : BoxShape.rectangle,
                       borderRadius: isArtistShelf
                           ? null
-                          : BorderRadius.circular(12),
+                          : BorderRadius.circular(5),
                       border: Border.all(color: Colors.white12),
                     ),
                     child: const Center(
@@ -1468,10 +1484,51 @@ class OnlineHomeSliver extends StatelessWidget {
   );
 }
 
+/// Mood chips row shown on Home above Artists for you while online music is enabled.
+class OnlineMoodChipsSliver extends ConsumerWidget {
+  const OnlineMoodChipsSliver({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (!ref.watch(onlineActiveProvider)) {
+      return const SliverToBoxAdapter(child: SizedBox.shrink());
+    }
+    final home = ref.watch(onlineHomeProvider);
+    final firstLoad = home.loading && home.shelves.isEmpty;
+
+    if (!firstLoad && home.moods.isEmpty) {
+      return const SliverToBoxAdapter(child: SizedBox.shrink());
+    }
+
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: const EdgeInsets.only(top: 2, bottom: 6),
+        child: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 280),
+          switchInCurve: Curves.easeOutCubic,
+          switchOutCurve: Curves.easeInCubic,
+          child: firstLoad
+              ? const AppSkeleton(
+                  key: ValueKey('online_moods_skeleton'),
+                  child: OnlineMoodChipsSkeleton(),
+                )
+              : KeyedSubtree(
+                  key: const ValueKey('online_moods_content'),
+                  child: _MoodChipsRow(
+                    moods: home.moods,
+                    activeMood: home.activeMood,
+                  ),
+                ),
+        ),
+      ),
+    );
+  }
+}
+
 /// Shelves shown before Artists for you.
 const _topShelfCount = 2;
 
-/// Mood chips, loading bar, status cards and the first 2 YouTube shelves.
+/// Loading bar, status cards and the first 2 YouTube shelves.
 class OnlineFeedSliver extends ConsumerWidget {
   const OnlineFeedSliver({super.key});
 
@@ -1520,11 +1577,7 @@ class OnlineFeedSliver extends ConsumerWidget {
                     key: ValueKey('online_feed_skeleton'),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        OnlineMoodChipsSkeleton(),
-                        OnlineShelfSkeleton(),
-                        OnlineShelfSkeleton(),
-                      ],
+                      children: [OnlineShelfSkeleton(), OnlineShelfSkeleton()],
                     ),
                   )
                 : KeyedSubtree(
@@ -1532,11 +1585,6 @@ class OnlineFeedSliver extends ConsumerWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        if (home.moods.isNotEmpty)
-                          _MoodChipsRow(
-                            moods: home.moods,
-                            activeMood: home.activeMood,
-                          ),
                         for (final shelf in topShelves)
                           OnlineShelfView(shelf: shelf),
                       ],
@@ -1600,11 +1648,11 @@ class OnlineMoreSliver extends ConsumerWidget {
     final firstLoad = home.loading && home.shelves.isEmpty;
     final remaining = home.shelves.skip(_topShelfCount).toList();
 
-    if (!firstLoad && remaining.isEmpty) {
+    if (!firstLoad && remaining.isEmpty && home.continuation == null) {
       return const SliverToBoxAdapter(child: SizedBox.shrink());
     }
 
-    return SliverToBoxAdapter(
+    final shelves = SliverToBoxAdapter(
       child: AnimatedSwitcher(
         duration: const Duration(milliseconds: 280),
         switchInCurve: Curves.easeOutCubic,
@@ -1625,6 +1673,36 @@ class OnlineMoreSliver extends ConsumerWidget {
               ),
       ),
     );
+    if (firstLoad || home.continuation == null) return shelves;
+    return SliverMainAxisGroup(
+      slivers: [
+        shelves,
+        // A lazy list, so the footer builds (and loads) only when it
+        // scrolls near the screen. A failed load waits for a tap.
+        SliverList.builder(
+          itemCount: 1,
+          itemBuilder: (context, _) {
+            final notifier = ref.read(onlineHomeProvider.notifier);
+            if (!home.moreFailed && !home.loadingMore) {
+              WidgetsBinding.instance.addPostFrameCallback(
+                (_) => notifier.loadMore(),
+              );
+            }
+            return Center(
+              child: home.moreFailed
+                  ? TextButton(
+                      onPressed: notifier.loadMore,
+                      child: Text(AppLocalizations.of(context)!.onlineLoadMore),
+                    )
+                  : const Padding(
+                      padding: EdgeInsets.all(16),
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+            );
+          },
+        ),
+      ],
+    );
   }
 }
 
@@ -1641,77 +1719,74 @@ class _ArtistsForYouRow extends ConsumerWidget {
         final displayCount = math.min(20, artists.length);
         final showMore = artists.length >= 15 || AccountAuth.instance.signedIn;
 
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            OnlineSectionTitle(
-              l10n.artistsForYou,
-              trailing: showMore
-                  ? ViewAllHeaderButton(
-                      onTap: () =>
-                          _openOnlineArtistsViewAll(context, ref, artists),
-                    )
-                  : null,
-            ),
-            SizedBox(
-              height: 120,
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                itemCount: displayCount + (showMore ? 1 : 0),
-                itemBuilder: (context, i) {
-                  if (i >= displayCount) {
-                    return _ViewAllCircleItem(
-                      onTap: () =>
-                          _openOnlineArtistsViewAll(context, ref, artists),
-                    );
-                  }
-                  final artist = artists[i];
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 6),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(40),
-                      onTap: () => openOnlineCollection(
-                        context,
-                        OnlineCollection(
-                          browseId: artist.browseId,
-                          title: artist.name,
-                          kind: CollectionKind.artist,
-                          thumbnail: artist.thumbnail,
-                        ),
-                      ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          OnlineArt(
-                            url: artist.thumbnail,
-                            size: 80,
-                            round: true,
-                            icon: LucideIcons.user,
+        return ScrollControllerScope(
+          builder: (context, controller) => Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              OnlineSectionTitle(
+                l10n.artistsForYou,
+                trailing: HomeRowArrows(controller: controller),
+              ),
+              SizedBox(
+                height: 96,
+                child: ListView.builder(
+                  controller: controller,
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 15),
+                  itemCount: displayCount + (showMore ? 1 : 0),
+                  itemBuilder: (context, i) {
+                    if (i >= displayCount) {
+                      return _ViewAllCircleItem(
+                        onTap: () =>
+                            _openOnlineArtistsViewAll(context, ref, artists),
+                      );
+                    }
+                    final artist = artists[i];
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(30),
+                        onTap: () => openOnlineCollection(
+                          context,
+                          OnlineCollection(
+                            browseId: artist.browseId,
+                            title: artist.name,
+                            kind: CollectionKind.artist,
+                            thumbnail: artist.thumbnail,
                           ),
-                          const SizedBox(height: 6),
-                          SizedBox(
-                            width: 80,
-                            child: Text(
-                              artist.name,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              textAlign: TextAlign.center,
-                              style: AppFonts.jostStyle(
-                                color: Colors.white,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500,
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            OnlineArt(
+                              url: artist.thumbnail,
+                              size: 60,
+                              round: true,
+                              icon: LucideIcons.user,
+                            ),
+                            const SizedBox(height: 10),
+                            SizedBox(
+                              width: 90,
+                              child: Text(
+                                artist.name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                textAlign: TextAlign.center,
+                                style: AppFonts.jostStyle(
+                                  color: Colors.white,
+                                  fontSize: 14,
+                                ),
                               ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
-                  );
-                },
+                    );
+                  },
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         );
       },
       loading: () => const SizedBox.shrink(),
@@ -1758,9 +1833,9 @@ class _PersonalizeCard extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: Material(
         color: Colors.white.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(5),
         child: InkWell(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(5),
           onTap: () => openTasteSetup(context),
           child: Padding(
             padding: const EdgeInsets.all(16),
@@ -1851,6 +1926,10 @@ class OnlineSearchSliver extends ConsumerStatefulWidget {
 }
 
 class _OnlineSearchSliverState extends ConsumerState<OnlineSearchSliver> {
+  /// The cursor already auto-loaded once; a failed load then shows a button
+  /// instead of retrying in a loop.
+  String? _autoLoaded;
+
   @override
   void initState() {
     super.initState();
@@ -1871,10 +1950,10 @@ class _OnlineSearchSliverState extends ConsumerState<OnlineSearchSliver> {
   }
 
   Widget _cards(List<OnlineCollection> items) => SizedBox(
-    height: 186,
+    height: 200,
     child: ListView.builder(
       scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.symmetric(horizontal: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 19),
       itemCount: items.length,
       itemBuilder: (_, i) => OnlineCollectionCard(collection: items[i]),
     ),
@@ -1953,20 +2032,32 @@ class _OnlineSearchSliverState extends ConsumerState<OnlineSearchSliver> {
                   ref.read(recentSearchesProvider.notifier).add(widget.query),
             ),
           ),
-          if (s.continuation != null)
-            SliverToBoxAdapter(
-              child: Center(
-                child: s.loadingMore
-                    ? const Padding(
-                        padding: EdgeInsets.all(12),
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : TextButton(
-                        onPressed: () =>
-                            ref.read(onlineSearchProvider.notifier).loadMore(),
-                        child: Text(l10n.onlineLoadMore),
-                      ),
-              ),
+          if (s.continuation case final token?)
+            // A lazy list, so the footer builds (and loads) only when it
+            // scrolls near the screen.
+            SliverList.builder(
+              itemCount: 1,
+              itemBuilder: (context, _) {
+                final notifier = ref.read(onlineSearchProvider.notifier);
+                final auto = _autoLoaded != token;
+                if (auto && !s.loadingMore) {
+                  _autoLoaded = token;
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (mounted) notifier.loadMore();
+                  });
+                }
+                return Center(
+                  child: s.loadingMore || auto
+                      ? const Padding(
+                          padding: EdgeInsets.all(12),
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : TextButton(
+                          onPressed: notifier.loadMore,
+                          child: Text(l10n.onlineLoadMore),
+                        ),
+                );
+              },
             ),
         ],
         if (s.albums.isNotEmpty) ...[

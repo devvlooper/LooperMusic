@@ -93,7 +93,8 @@ class SongTile extends ConsumerWidget {
       showAlbum: (showAlbum || isCollection) && watchShowAlbum(ref),
     );
 
-    final isUncachedOnline = song.isOnline &&
+    final isUncachedOnline =
+        song.isOnline &&
         !ref.watch(onlineActiveProvider) &&
         !OnlineCache.instance.isCached(song.videoId ?? '');
 
@@ -118,8 +119,8 @@ class SongTile extends ConsumerWidget {
                 songSubtitle,
                 style: AppFonts.jostStyle(
                   color: Colors.white.withValues(alpha: 0.5),
-                  fontSize: 12,
-                  height: 1.15,
+                  fontSize: 14,
+                  height: 1.2,
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -155,225 +156,228 @@ class SongTile extends ConsumerWidget {
               return;
             }
             onPlay?.call();
-          final resolve = resolveQueue;
-          if (resolve != null) {
-            final notifier = ref.read(playbackProvider.notifier);
-            resolve().then((queue) {
-              final at = queue.indexWhere((s) => s.path == song.path);
-              if (at == -1) {
-                notifier.play(song, sourcePlaylistId: playlist?.id);
-              } else {
-                notifier.setPlaylist(
-                  queue,
-                  initialIndex: at,
-                  sourcePlaylistId: playlist?.id,
-                );
-              }
-            });
-            return;
-          }
-          final isCollection = collectionIndex != null || playlist != null;
-          if (song.isOnline && !isCollection) {
-            ref.read(playbackProvider.notifier).playOnlineWithRadio(song);
-            return;
-          }
-          final index =
-              collectionIndex ?? songs.indexWhere((s) => s.path == song.path);
-          if (index != -1) {
-            ref
-                .read(playbackProvider.notifier)
-                .setPlaylist(
-                  songs,
-                  initialIndex: index,
-                  sourcePlaylistId: playlist?.id,
-                );
-          } else {
-            ref
-                .read(playbackProvider.notifier)
-                .play(song, sourcePlaylistId: playlist?.id);
-          }
-        },
-        // A long-press on any row starts a selection (with that row already
-        // checked) instead of requiring a separate "select" mode button -
-        // there's nowhere else in this list a batch action could live.
-        onLongPress: selectionMode ? null : onEnterSelection,
-        child: ListTile(
-          contentPadding: EdgeInsets.only(
-            left: collectionIndex != null ? 8 : 16,
-            right: 4,
-            top: 0,
-            bottom: 0,
-          ),
-          leading: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (collectionIndex != null) ...[
-                SizedBox(
-                  width: 20,
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.center,
-                    child: Text(
-                      '${collectionIndex! + 1}',
-                      maxLines: 1,
-                      style: AppFonts.jostStyle(
-                        color: Colors.white.withValues(alpha: 0.5),
-                        fontSize: 11,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-              ],
-              ClipRRect(
-                borderRadius: BorderRadius.circular(4),
-                child: Stack(
-                  children: [
-                    OptimizedImage(
-                      imagePath: song.artPath,
-                      width: 52,
-                      height: 52,
-                      fit: BoxFit.cover,
-                    ),
-                    if (isCurrent)
-                      Positioned.fill(
-                        child: SongPlaybackOverlay(isPlaying: isPlaying),
-                      ),
-                    if (selectionMode)
-                      Positioned.fill(
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 150),
-                          curve: Curves.easeOutCubic,
-                          color: selected
-                              ? Colors.black.withValues(alpha: 0.35)
-                              : Colors.transparent,
-                          child: selected
-                              ? Icon(
-                                  LucideIcons.checkCircle2,
-                                  color: Theme.of(context).colorScheme.primary,
-                                  size: 24,
-                                )
-                              : null,
+            final resolve = resolveQueue;
+            if (resolve != null) {
+              final notifier = ref.read(playbackProvider.notifier);
+              resolve().then((queue) {
+                final at = queue.indexWhere((s) => s.path == song.path);
+                if (at == -1) {
+                  notifier.play(song, sourcePlaylistId: playlist?.id);
+                } else {
+                  notifier.setPlaylist(
+                    queue,
+                    initialIndex: at,
+                    sourcePlaylistId: playlist?.id,
+                  );
+                }
+              });
+              return;
+            }
+            final isCollection = collectionIndex != null || playlist != null;
+            if (song.isOnline && !isCollection) {
+              ref.read(playbackProvider.notifier).playOnlineWithRadio(song);
+              return;
+            }
+            final index =
+                collectionIndex ?? songs.indexWhere((s) => s.path == song.path);
+            if (index != -1) {
+              ref
+                  .read(playbackProvider.notifier)
+                  .setPlaylist(
+                    songs,
+                    initialIndex: index,
+                    sourcePlaylistId: playlist?.id,
+                  );
+            } else {
+              ref
+                  .read(playbackProvider.notifier)
+                  .play(song, sourcePlaylistId: playlist?.id);
+            }
+          },
+          // A long-press on any row starts a selection (with that row already
+          // checked) instead of requiring a separate "select" mode button -
+          // there's nowhere else in this list a batch action could live.
+          onLongPress: selectionMode ? null : onEnterSelection,
+          child: ListTile(
+            contentPadding: EdgeInsets.only(
+              left: collectionIndex != null ? 8 : 24,
+              right: 4,
+              top: 0,
+              bottom: 0,
+            ),
+            leading: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (collectionIndex != null) ...[
+                  SizedBox(
+                    width: 20,
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.center,
+                      child: Text(
+                        '${collectionIndex! + 1}',
+                        maxLines: 1,
+                        style: AppFonts.jostStyle(
+                          color: Colors.white.withValues(alpha: 0.5),
+                          fontSize: 11,
                         ),
                       ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          title: highlightTitle && !isCurrent
-              ? highlightedText(
-                  text: song.title,
-                  query: searchQuery ?? '',
-                  baseStyle: AppFonts.jostStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
+                    ),
                   ),
-                  highlightStyle: AppFonts.jostStyle(
-                    color: Theme.of(context).colorScheme.primary,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                  ),
-                )
-              : Text(
-                  song.title,
-                  style: AppFonts.jostStyle(
-                    color: isCurrent
-                        ? Theme.of(context).colorScheme.primary
-                        : Colors.white,
-                    fontWeight: FontWeight.w500,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-          subtitle: lyricSnippet != null
-              ? Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    subtitle,
-                    const SizedBox(height: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 6,
+                  const SizedBox(width: 12),
+                ],
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(5),
+                  child: Stack(
+                    children: [
+                      OptimizedImage(
+                        imagePath: song.artPath,
+                        width: 52,
+                        height: 52,
+                        fit: BoxFit.cover,
                       ),
-                      decoration: BoxDecoration(
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.primary.withValues(alpha: 0.06),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
+                      if (isCurrent)
+                        Positioned.fill(
+                          child: SongPlaybackOverlay(isPlaying: isPlaying),
+                        ),
+                      if (selectionMode)
+                        Positioned.fill(
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 150),
+                            curve: Curves.easeOutCubic,
+                            color: selected
+                                ? Colors.black.withValues(alpha: 0.35)
+                                : Colors.transparent,
+                            child: selected
+                                ? Icon(
+                                    LucideIcons.checkCircle2,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.primary,
+                                    size: 24,
+                                  )
+                                : null,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            title: highlightTitle && !isCurrent
+                ? highlightedText(
+                    text: song.title,
+                    query: searchQuery ?? '',
+                    baseStyle: AppFonts.jostStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    highlightStyle: AppFonts.jostStyle(
+                      color: Theme.of(context).colorScheme.primary,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  )
+                : Text(
+                    song.title,
+                    style: AppFonts.jostStyle(
+                      color: isCurrent
+                          ? Theme.of(context).colorScheme.primary
+                          : Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+            subtitle: lyricSnippet != null
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      subtitle,
+                      const SizedBox(height: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
                           color: Theme.of(
                             context,
-                          ).colorScheme.primary.withValues(alpha: 0.12),
-                          width: 0.8,
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            LucideIcons.quote,
-                            size: 9,
-                            color: Theme.of(context).colorScheme.primary,
+                          ).colorScheme.primary.withValues(alpha: 0.06),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.primary.withValues(alpha: 0.12),
+                            width: 0.8,
                           ),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: highlightedText(
-                              text: lyricSnippet,
-                              query: searchQuery ?? '',
-                              baseStyle: AppFonts.jostStyle(
-                                color: Colors.white.withValues(alpha: 0.75),
-                                fontSize: 11,
-                                fontStyle: FontStyle.italic,
-                              ),
-                              highlightStyle: AppFonts.jostStyle(
-                                color: Theme.of(context).colorScheme.primary,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 11,
-                                fontStyle: FontStyle.italic,
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              LucideIcons.quote,
+                              size: 9,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: highlightedText(
+                                text: lyricSnippet,
+                                query: searchQuery ?? '',
+                                baseStyle: AppFonts.jostStyle(
+                                  color: Colors.white.withValues(alpha: 0.75),
+                                  fontSize: 11,
+                                  fontStyle: FontStyle.italic,
+                                ),
+                                highlightStyle: AppFonts.jostStyle(
+                                  color: Theme.of(context).colorScheme.primary,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 11,
+                                  fontStyle: FontStyle.italic,
+                                ),
                               ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
-                )
-              : subtitle,
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (isCollection) SongFavoriteButton(song: song),
-              IconButton(
-                padding: isCollection ? EdgeInsets.zero : null,
-                constraints: isCollection
-                    ? const BoxConstraints.tightFor(width: 32, height: 36)
-                    : null,
-                style: isCollection
-                    ? IconButton.styleFrom(
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      )
-                    : null,
-                icon: Icon(
-                  Icons.more_vert,
-                  size: isCollection ? 20 : 24,
-                  color: Colors.grey,
+                    ],
+                  )
+                : subtitle,
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (isCollection) SongFavoriteButton(song: song),
+                IconButton(
+                  padding: isCollection ? EdgeInsets.zero : null,
+                  constraints: isCollection
+                      ? const BoxConstraints.tightFor(width: 32, height: 36)
+                      : null,
+                  style: isCollection
+                      ? IconButton.styleFrom(
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        )
+                      : null,
+                  icon: Icon(
+                    Icons.more_vert,
+                    size: isCollection ? 20 : 24,
+                    color: Colors.grey,
+                  ),
+                  onPressed: () => showSongOptionsBottomSheet(
+                    context: context,
+                    ref: ref,
+                    song: song,
+                    playlist: playlist,
+                    showEqualizerAndTechnicalInfoOptions: false,
+                  ),
                 ),
-                onPressed: () => showSongOptionsBottomSheet(
-                  context: context,
-                  ref: ref,
-                  song: song,
-                  playlist: playlist,
-                  showEqualizerAndTechnicalInfoOptions: false,
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
-    ),
-  );
+    );
     return reorderIndex == null
         ? tile
         : PlaylistReorderableListener(

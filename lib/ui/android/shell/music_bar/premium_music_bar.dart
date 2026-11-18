@@ -100,12 +100,10 @@ class PremiumMusicBarState extends ConsumerState<PremiumMusicBar>
       vsync: this,
       value: _expandProgress.value,
     )..addListener(_onExpandTick);
-    _miniHorizontalController = AnimationController.unbounded(
-      vsync: this,
-      value: 0.0,
-    )..addListener(() {
-        _miniHorizontalOffset = _miniHorizontalController.value;
-      });
+    _miniHorizontalController =
+        AnimationController.unbounded(vsync: this, value: 0.0)..addListener(() {
+          _miniHorizontalOffset = _miniHorizontalController.value;
+        });
     _barX = AnimationController.unbounded(vsync: this);
     _barY = AnimationController.unbounded(vsync: this);
     _restFrom = _restTo = widget.restingBottom;
@@ -231,8 +229,9 @@ class PremiumMusicBarState extends ConsumerState<PremiumMusicBar>
       return;
     }
 
-    final double exitTarget =
-        direction < 0 ? -geometry.miniWidth : geometry.miniWidth;
+    final double exitTarget = direction < 0
+        ? -geometry.miniWidth
+        : geometry.miniWidth;
     final sim = SpringSimulation(
       fluidPlayerSpring,
       _miniHorizontalOffset,
@@ -248,8 +247,12 @@ class PremiumMusicBarState extends ConsumerState<PremiumMusicBar>
       }
       _miniHorizontalOffset = -exitTarget;
       _miniHorizontalController.value = -exitTarget;
-      final enterSim =
-          SpringSimulation(fluidPlayerSpring, -exitTarget, 0.0, 0.0);
+      final enterSim = SpringSimulation(
+        fluidPlayerSpring,
+        -exitTarget,
+        0.0,
+        0.0,
+      );
       _miniHorizontalController.animateWith(enterSim).then((_) {
         if (mounted) {
           _miniHorizontalOffset = 0.0;
@@ -470,14 +473,16 @@ class PremiumMusicBarState extends ConsumerState<PremiumMusicBar>
             },
             child: SizedBox(
               height: barHeight,
-              child: _buildMiniPlayerContent(
-                song,
-                isPlaying,
-                useBlur,
-                null,
-                3.0,
-                settings,
-                compact: isCompact,
+              child: RepaintBoundary(
+                child: _buildMiniPlayerContent(
+                  song,
+                  isPlaying,
+                  useBlur,
+                  null,
+                  3.0,
+                  settings,
+                  compact: isCompact,
+                ),
               ),
             ),
           ),
@@ -511,7 +516,10 @@ class PremiumMusicBarState extends ConsumerState<PremiumMusicBar>
     // the panel's top edge ~500dp up the screen. The clip also limits hit
     // testing to the panel, so the transparent rest of the layer never
     // swallows touches meant for the screen behind it.
-    final bool isBlurActive = (useBlur || hasMotion) && !settings.disableBlur;
+    // Same rule as the navbar: blur only with Dynamic Theming on and blur
+    // effects allowed. An animated cover only matters once the player is
+    // open; the mini bar sits over Home, not over it.
+    final bool isBlurActive = useBlur && !settings.disableBlur;
     final Color minimizedBgColor = isBlurActive
         ? Colors.white.withValues(alpha: 0.05)
         : Theme.of(context).colorScheme.surfaceContainer;
@@ -674,17 +682,14 @@ class PremiumMusicBarState extends ConsumerState<PremiumMusicBar>
       );
       // The song's motion art, the same texture the real artwork plays, so
       // the handoff swaps like for like instead of cutting still -> video.
-      // The styled layouts' art is a still image.
-      final String? morphMotion = styledArt
-          ? null
-          : isImmersive
+      final bool animateCover =
+          motionSettings.isAlbumCoverAnimated(layoutStyle.name) &&
+          motionSettings.mode != AnimatedArtworkMode.never;
+      final String? morphMotion = (!styledArt && isImmersive)
           ? (motionArt?.hasMotion == true
                 ? motionArt!.bestTallMedia ?? motionArt.bestSquareMedia
                 : null)
-          : (motionSettings.animateAlbumCover &&
-                    motionSettings.mode != AnimatedArtworkMode.never
-                ? motionArt?.bestSquareMedia
-                : null);
+          : (animateCover ? motionArt?.bestSquareMedia : null);
       if (morphMotion != null) {
         morphImage = AnimatedArtworkWidget(
           mediaSource: morphMotion,
@@ -758,12 +763,12 @@ class PremiumMusicBarState extends ConsumerState<PremiumMusicBar>
             final playbackState = ref.read(playbackProvider);
             final queue = playbackState.queue;
             final currentPath = playbackState.currentSong?.path;
-            final currentIndex =
-                queue.indexWhere((s) => s.path == currentPath);
-            final bool hasNext = playbackState.repeatMode == RepeatMode.all ||
+            final currentIndex = queue.indexWhere((s) => s.path == currentPath);
+            final bool hasNext =
+                playbackState.repeatMode == RepeatMode.all ||
                 (currentIndex >= 0 && currentIndex < queue.length - 1);
-            final bool hasPrev = playbackState.repeatMode == RepeatMode.all ||
-                currentIndex > 0;
+            final bool hasPrev =
+                playbackState.repeatMode == RepeatMode.all || currentIndex > 0;
 
             if (isCollapsed) {
               final double finger = _miniHorizontalOffset + details.delta.dx;
@@ -787,12 +792,17 @@ class PremiumMusicBarState extends ConsumerState<PremiumMusicBar>
                 AppHaptics.light();
               }
             } else if (isExpanded) {
-              _expandedHorizontalDx += details.delta.dx;
-              const double threshold = 70.0;
-              if (_expandedHorizontalDx.abs() >= threshold &&
-                  !_hapticTriggered) {
-                _hapticTriggered = true;
-                AppHaptics.light();
+              final PlayerLayoutStyle style = PlayerLayoutStyle.fromSetting(
+                ref.read(settingsProvider.select((s) => s.playerStyle)),
+              );
+              if (style == PlayerLayoutStyle.classic) {
+                _expandedHorizontalDx += details.delta.dx;
+                const double threshold = 70.0;
+                if (_expandedHorizontalDx.abs() >= threshold &&
+                    !_hapticTriggered) {
+                  _hapticTriggered = true;
+                  AppHaptics.light();
+                }
               }
             }
           }
@@ -811,16 +821,17 @@ class PremiumMusicBarState extends ConsumerState<PremiumMusicBar>
             final playbackState = ref.read(playbackProvider);
             final queue = playbackState.queue;
             final currentPath = playbackState.currentSong?.path;
-            final currentIndex =
-                queue.indexWhere((s) => s.path == currentPath);
-            final bool hasNext = playbackState.repeatMode == RepeatMode.all ||
+            final currentIndex = queue.indexWhere((s) => s.path == currentPath);
+            final bool hasNext =
+                playbackState.repeatMode == RepeatMode.all ||
                 (currentIndex >= 0 && currentIndex < queue.length - 1);
-            final bool hasPrev = playbackState.repeatMode == RepeatMode.all ||
-                currentIndex > 0;
+            final bool hasPrev =
+                playbackState.repeatMode == RepeatMode.all || currentIndex > 0;
 
             if (isCollapsed) {
-              final double threshold =
-                  FluidHorizontalSwipe.threshold(geometry.miniWidth);
+              final double threshold = FluidHorizontalSwipe.threshold(
+                geometry.miniWidth,
+              );
               final double projected = FluidHorizontalSwipe.projectedOffset(
                 offset: _miniHorizontalOffset,
                 velocityX: vx,
@@ -843,17 +854,22 @@ class PremiumMusicBarState extends ConsumerState<PremiumMusicBar>
               }
               return;
             } else if (isExpanded) {
-              const double threshold = 70.0;
-              final double projected = FluidHorizontalSwipe.projectedOffset(
-                offset: _expandedHorizontalDx,
-                velocityX: vx,
+              final PlayerLayoutStyle style = PlayerLayoutStyle.fromSetting(
+                ref.read(settingsProvider.select((s) => s.playerStyle)),
               );
-              if (projected < -threshold && hasNext) {
-                AppHaptics.medium();
-                ref.read(playbackProvider.notifier).skipNext();
-              } else if (projected > threshold && hasPrev) {
-                AppHaptics.medium();
-                ref.read(playbackProvider.notifier).skipPrevious(force: true);
+              if (style == PlayerLayoutStyle.classic) {
+                const double threshold = 70.0;
+                final double projected = FluidHorizontalSwipe.projectedOffset(
+                  offset: _expandedHorizontalDx,
+                  velocityX: vx,
+                );
+                if (projected < -threshold && hasNext) {
+                  AppHaptics.medium();
+                  ref.read(playbackProvider.notifier).skipNext();
+                } else if (projected > threshold && hasPrev) {
+                  AppHaptics.medium();
+                  ref.read(playbackProvider.notifier).skipPrevious(force: true);
+                }
               }
               _expandedHorizontalDx = 0.0;
               return;
@@ -913,9 +929,10 @@ class PremiumMusicBarState extends ConsumerState<PremiumMusicBar>
                 stretch: stretch,
                 horizontalOffset: hOffset,
               );
+              final double cornerRadius = FluidPlayerGeometry.panelRadiusAt(p);
               final RRect panelRRect = RRect.fromRectAndRadius(
                 panel,
-                const Radius.circular(FluidPlayerGeometry.panelRadius),
+                Radius.circular(cornerRadius),
               );
               final double shadowAlpha = 0.3 * (1.0 - p * 5.0).clamp(0.0, 1.0);
 
@@ -931,9 +948,7 @@ class PremiumMusicBarState extends ConsumerState<PremiumMusicBar>
                       child: IgnorePointer(
                         child: DecoratedBox(
                           decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(
-                              FluidPlayerGeometry.panelRadius,
-                            ),
+                            borderRadius: BorderRadius.circular(cornerRadius),
                             border: Border.all(
                               color: Colors.white.withValues(
                                 alpha: 0.05 * (1.0 - p),

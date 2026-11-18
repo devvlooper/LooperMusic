@@ -86,10 +86,7 @@ abstract final class NotInterestedStore {
   }
 
   @visibleForTesting
-  static void resetForTesting({
-    Set<String>? songs,
-    Set<String>? artists,
-  }) {
+  static void resetForTesting({Set<String>? songs, Set<String>? artists}) {
     _hiddenSongIds = songs != null ? Set.from(songs) : {};
     _blockedArtists = artists != null
         ? {for (final a in artists) a.trim().toLowerCase()}

@@ -1,13 +1,16 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:looper_player/ui/widgets/common/home_design_kit.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:looper_player/core/services/haptics/app_haptics.dart';
 import 'package:looper_player/core/theme/app_fonts.dart';
 import 'package:looper_player/features/online/data/parsers.dart';
 import 'package:looper_player/features/online/presentation/online_providers.dart';
 import 'package:looper_player/features/online/presentation/online_widgets.dart';
 import 'package:looper_player/l10n/app_localizations.dart';
 import 'package:looper_player/ui/widgets/common/optimized_image.dart';
+import 'package:looper_player/ui/widgets/common/premium_section.dart';
 import 'package:looper_player/ui/widgets/sheets/song_options_bottom_sheet.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
@@ -68,29 +71,19 @@ class TrackShelfActions extends ConsumerWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         if (shelf.songs.isNotEmpty)
-          OutlinedButton(
-            onPressed: () => playOnlineSongs(ref, shelf.songs, 0),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: Colors.white,
-              side: const BorderSide(color: Colors.white24),
-              shape: const StadiumBorder(),
-              visualDensity: VisualDensity.compact,
-              padding: const EdgeInsets.symmetric(horizontal: 14),
-            ),
-            child: Text(
-              l10n.playAll,
-              style: AppFonts.jostStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
+          // Round play button, as in the design.
+          HomeRoundButton(
+            semanticLabel: l10n.playAll,
+            onTap: () {
+              AppHaptics.light();
+              playOnlineSongs(ref, shelf.songs, 0);
+            },
+            child: homeSectionPlayIcon,
           ),
-        if (hasViewAll)
-          IconButton(
-            tooltip: l10n.viewAll,
-            icon: const Icon(LucideIcons.chevronRight, color: Colors.white),
-            onPressed: () => openShelfViewAll(context, shelf),
-          ),
+        if (hasViewAll) ...[
+          const SizedBox(width: 6),
+          ViewAllHeaderButton(onTap: () => openShelfViewAll(context, shelf)),
+        ],
       ],
     );
   }
@@ -102,6 +95,7 @@ Widget _header(BuildContext context, OnlineShelf shelf, {bool tracks = false}) {
   final hasViewAll = shelf.moreBrowseId != null || total > 10;
   return OnlineSectionTitle(
     shelfTitle(l10n, shelf),
+    name: shelf.args.firstOrNull,
     trailing: tracks
         ? TrackShelfActions(shelf: shelf, hasViewAll: hasViewAll)
         : hasViewAll
@@ -123,11 +117,15 @@ void _songMenu(BuildContext context, WidgetRef ref, OnlineSong s) =>
       showEqualizerAndTechnicalInfoOptions: false,
     );
 
-TextStyle _title(double size) => AppFonts.jostStyle(
+TextStyle _title(double size) => homeDisplay(
   color: Colors.white,
   fontSize: size,
   fontWeight: FontWeight.w600,
 );
+
+/// Grey card subtitle ("AutoFidelity · 334K Views").
+TextStyle get _cardSub =>
+    homeDisplay(color: kHomeGrey, fontSize: 14, fontWeight: FontWeight.w500);
 
 TextStyle _sub(double size) => AppFonts.jostStyle(
   color: Colors.white.withValues(alpha: 0.6),
@@ -238,7 +236,7 @@ class _SpeedDialTile extends ConsumerWidget {
     return SizedBox.square(
       dimension: size,
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(5),
         child: Stack(
           fit: StackFit.expand,
           children: [
@@ -308,7 +306,7 @@ class VideoCardShelf extends ConsumerWidget {
               return SizedBox(
                 width: cardW,
                 child: InkWell(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(5),
                   onTap: () => playOnlineSongs(ref, songs, i),
                   onLongPress: () => _songMenu(context, ref, s),
                   child: Column(
@@ -320,7 +318,7 @@ class VideoCardShelf extends ConsumerWidget {
                             imageUrl: s.thumbnail,
                             width: cardW,
                             height: artH,
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(5),
                           ),
                           if (d != null && d > 0)
                             Positioned(
@@ -414,7 +412,7 @@ class DiscoverCardShelf extends ConsumerWidget {
                 child: SizedBox.square(
                   dimension: cardW,
                   child: ClipRRect(
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(5),
                     child: Stack(
                       fit: StackFit.expand,
                       children: [
@@ -521,7 +519,7 @@ class FeaturedReleaseShelf extends StatelessWidget {
               return SizedBox(
                 width: cardW - 16,
                 child: InkWell(
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(5),
                   onTap: () => openOnlineCollection(context, c),
                   child: Row(
                     children: [
@@ -559,7 +557,7 @@ class FeaturedReleaseShelf extends StatelessWidget {
                         child: OnlineArt(
                           url: c.thumbnail,
                           size: art,
-                          cornerRadius: 16,
+                          cornerRadius: 5,
                           icon: LucideIcons.disc3,
                         ),
                       ),
@@ -589,11 +587,11 @@ class PlaylistPreviewShelf extends StatelessWidget {
     final wide = size.width > size.height;
     final cardW = wide
         ? math.min(680.0, size.width * 0.8)
-        : math.min(400.0, size.width * 0.88);
-    final rows = 3 * scaler.scale(60);
+        : math.min(400.0, size.width * 0.74);
+    final rows = _PlaylistPreviewCard.rowCount * scaler.scale(56);
     final height = wide
-        ? 16 + math.max(128 + scaler.scale(56), rows) + 12.0
-        : 16 + 150 + 14 + scaler.scale(56) + 8 + rows + 12;
+        ? 18 + math.max(128 + scaler.scale(56), rows) + 14.0
+        : 18 + math.max(54.0, scaler.scale(56)) + 18 + rows + 14;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -603,10 +601,10 @@ class PlaylistPreviewShelf extends StatelessWidget {
           height: height,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
-            physics: CardSnapPhysics(extent: cardW + 12),
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            physics: CardSnapPhysics(extent: cardW + 20),
+            padding: const EdgeInsets.symmetric(horizontal: 22),
             itemCount: math.min(10, items.length),
-            separatorBuilder: (_, _) => const SizedBox(width: 12),
+            separatorBuilder: (_, _) => const SizedBox(width: 20),
             itemBuilder: (context, i) => _PlaylistPreviewCard(
               collection: items[i],
               width: cardW,
@@ -631,6 +629,8 @@ class _PlaylistPreviewCard extends ConsumerWidget {
   /// Landscape: artwork and title on the left, songs on the right.
   final bool wide;
 
+  static const rowCount = 4;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context)!;
@@ -644,13 +644,14 @@ class _PlaylistPreviewCard extends ConsumerWidget {
     Widget art(double size) => OnlineArt(
       url: c.thumbnail,
       size: size,
-      cornerRadius: 8,
+      cornerRadius: 5,
       icon: LucideIcons.listMusic,
     );
     final header = SizedBox(
-      height: scaler.scale(56),
+      height: math.max(54.0, scaler.scale(56)),
       child: Row(
         children: [
+          if (!wide) ...[art(54), const SizedBox(width: 14)],
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -660,22 +661,23 @@ class _PlaylistPreviewCard extends ConsumerWidget {
                   mixTitle(c),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: _title(21).copyWith(fontWeight: FontWeight.bold),
+                  style: _title(18).copyWith(fontWeight: FontWeight.bold),
                 ),
                 if (sub != null)
                   Text(
                     sub,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: _sub(14),
+                    style: _cardSub,
                   ),
               ],
             ),
           ),
           Padding(
-            padding: const EdgeInsets.only(right: 8),
+            padding: const EdgeInsets.only(left: 8, right: 8),
             child: OnlinePlayButton(
-              size: 52,
+              light: true,
+              size: 49,
               onTap: () => songs.isNotEmpty
                   ? playOnlineSongs(ref, songs, 0)
                   : playOnlineCollection(context, c),
@@ -685,9 +687,9 @@ class _PlaylistPreviewCard extends ConsumerWidget {
       ),
     );
     final rows = [
-      for (var i = 0; i < 3; i++)
+      for (var i = 0; i < rowCount; i++)
         SizedBox(
-          height: scaler.scale(60),
+          height: scaler.scale(56),
           child: i < songs.length
               ? _PreviewRow(songs: songs, index: i)
               : const SizedBox.shrink(),
@@ -695,15 +697,15 @@ class _PlaylistPreviewCard extends ConsumerWidget {
     ];
 
     return Material(
-      color: HSLColor.fromAHSL(1, hue, 0.22, 0.14).toColor(),
-      borderRadius: BorderRadius.circular(20),
+      color: HSLColor.fromAHSL(1, hue, 0.15, 0.075).toColor(),
+      borderRadius: BorderRadius.circular(10),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: () => openOnlineCollection(context, c),
         child: SizedBox(
           width: width,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 8, 12),
+            padding: const EdgeInsets.fromLTRB(18, 18, 8, 14),
             child: wide
                 ? Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -724,13 +726,7 @@ class _PlaylistPreviewCard extends ConsumerWidget {
                     ],
                   )
                 : Column(
-                    children: [
-                      art(150),
-                      const SizedBox(height: 14),
-                      header,
-                      const SizedBox(height: 8),
-                      ...rows,
-                    ],
+                    children: [header, const SizedBox(height: 18), ...rows],
                   ),
           ),
         ),
@@ -748,11 +744,11 @@ class _PreviewRow extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final s = songs[index];
     return InkWell(
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(5),
       onTap: () => playOnlineSongs(ref, songs, index),
       child: Row(
         children: [
-          OnlineArt(url: s.thumbnail, size: 48, cornerRadius: 4),
+          OnlineArt(url: s.thumbnail, size: 42, cornerRadius: 5),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -763,14 +759,14 @@ class _PreviewRow extends ConsumerWidget {
                   s.title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: _title(15),
+                  style: homeCardTitle(),
                 ),
                 if (s.artist != null)
                   Text(
                     s.artist!,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: _sub(13),
+                    style: homeCardSub(),
                   ),
               ],
             ),
@@ -778,11 +774,115 @@ class _PreviewRow extends ConsumerWidget {
           IconButton(
             visualDensity: VisualDensity.compact,
             tooltip: MaterialLocalizations.of(context).showMenuTooltip,
-            icon: const Icon(Icons.more_vert, size: 20, color: Colors.grey),
+            icon: const Icon(Icons.more_vert, size: 22, color: Colors.white),
             onPressed: () => _songMenu(context, ref, s),
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Mixes ("My Mix 1"…): wide short cards with the cover, title, subtitle
+/// and a white play button on a dark gradient tinted per mix.
+class MixCardShelf extends ConsumerWidget {
+  const MixCardShelf({super.key, required this.shelf});
+  final OnlineShelf shelf;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final items = shelf.collections;
+    if (items.isEmpty) return _standard(shelf);
+    final l10n = AppLocalizations.of(context)!;
+    final width = MediaQuery.sizeOf(context).width;
+    final cardW = math.min(400.0, width * 0.74);
+    final height = math.max(96.0, MediaQuery.textScalerOf(context).scale(96));
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _header(context, shelf),
+        SizedBox(
+          height: height,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            physics: CardSnapPhysics(extent: cardW + 20),
+            padding: const EdgeInsets.symmetric(horizontal: 22),
+            itemCount: math.min(10, items.length),
+            separatorBuilder: (_, _) => const SizedBox(width: 20),
+            itemBuilder: (context, i) {
+              final c = items[i];
+              final sub = collectionSubtitle(l10n, c);
+              final hue = (c.title.hashCode.abs() % 360).toDouble();
+              return Material(
+                borderRadius: BorderRadius.circular(10),
+                clipBehavior: Clip.antiAlias,
+                child: Ink(
+                  width: cardW,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        HSLColor.fromAHSL(1, hue, 0.25, 0.07).toColor(),
+                        HSLColor.fromAHSL(
+                          1,
+                          (hue + 25) % 360,
+                          0.55,
+                          0.1,
+                        ).toColor(),
+                      ],
+                    ),
+                  ),
+                  child: InkWell(
+                    onTap: () => openOnlineCollection(context, c),
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(18, 0, 18, 0),
+                      child: Row(
+                        children: [
+                          OnlineArt(
+                            url: c.thumbnail,
+                            size: 54,
+                            cornerRadius: 5,
+                            icon: LucideIcons.listMusic,
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  mixTitle(c),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: _title(
+                                    18,
+                                  ).copyWith(fontWeight: FontWeight.bold),
+                                ),
+                                if (sub != null)
+                                  Text(
+                                    sub,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: _cardSub,
+                                  ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          OnlinePlayButton(
+                            light: true,
+                            size: 49,
+                            onTap: () => playOnlineCollection(context, c),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 }

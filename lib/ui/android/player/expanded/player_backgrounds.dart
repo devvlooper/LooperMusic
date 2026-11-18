@@ -106,7 +106,7 @@ class ForegroundAlbumArt extends ConsumerWidget {
     final mediaSource = motionAsync.asData?.value?.bestSquareMedia;
 
     final Widget artWidget;
-    if (!motionSettings.animateAlbumCover ||
+    if (!motionSettings.isAlbumCoverAnimated('classic') ||
         motionSettings.mode == AnimatedArtworkMode.never) {
       artWidget = staticArt;
     } else {

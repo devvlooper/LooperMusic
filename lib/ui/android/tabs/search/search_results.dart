@@ -226,14 +226,15 @@ class _SearchResultsBody extends ConsumerWidget {
   }
 
   List<Widget> _allSongs(AppLocalizations l10n) => [
-    SliverToBoxAdapter(
-      child: _SectionHeader(
-        title: l10n.songsCount(results.songs.length),
-        quiet: true,
-        actionLabel: l10n.selectAll,
-        onAction: onSelectAll,
+    if (results.songs.isNotEmpty)
+      SliverToBoxAdapter(
+        child: _SectionHeader(
+          title: l10n.songsCount(results.songs.length),
+          quiet: true,
+          actionLabel: l10n.selectAll,
+          onAction: onSelectAll,
+        ),
       ),
-    ),
     SliverList.builder(
       itemCount: results.songs.length,
       itemBuilder: (context, index) => _song(l10n, results.songs[index]),
@@ -291,6 +292,18 @@ class _SearchResultsBody extends ConsumerWidget {
             query: query,
             hideIds: {for (final s in results.songs) s.path},
             songsOnly: kind == _SearchKind.songs,
+          ),
+        if (switch (kind) {
+              _SearchKind.artists => CollectionKind.artist,
+              _SearchKind.albums => CollectionKind.album,
+              _SearchKind.playlists => CollectionKind.playlist,
+              _ => null,
+            }
+            case final cardKind?)
+          _OnlineCardsSliver(
+            query: query,
+            kind: cardKind,
+            onRemember: onRemember,
           ),
         // Clears the mini player and navigation bar.
         const SliverToBoxAdapter(child: SizedBox(height: 180)),

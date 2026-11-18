@@ -1,4 +1,5 @@
 import 'package:looper_player/features/library/domain/models/models.dart';
+import 'package:looper_player/features/settings/domain/app_defaults.dart';
 
 /// How the Now Playing quality badge is drawn. The stored index is the enum
 /// index, so only append.
@@ -70,7 +71,7 @@ class QualityBadgeStyle {
 
   /// The original badge's details (everything before channels was added),
   /// so an untouched badge reads the same as it always has.
-  static const int defaultFields = 0x1f;
+  static const int defaultFields = AppDefaults.qualityBadgeFields;
 
   const QualityBadgeStyle({
     this.look = QualityBadgeLook.pill,

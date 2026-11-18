@@ -87,8 +87,7 @@ class _AlbumCard extends StatelessWidget {
     return Material(
       color: Colors.white.withValues(alpha: 0.055),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-        side: BorderSide(color: Colors.white.withValues(alpha: 0.07)),
+        borderRadius: BorderRadius.circular(12),
       ),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -102,7 +101,7 @@ class _AlbumCard extends StatelessWidget {
               Stack(
                 children: [
                   ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(8),
                     child: SizedBox(
                       width: 120,
                       height: 120,

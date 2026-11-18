@@ -114,8 +114,7 @@ class _LimitToggle extends ConsumerWidget {
       padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.04),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -144,7 +143,7 @@ class _TopSongRow extends ConsumerWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         child: Stack(
           children: [
             // Play share vs. the #1 song, drawn as a soft fill behind the
@@ -159,7 +158,7 @@ class _TopSongRow extends ConsumerWidget {
                   widthFactor: share.clamp(0.0, 1.0),
                   child: DecoratedBox(
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(12),
                       gradient: LinearGradient(
                         colors: [
                           (rankColor ?? accent).withValues(alpha: 0.03),
@@ -191,7 +190,7 @@ class _TopSongRow extends ConsumerWidget {
                   SongArtwork(
                     song: stat.song,
                     size: 46,
-                    borderRadius: BorderRadius.circular(11),
+                    borderRadius: BorderRadius.circular(8),
                   ),
                   const SizedBox(width: 12),
                   Expanded(

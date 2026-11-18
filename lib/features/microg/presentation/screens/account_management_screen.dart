@@ -71,6 +71,30 @@ class _AccountManagementScreenState
         title: Text(l10n.accountTitle, style: _title()),
         backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.info_outline),
+            tooltip: l10n.accountPrivacyTitle,
+            onPressed: () => showDialog<void>(
+              context: context,
+              builder: (dialogContext) => AlertDialog(
+                backgroundColor: Theme.of(
+                  dialogContext,
+                ).colorScheme.surfaceContainer,
+                title: Text(l10n.accountPrivacyTitle),
+                content: Text(l10n.accountPrivacyBody),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(dialogContext),
+                    child: Text(
+                      MaterialLocalizations.of(dialogContext).okButtonLabel,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
       body: ListView(
         padding: const EdgeInsets.symmetric(vertical: 8),

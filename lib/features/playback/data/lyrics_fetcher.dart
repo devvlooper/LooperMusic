@@ -118,6 +118,7 @@ class LyricsFetcher {
     await LocalJsonStore.write('online_lyrics_misses_cleaned_v1', false);
     await _checkCleanMissesMigration();
   }
+
   static Future<void> _checkCleanMissesMigration() async {
     if (_missesCleaned) return;
     _missesCleaned = true;
@@ -259,12 +260,7 @@ class LyricsFetcher {
     // meantime stay.
     final dbSong = await DbService.isar.songs.get(song.id);
     if (dbSong != null && dbSong.lyrics != current) return null;
-    await store(
-      song,
-      cleanArtist(song),
-      cleanTitle(song),
-      lrc,
-    );
+    await store(song, cleanArtist(song), cleanTitle(song), lrc);
     return lrc;
   }
 
@@ -303,12 +299,7 @@ class LyricsFetcher {
       online: settings?.enableInternet ?? true,
     );
     if (lrc != null) {
-      await store(
-        song,
-        cleanArtist(song),
-        cleanTitle(song),
-        lrc,
-      );
+      await store(song, cleanArtist(song), cleanTitle(song), lrc);
     }
     return lrc;
   }
@@ -396,13 +387,13 @@ class LyricsFetcher {
         if (ask != null) {
           final querySong = song.isOnline
               ? (Song()
-                ..id = song.id
-                ..path = song.path
-                ..title = title
-                ..artist = artist
-                ..album = song.album
-                ..duration = song.duration
-                ..lyrics = song.lyrics)
+                  ..id = song.id
+                  ..path = song.path
+                  ..title = title
+                  ..artist = artist
+                  ..album = song.album
+                  ..duration = song.duration
+                  ..lyrics = song.lyrics)
               : song;
           return ask(querySong, provider);
         }
@@ -479,7 +470,10 @@ class LyricsFetcher {
     await DbService.isar.writeTxn(() async {
       final dbSong = song.id != Isar.autoIncrement
           ? await DbService.isar.songs.get(song.id)
-          : await DbService.isar.songs.filter().pathEqualTo(song.path).findFirst();
+          : await DbService.isar.songs
+                .filter()
+                .pathEqualTo(song.path)
+                .findFirst();
       if (dbSong != null) {
         dbSong.lyrics = lrc;
         await DbService.isar.songs.put(dbSong);
@@ -532,7 +526,10 @@ class LyricsFetcher {
     // loaded before lyrics were found or the cache was cleared.
     final dbSong = song.id != Isar.autoIncrement
         ? await DbService.isar.songs.get(song.id)
-        : await DbService.isar.songs.filter().pathEqualTo(song.path).findFirst();
+        : await DbService.isar.songs
+              .filter()
+              .pathEqualTo(song.path)
+              .findFirst();
     var saved = dbSong != null ? dbSong.lyrics : song.lyrics;
 
     // 1. Saved lyrics (song.lyrics), then the cache file.
@@ -612,8 +609,13 @@ class LyricsFetcher {
     final s = source?.toLowerCase();
     return s != null &&
         s.isNotEmpty &&
-        !const {'embedded', 'local', 'custom_file', 'not_found', 'user'}
-            .contains(s);
+        !const {
+          'embedded',
+          'local',
+          'custom_file',
+          'not_found',
+          'user',
+        }.contains(s);
   }
 
   /// "Wrong lyrics" in the lyrics menu: [provider]'s answer for [song] is
@@ -635,7 +637,10 @@ class LyricsFetcher {
       for (final s in [song, ?twin]) {
         final row = s.id != Isar.autoIncrement
             ? await DbService.isar.songs.get(s.id)
-            : await DbService.isar.songs.filter().pathEqualTo(s.path).findFirst();
+            : await DbService.isar.songs
+                  .filter()
+                  .pathEqualTo(s.path)
+                  .findFirst();
         if (row == null) continue;
         if (!identical(s, song) && row.lyrics != wrong) continue;
         row.lyrics = null;
@@ -667,12 +672,7 @@ class LyricsFetcher {
     );
     final lrc = found.lrc == null ? null : pinned(found.lrc!);
     if (lrc != null) {
-      await store(
-        song,
-        cleanArtist(song),
-        cleanTitle(song),
-        lrc,
-      );
+      await store(song, cleanArtist(song), cleanTitle(song), lrc);
     }
     return lrc;
   }

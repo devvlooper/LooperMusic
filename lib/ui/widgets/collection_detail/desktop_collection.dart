@@ -23,7 +23,8 @@ extension _DesktopCollection on CollectionDetailView {
     List<Object>? groupedItems,
   }) {
     final l10n = AppLocalizations.of(context)!;
-    final isArtist = reactivePlaylist == null &&
+    final isArtist =
+        reactivePlaylist == null &&
         reactiveAlbum == null &&
         (reactiveArtist != null ||
             subtitle == l10n.artist ||
@@ -324,12 +325,9 @@ class _DesktopPill extends StatelessWidget {
   final bool circle;
   final Color? backgroundColor;
 
-  const _DesktopPill({
-    required this.child,
-    this.onTap,
-    this.backgroundColor,
-  })  : tooltip = null,
-        circle = false;
+  const _DesktopPill({required this.child, this.onTap, this.backgroundColor})
+    : tooltip = null,
+      circle = false;
 
   _DesktopPill.icon({
     required IconData icon,
@@ -566,10 +564,7 @@ class _DesktopSongRowState extends ConsumerState<_DesktopSongRow> {
 }
 
 class _DesktopArtistFollowButton extends ConsumerWidget {
-  const _DesktopArtistFollowButton({
-    required this.artistName,
-    this.thumbnail,
-  });
+  const _DesktopArtistFollowButton({required this.artistName, this.thumbnail});
 
   final String artistName;
   final String? thumbnail;
@@ -587,9 +582,9 @@ class _DesktopArtistFollowButton extends ConsumerWidget {
       backgroundColor: following ? primaryColor.withValues(alpha: 0.22) : null,
       onTap: () {
         AppHaptics.light();
-        ref.read(tasteProvider.notifier).toggleArtist(
-              TasteArtist(artistName, thumbnail: thumbnail),
-            );
+        ref
+            .read(tasteProvider.notifier)
+            .toggleArtist(TasteArtist(artistName, thumbnail: thumbnail));
       },
       child: Row(
         mainAxisSize: MainAxisSize.min,

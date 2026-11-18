@@ -115,6 +115,7 @@ enum OnlineShelfType {
   discoverCards,
   featuredRelease,
   playlistPreview,
+  mixCards,
 }
 
 MixKind? mixKindFromId(String? browseId) {
@@ -473,6 +474,8 @@ List<OnlineShelf> applyFeedLayoutPass(List<OnlineShelf> shelves) {
           ? OnlineShelfType.featuredRelease
           : cs.every((c) => c.kind == CollectionKind.playlist && !c.isRadio)
           ? OnlineShelfType.playlistPreview
+          : cs.every((c) => c.isRadio)
+          ? OnlineShelfType.mixCards
           : null;
       // Every second card shelf prefers the richer style.
       options = cardShelfCount++ % 2 == 1
@@ -1014,10 +1017,11 @@ OnlineShelf parseListItems(Map<String, dynamic> json, String title) =>
         for (final r in findAll(json, k)) {k: r},
     ]);
 
-/// The next-page token of a list page, old or new style.
+/// The next-page token of a list page, new style first: on a playlist the
+/// old-style token belongs to the "related" section, not the track list.
 String? listContinuation(Map<String, dynamic> json) =>
-    homeContinuation(json) ??
-    findAll(json, 'continuationCommand').firstOrNull?['token'] as String?;
+    findAll(json, 'continuationCommand').firstOrNull?['token'] as String? ??
+    homeContinuation(json);
 
 /// A mood/genre chip on top of home: tapping it reloads home with [params].
 class OnlineMood {
@@ -1082,6 +1086,20 @@ List<OnlineCollection> parseCollectionSearch(Map<String, dynamic> json) => [
   for (final r in findAll(json, 'musicResponsiveListItemRenderer'))
     ?collectionFromListItem(r),
 ];
+
+/// A filtered collection search page (one or a continuation) and its
+/// next-page token, which sits where the Songs filter keeps it.
+(List<OnlineCollection>, String?) parseCollectionSearchPage(
+  Map<String, dynamic> json,
+) {
+  final shelf =
+      _at(json, ['continuationContents', 'musicShelfContinuation']) as Map? ??
+      findAll(json, 'musicShelfRenderer').firstOrNull;
+  final token =
+      _at(shelf, ['continuations', 0, 'nextContinuationData', 'continuation'])
+          as String?;
+  return (parseCollectionSearch(json), token);
+}
 
 /// Radio ("up next") rows from `next`. Podcast "episodes" (channel
 /// reuploads) are dropped.
@@ -1181,7 +1199,11 @@ OnlinePage parsePage(Map<String, dynamic> json) {
 
   return OnlinePage(
     title: title,
-    subtitle: runText(header?['subtitle']) ?? straplineArtist,
+    // Artists have no subtitle; their audience line takes its place.
+    subtitle:
+        runText(header?['subtitle']) ??
+        straplineArtist ??
+        runText(header?['monthlyListenerCount']),
     thumbnail: thumb,
     songs: songs,
     shelves: parseShelves(json),
@@ -1231,6 +1253,17 @@ OnlinePage parsePage(Map<String, dynamic> json) {
             ])
             as String?;
   }
+  // Signed in, later pages can answer old style, token beside the rows.
+  token ??=
+      _at(json, [
+            'continuationContents',
+            'musicPlaylistShelfContinuation',
+            'continuations',
+            0,
+            'nextContinuationData',
+            'continuation',
+          ])
+          as String?;
   return (songs, token);
 }
 
@@ -1261,3 +1294,57 @@ String? parseLyricsBrowseId(Map<String, dynamic> json) {
 String? parseLyrics(Map<String, dynamic> json) => runText(
   findAll(json, 'musicDescriptionShelfRenderer').firstOrNull?['description'],
 );
+
+/// The other side of YouTube Music's Song / Video toggle in a `next`
+/// answer: the music video of a song (or the song of a video), or null.
+/// Searched by key, since the toggle's nesting moves between versions.
+String? parseCounterpart(Object? json, String videoId) {
+  String? firstVideoId(Object? node) {
+    if (node is Map) {
+      final id = node['videoId'];
+      if (id is String && id != videoId) return id;
+      for (final v in node.values) {
+        final found = firstVideoId(v);
+        if (found != null) return found;
+      }
+    } else if (node is List) {
+      for (final v in node) {
+        final found = firstVideoId(v);
+        if (found != null) return found;
+      }
+    }
+    return null;
+  }
+
+  bool mentions(Object? node) {
+    if (node is Map) {
+      if (node['videoId'] == videoId) return true;
+      return node.values.any(mentions);
+    }
+    if (node is List) return node.any(mentions);
+    return false;
+  }
+
+  // The queue lists many rows, each with its own toggle: only this song's.
+  String? search(Object? node) {
+    if (node is Map) {
+      if (node['counterpart'] != null &&
+          (!node.containsKey('primaryRenderer') ||
+              mentions(node['primaryRenderer']))) {
+        return firstVideoId(node['counterpart']);
+      }
+      for (final v in node.values) {
+        final found = search(v);
+        if (found != null) return found;
+      }
+    } else if (node is List) {
+      for (final v in node) {
+        final found = search(v);
+        if (found != null) return found;
+      }
+    }
+    return null;
+  }
+
+  return search(json);
+}

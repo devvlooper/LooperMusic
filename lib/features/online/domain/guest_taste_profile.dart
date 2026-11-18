@@ -17,7 +17,7 @@ class TasteSeed {
     this.artistBrowseId,
     String? radioPlaylistId,
   }) : radioPlaylistId =
-            radioPlaylistId ?? (videoId != null ? 'RDAMVM$videoId' : null);
+           radioPlaylistId ?? (videoId != null ? 'RDAMVM$videoId' : null);
 
   TasteSeed copyWith({
     String? title,
@@ -26,35 +26,32 @@ class TasteSeed {
     String? videoId,
     String? artistBrowseId,
     String? radioPlaylistId,
-  }) =>
-      TasteSeed(
-        title: title ?? this.title,
-        artist: artist ?? this.artist,
-        score: score ?? this.score,
-        videoId: videoId ?? this.videoId,
-        artistBrowseId: artistBrowseId ?? this.artistBrowseId,
-        radioPlaylistId: radioPlaylistId ?? this.radioPlaylistId,
-      );
+  }) => TasteSeed(
+    title: title ?? this.title,
+    artist: artist ?? this.artist,
+    score: score ?? this.score,
+    videoId: videoId ?? this.videoId,
+    artistBrowseId: artistBrowseId ?? this.artistBrowseId,
+    radioPlaylistId: radioPlaylistId ?? this.radioPlaylistId,
+  );
 
   Map<String, dynamic> toJson() => {
-        'title': title,
-        'artist': artist,
-        'score': score,
-        if (videoId != null) 'videoId': videoId,
-        if (artistBrowseId != null) 'artistBrowseId': artistBrowseId,
-        if (radioPlaylistId != null) 'radioPlaylistId': radioPlaylistId,
-      };
+    'title': title,
+    'artist': artist,
+    'score': score,
+    if (videoId != null) 'videoId': videoId,
+    if (artistBrowseId != null) 'artistBrowseId': artistBrowseId,
+    if (radioPlaylistId != null) 'radioPlaylistId': radioPlaylistId,
+  };
 
   factory TasteSeed.fromJson(Map<String, dynamic> json) => TasteSeed(
-        title: json['title'] as String? ?? json['t'] as String? ?? '',
-        artist: json['artist'] as String? ?? json['a'] as String? ?? '',
-        score: (json['score'] as num? ?? json['s'] as num? ?? 0.0).toDouble(),
-        videoId: json['videoId'] as String? ?? json['v'] as String?,
-        artistBrowseId:
-            json['artistBrowseId'] as String? ?? json['b'] as String?,
-        radioPlaylistId:
-            json['radioPlaylistId'] as String? ?? json['r'] as String?,
-      );
+    title: json['title'] as String? ?? json['t'] as String? ?? '',
+    artist: json['artist'] as String? ?? json['a'] as String? ?? '',
+    score: (json['score'] as num? ?? json['s'] as num? ?? 0.0).toDouble(),
+    videoId: json['videoId'] as String? ?? json['v'] as String?,
+    artistBrowseId: json['artistBrowseId'] as String? ?? json['b'] as String?,
+    radioPlaylistId: json['radioPlaylistId'] as String? ?? json['r'] as String?,
+  );
 
   @override
   String toString() =>
@@ -82,13 +79,13 @@ class GuestTasteProfile {
   bool get isEmpty => topArtists.isEmpty && topSongs.isEmpty;
 
   Map<String, dynamic> toJson() => {
-        'topArtists': [for (final a in topArtists) a.toJson()],
-        'topSongs': [for (final s in topSongs) s.toJson()],
-        'dominantGenres': dominantGenres,
-        'primaryLanguageScript': primaryLanguageScript,
-        'generatedAt': generatedAt.millisecondsSinceEpoch,
-        'coldStartLevel': coldStartLevel,
-      };
+    'topArtists': [for (final a in topArtists) a.toJson()],
+    'topSongs': [for (final s in topSongs) s.toJson()],
+    'dominantGenres': dominantGenres,
+    'primaryLanguageScript': primaryLanguageScript,
+    'generatedAt': generatedAt.millisecondsSinceEpoch,
+    'coldStartLevel': coldStartLevel,
+  };
 
   factory GuestTasteProfile.fromJson(Map<String, dynamic> json) =>
       GuestTasteProfile(

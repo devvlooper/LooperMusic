@@ -42,6 +42,37 @@ class StreamPick {
   bool get valid => DateTime.now().isBefore(expires);
 }
 
+/// A video-only stream of a song's video, for moving artwork.
+class VideoPick {
+  const VideoPick({
+    required this.url,
+    required this.userAgent,
+    required this.expires,
+    required this.width,
+    required this.height,
+    this.durationMs,
+    this.musicVideoType,
+  });
+
+  final String url;
+  final String userAgent;
+  final DateTime expires;
+  final int width;
+  final int height;
+  final int? durationMs;
+
+  /// `MUSIC_VIDEO_TYPE_ATV` (a song: its "video" is the still cover),
+  /// `_OMV` (official video), `_UGC` (fan upload); null when not given.
+  final String? musicVideoType;
+
+  /// The video is the song's cover, not a video: square, or said so.
+  bool get isStillCover =>
+      musicVideoType == 'MUSIC_VIDEO_TYPE_ATV' ||
+      (width > 0 && width == height);
+
+  bool get valid => DateTime.now().isBefore(expires);
+}
+
 /// The video itself cannot be played (removed, region or age blocked).
 /// Retrying with another identity does not help.
 class UnplayableException implements Exception {
@@ -73,6 +104,14 @@ class StreamResolver {
   final _it = InnerTube.instance;
   final _inflight = <String, Future<StreamPick>>{};
   final _cache = <String, StreamPick>{};
+
+  /// Recent playable /player answers, so the song's video costs no second
+  /// request when it is the same id as its audio.
+  final _bodies =
+      <
+        String,
+        ({Map<String, dynamic> body, PlayerClient client, DateTime at})
+      >{};
 
   /// `ei` (one per /player response) -> the visitor id that signed it.
   final _signedBy = <String, String>{};
@@ -135,6 +174,97 @@ class StreamResolver {
     return future.timeout(resolveBudget);
   }
 
+  /// A video-only H.264 stream of [videoId] no taller than [maxHeight], from
+  /// the audio's /player answer when there is a recent one, else one more
+  /// request. Null when YouTube is holding us back or has no such stream.
+  Future<VideoPick?> resolveVideo(
+    String videoId, {
+    int maxHeight = 720,
+    bool automatic = true,
+  }) async {
+    var cached = _bodies[videoId];
+    // Signed URLs live about 6 h; leave room to play.
+    if (cached != null &&
+        DateTime.now().difference(cached.at) > const Duration(hours: 4)) {
+      cached = null;
+    }
+    if (cached == null) {
+      if (automatic && (botCheckActive || _it.onHold)) return null;
+      for (final c in [InnerTubeClients.visionOs, InnerTubeClients.androidVr]) {
+        final String vd;
+        try {
+          vd = await _it.visitorData();
+        } catch (_) {
+          return null;
+        }
+        final (answer, _) = await _call(videoId, c, vd);
+        if (answer == _Answer.playable) break;
+        if (answer == _Answer.unplayable) return null;
+      }
+      cached = _bodies[videoId];
+      if (cached == null) return null;
+    }
+    return pickVideo(
+      cached.body,
+      cached.client.userAgent,
+      maxHeight: maxHeight,
+    );
+  }
+
+  /// The best H.264 video-only format up to [maxHeight] (VP9 / AV1 are
+  /// often decoded in software on phones, which costs battery).
+  @visibleForTesting
+  static VideoPick? pickVideo(
+    Map<String, dynamic> body,
+    String userAgent, {
+    int maxHeight = 720,
+  }) {
+    final sd = body['streamingData'];
+    if (sd is! Map) return null;
+    int h(Map f) => f['height'] as int? ?? 0;
+    final formats =
+        [
+          for (final f in (sd['adaptiveFormats'] as List? ?? const []))
+            if (f is Map &&
+                (f['mimeType'] as String? ?? '').startsWith('video/mp4') &&
+                (f['mimeType'] as String).contains('avc1') &&
+                (f['url'] as String? ?? '').isNotEmpty &&
+                h(f) > 0 &&
+                h(f) <= maxHeight)
+              f,
+        ]..sort((a, b) {
+          final byH = h(a).compareTo(h(b));
+          return byH != 0
+              ? byH
+              : (a['bitrate'] as int? ?? 0).compareTo(
+                  b['bitrate'] as int? ?? 0,
+                );
+        });
+    final f = formats.lastOrNull;
+    if (f == null) return null;
+    final url = f['url'] as String;
+    final expireSecs = int.tryParse(
+      Uri.parse(url).queryParameters['expire'] ?? '',
+    );
+    final details = body['videoDetails'] as Map?;
+    final lengthSecs = int.tryParse('${details?['lengthSeconds'] ?? ''}');
+    return VideoPick(
+      url: url,
+      userAgent: userAgent,
+      expires: expireSecs == null
+          ? DateTime.now().add(const Duration(minutes: 15))
+          : DateTime.fromMillisecondsSinceEpoch(
+              expireSecs * 1000,
+            ).subtract(const Duration(minutes: 5)),
+      width: f['width'] as int? ?? 0,
+      height: h(f),
+      durationMs:
+          int.tryParse('${f['approxDurationMs'] ?? ''}') ??
+          (lengthSecs == null ? null : lengthSecs * 1000),
+      musicVideoType: details?['musicVideoType'] as String?,
+    );
+  }
+
   /// Tests: replaces the network chain.
   @visibleForTesting
   Future<StreamPick> Function(String id, OnlineQuality q, bool mp4)?
@@ -159,6 +289,7 @@ class StreamResolver {
   /// The Refresh button.
   Future<void> reset() async {
     _cache.clear();
+    _bodies.clear();
     _signedBy.clear();
     _botCheckUntil = null;
     await _it.reset();
@@ -280,6 +411,11 @@ class StreamResolver {
         return (_Answer.unplayable, body);
       }
       if (body['streamingData'] is! Map) return (_Answer.refused, body);
+      _bodies.remove(id);
+      _bodies[id] = (body: body, client: c, at: DateTime.now());
+      while (_bodies.length > 16) {
+        _bodies.remove(_bodies.keys.first);
+      }
       return (_Answer.playable, body);
     } on UnplayableException {
       rethrow;

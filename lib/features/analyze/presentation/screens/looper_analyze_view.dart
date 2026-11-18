@@ -1,8 +1,5 @@
 import 'package:looper_player/core/motion/looper_scroll_physics.dart';
-import 'package:looper_player/ui/widgets/common/optimized_image.dart';
-import 'dart:io';
 import 'package:looper_player/core/utils/ui_utils.dart';
-import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -37,10 +34,6 @@ class LooperAnalyzeView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final snapshot = ref.watch(analyzeSnapshotProvider);
     final accent = Theme.of(context).colorScheme.primary;
-    final topSong = snapshot.topSongs.isNotEmpty
-        ? snapshot.topSongs.first.song
-        : null;
-
     return PopScope(
       canPop: true,
       onPopInvokedWithResult: (didPop, result) {
@@ -52,47 +45,12 @@ class LooperAnalyzeView extends ConsumerWidget {
       child: Material(
         color: Colors.transparent,
         child: Scaffold(
-          backgroundColor: Colors.transparent,
+          // The Linux shell paints the song artwork behind every page.
+          backgroundColor: UiUtils.isDesktop
+              ? Colors.transparent
+              : Colors.black,
           body: Stack(
             children: [
-              // The Linux shell already paints the current song's artwork
-              // behind every page, so this page adds no background of its own.
-              if (!UiUtils.isDesktop)
-                Positioned.fill(
-                  child: topSong?.artPath != null
-                      ? _BlurredBackgroundArt(artPath: topSong!.artPath!)
-                      : Container(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [
-                                accent.withValues(alpha: 0.25),
-                                Colors.black,
-                              ],
-                            ),
-                          ),
-                        ),
-                ),
-              if (!UiUtils.isDesktop)
-                Positioned.fill(
-                  child: Container(color: Colors.black.withValues(alpha: 0.72)),
-                ),
-              if (!UiUtils.isDesktop)
-                Positioned.fill(
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.center,
-                        colors: [
-                          accent.withValues(alpha: 0.16),
-                          Colors.transparent,
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
               SafeArea(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -258,36 +216,6 @@ class _AnalyzeBody extends ConsumerWidget {
               ],
             )
           : column([...lead, ...rest]),
-    );
-  }
-}
-
-/// Ambient blurred cover-art background for the #1 top song, giving the
-/// report card a personalized feel. Mirrors the blurred-art background
-/// already used elsewhere in the app (e.g. the expanded player).
-class _BlurredBackgroundArt extends StatelessWidget {
-  final String artPath;
-  const _BlurredBackgroundArt({required this.artPath});
-
-  @override
-  Widget build(BuildContext context) {
-    // On a desktop window the 80px art is stretched much further than on a
-    // phone, so it needs a wider blur and smooth upscaling to not look blocky.
-    final desktop = UiUtils.isDesktop;
-    final sigma = desktop ? 48.0 : 18.0;
-    return RepaintBoundary(
-      child: ImageFiltered(
-        imageFilter: ImageFilter.blur(sigmaX: sigma, sigmaY: sigma),
-        child: Image(
-          image: ResizeImage(artImage(artPath), width: 80, height: 80),
-          fit: BoxFit.cover,
-          width: double.infinity,
-          height: double.infinity,
-          filterQuality: desktop ? FilterQuality.medium : FilterQuality.low,
-          gaplessPlayback: true,
-          errorBuilder: (_, _, _) => const SizedBox.shrink(),
-        ),
-      ),
     );
   }
 }

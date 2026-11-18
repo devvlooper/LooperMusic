@@ -150,6 +150,13 @@ extension _SettingsSearch on _SettingsViewState {
               '${l10n.catPlayerInterface} · ${l10n.themeGroupBlurBackgrounds}',
           widget: const AlwaysBlurSheetsTile(),
         ),
+        SettingsSearchItem(
+          title: l10n.statusBarBlur,
+          subtitle: l10n.statusBarBlurDesc,
+          category:
+              '${l10n.catPlayerInterface} · ${l10n.themeGroupBlurBackgrounds}',
+          widget: const StatusBarBlurTile(),
+        ),
         if (!settings.dynamicAccentColor) ...[
           SettingsSearchItem(
             title: l10n.accentColor,
@@ -364,6 +371,12 @@ extension _SettingsSearch on _SettingsViewState {
           subtitle: l10n.activeFont(settings.customFontFamily),
           category: '${l10n.catPlayerInterface} · ${l10n.themeGroupFonts}',
           widget: const FontFamilySelectionTile(),
+        ),
+        SettingsSearchItem(
+          title: l10n.letterSpacing,
+          subtitle: l10n.letterSpacingDesc,
+          category: '${l10n.catPlayerInterface} · ${l10n.themeGroupFonts}',
+          widget: const LetterSpacingTile(),
         ),
         SettingsSearchItem(
           title: l10n.fontWeight,

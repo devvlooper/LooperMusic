@@ -103,25 +103,27 @@ class OnlineCache {
     void Function(double progress)? onProgress,
   }) {
     final key = mp4Only ? '$videoId:mp4' : videoId;
-    return _downloads[key] ??= _download(
-      videoId,
-      song,
-      pick,
-      automatic,
-      mp4Only: mp4Only,
-      quality: quality,
-      onProgress: onProgress,
-    ).whenComplete(() {
-      // A block, not `=>`: remove() returns this same future, and
-      // whenComplete would wait on it forever.
-      _downloads.remove(key);
-    });
+    return _downloads[key] ??=
+        _download(
+          videoId,
+          song,
+          pick,
+          automatic,
+          mp4Only: mp4Only,
+          quality: quality,
+          onProgress: onProgress,
+        ).whenComplete(() {
+          // A block, not `=>`: remove() returns this same future, and
+          // whenComplete would wait on it forever.
+          _downloads.remove(key);
+        });
   }
 
   void _fetchLyricsFor(String videoId, Song? song) {
     unawaited(() async {
       try {
-        final s = song ??
+        final s =
+            song ??
             await DbService.isar.songs
                 .filter()
                 .pathEqualTo('yt:$videoId')

@@ -39,6 +39,26 @@ class FluidPlayerGeometry {
   static const double miniMargin = 16.0;
   static const double panelRadius = 36.0;
 
+  /// Progress threshold where the panel corners begin smoothing from [panelRadius]
+  /// down to 0 at full expansion. During flight (p <= 0.94), corners remain constant
+  /// at 36dp.
+  static const double panelCornerProgressThreshold = 0.94;
+
+  /// Corner radius of the player panel as a function of expand progress [p]:
+  /// constant [panelRadius] (36) throughout flight (p <= 0.94), transitioning
+  /// smoothly via an easeInOut curve to 0 at full expansion (p = 1.0) so square-corner
+  /// devices have seamless edge-to-edge coverage while any small drag restores
+  /// the rounded floating card appearance.
+  static double panelRadiusAt(double p) {
+    if (p <= panelCornerProgressThreshold) return panelRadius;
+    if (p >= 1.0) return 0.0;
+    final double t =
+        (p - panelCornerProgressThreshold) /
+        (1.0 - panelCornerProgressThreshold);
+    final double curved = Curves.easeInOut.transform(t);
+    return lerpDouble(panelRadius, 0.0, curved)!;
+  }
+
   /// Width the mini content is laid out at. Fixed (the collapsed panel's
   /// width) so a moving panel never re-lays it out.
   double get miniWidth => screenSize.width - 2 * miniMargin;
@@ -131,12 +151,11 @@ class FluidPlayerGeometry {
     double p, {
     double stretch = 0.0,
     double horizontalOffset = 0.0,
-  }) =>
-      panelRect(
-        p,
-        stretch: stretch,
-        horizontalOffset: horizontalOffset,
-      ).topLeft;
+  }) => panelRect(
+    p,
+    stretch: stretch,
+    horizontalOffset: horizontalOffset,
+  ).topLeft;
 }
 
 /// Staggered entrance of one expanded-player section: it fades in and rises

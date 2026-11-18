@@ -1,5 +1,7 @@
 import 'package:looper_player/core/motion/looper_scroll_physics.dart';
 import 'package:looper_player/features/online/presentation/online_widgets.dart';
+import 'package:looper_player/features/online/data/parsers.dart'
+    show CollectionKind;
 import 'package:looper_player/features/online/presentation/online_providers.dart';
 import 'package:looper_player/features/library/data/services/artist_catalog.dart';
 import 'package:looper_player/core/providers/collection_navigation.dart';
@@ -159,6 +161,21 @@ class _AndroidSearchTabState extends ConsumerState<AndroidSearchTab> {
     final results = _shown;
     final selecting = _selected.isNotEmpty && results != null;
 
+    final onlineActive = ref.watch(onlineActiveProvider);
+    // Online result sizes, so YouTube-only kinds get a filter chip too.
+    final online = onlineActive
+        ? ref.watch(
+            onlineSearchProvider.select(
+              (s) => (
+                s.songs.length,
+                s.artists.length,
+                s.albums.length,
+                s.playlists.length,
+              ),
+            ),
+          )
+        : (0, 0, 0, 0);
+
     final Widget body;
     if (query.isEmpty) {
       body = const _SearchIdle();
@@ -166,7 +183,9 @@ class _AndroidSearchTabState extends ConsumerState<AndroidSearchTab> {
       body = resultsAsync.hasError
           ? Center(child: Text(l10n.errorWithDetails('${resultsAsync.error}')))
           : const AppLoadingIndicator();
-    } else if (results.isEmpty && ref.watch(onlineActiveProvider)) {
+    } else if (results.isEmpty &&
+        onlineActive &&
+        _countsOf(results, online).length <= 1) {
       // Nothing on the device: online results take the whole page.
       body = CustomScrollView(
         keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
@@ -175,10 +194,10 @@ class _AndroidSearchTabState extends ConsumerState<AndroidSearchTab> {
           const SliverToBoxAdapter(child: SizedBox(height: 180)),
         ],
       );
-    } else if (results.isEmpty) {
+    } else if (results.isEmpty && !onlineActive) {
       body = _NoResults(query: query);
     } else {
-      final counts = _countsOf(results);
+      final counts = _countsOf(results, online);
       // A selection is always shown against the full song list, and a kind
       // whose matches vanished on the last keystroke falls back to All.
       final kind = selecting
@@ -263,12 +282,24 @@ class _AndroidSearchTabState extends ConsumerState<AndroidSearchTab> {
 
 /// The kinds that have matches in [results], in chip order, with how many.
 /// [_SearchKind.all] is always present.
-Map<_SearchKind, int> _countsOf(SearchResults results) => {
-  _SearchKind.all: 0,
-  if (results.songs.isNotEmpty) _SearchKind.songs: results.songs.length,
-  if (results.artists.isNotEmpty) _SearchKind.artists: results.artists.length,
-  if (results.albums.isNotEmpty) _SearchKind.albums: results.albums.length,
-  if (results.playlists.isNotEmpty)
-    _SearchKind.playlists: results.playlists.length,
-  if (results.genres.isNotEmpty) _SearchKind.genres: results.genres.length,
-};
+/// Chip counts: local matches plus [online] (songs, artists, albums,
+/// playlists); a kind with none of either gets no chip.
+Map<_SearchKind, int> _countsOf(
+  SearchResults results,
+  (int, int, int, int) online,
+) {
+  final (songs, artists, albums, playlists) = (
+    results.songs.length + online.$1,
+    results.artists.length + online.$2,
+    results.albums.length + online.$3,
+    results.playlists.length + online.$4,
+  );
+  return {
+    _SearchKind.all: 0,
+    if (songs > 0) _SearchKind.songs: songs,
+    if (artists > 0) _SearchKind.artists: artists,
+    if (albums > 0) _SearchKind.albums: albums,
+    if (playlists > 0) _SearchKind.playlists: playlists,
+    if (results.genres.isNotEmpty) _SearchKind.genres: results.genres.length,
+  };
+}

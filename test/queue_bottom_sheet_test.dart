@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:looper_player/features/library/domain/models/models.dart';
 import 'package:looper_player/features/playback/presentation/providers/playback/playback_notifier.dart';
+import 'package:looper_player/features/playback/presentation/providers/playback/related_songs_provider.dart';
 import 'package:looper_player/features/settings/presentation/providers/settings_notifier.dart';
 import 'package:looper_player/l10n/app_localizations.dart';
 import 'package:looper_player/ui/android/widgets/animated_dice_button.dart';
@@ -64,6 +65,23 @@ class _FakePlayback extends Playback {
   @override
   Future<void> togglePlay() async {
     calls.add('togglePlay');
+  }
+
+  @override
+  void addToQueue(Song song) {
+    calls.add('addToQueue:${song.title}');
+  }
+
+  @override
+  Future<void> play(
+    Song song, {
+    bool forceDisableCrossfade = false,
+    bool play = true,
+    Duration? initialPosition,
+    bool blockDuringCall = true,
+    int? sourcePlaylistId,
+  }) async {
+    calls.add('play:${song.title}');
   }
 }
 
@@ -231,5 +249,70 @@ void main() {
 
     // When dynamicTheming is on and disableBlur is false, BackdropFilter is applied
     expect(find.byType(BackdropFilter), findsWidgets);
+  });
+
+  testWidgets('QueueBottomSheet switches between Next and Related tabs and interacts with related songs', (tester) async {
+    final songs = [
+      _song('/s0.mp3', 'Current Song', 'Current Artist'),
+      _song('/s1.mp3', 'Upcoming 1', 'Artist 1'),
+    ];
+    final relatedSongs = [
+      _song('/rel1.mp3', 'Related Match 1', 'Related Artist 1'),
+      _song('/rel2.mp3', 'Related Match 2', 'Related Artist 2'),
+    ];
+    final fakePlayback = _FakePlayback(songs, initialIndex: 0);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          settingsProvider.overrideWith(
+            () => _FakeSettings(alwaysBlurSheets: false),
+          ),
+          playbackProvider.overrideWith(() => fakePlayback),
+          relatedSongsProvider.overrideWith((ref, query) async => relatedSongs),
+        ],
+        child: const MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: QueueBottomSheet(),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Initially on Next tab: upcoming queue is visible
+    expect(find.byKey(const ValueKey('queue_tab_next')), findsOneWidget);
+    expect(find.byKey(const ValueKey('queue_tab_related')), findsOneWidget);
+    expect(find.text('Upcoming 1'), findsOneWidget);
+    expect(find.text('Related Match 1'), findsNothing);
+
+    // Tap Related tab
+    await tester.tap(find.byKey(const ValueKey('queue_tab_related')));
+    await tester.pumpAndSettle();
+
+    // Now on Related tab: related songs are rendered
+    expect(find.text('Upcoming 1'), findsNothing);
+    expect(find.text('Related Match 1'), findsOneWidget);
+    expect(find.text('Related Match 2'), findsOneWidget);
+
+    // Tapping add-to-queue on related song adds it to queue
+    final addQueueIcons = find.byIcon(LucideIcons.listPlus);
+    expect(addQueueIcons, findsWidgets);
+    await tester.tap(addQueueIcons.first);
+    await tester.pump();
+    expect(fakePlayback.calls, contains('addToQueue:Related Match 1'));
+
+    // Tapping the related song plays it
+    await tester.tap(find.text('Related Match 2'));
+    await tester.pump();
+    expect(fakePlayback.calls, contains('play:Related Match 2'));
+
+    // Switching back to Next tab restores the upcoming queue
+    await tester.tap(find.byKey(const ValueKey('queue_tab_next')));
+    await tester.pumpAndSettle();
+    expect(find.text('Upcoming 1'), findsOneWidget);
+    expect(find.text('Related Match 1'), findsNothing);
   });
 }

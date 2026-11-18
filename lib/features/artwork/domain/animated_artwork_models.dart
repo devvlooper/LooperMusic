@@ -1,3 +1,5 @@
+import 'package:looper_player/features/settings/domain/app_defaults.dart';
+
 enum AnimatedArtworkMode {
   always,
   wifiOnly,
@@ -15,32 +17,78 @@ enum AnimatedArtworkMode {
   }
 }
 
+/// Where moving artwork comes from.
+enum AnimatedArtworkSource {
+  /// Apple Music motion covers (the default).
+  apple,
+
+  /// The song's own YouTube Music video, for online songs.
+  youtube,
+
+  /// Apple's motion cover when there is one, else the YouTube video.
+  appleThenYoutube;
+
+  bool get usesApple => this != youtube;
+  bool get usesYoutube => this != apple;
+}
+
 class AnimatedArtworkSettings {
   final AnimatedArtworkMode mode;
+  final AnimatedArtworkSource source;
   final bool immersiveBackground;
   final bool animateAlbumCover;
+  final Map<String, bool> animateAlbumCoverByStyle;
   final bool ambientGlow;
   final int cacheLimitMB;
 
   const AnimatedArtworkSettings({
-    this.mode = AnimatedArtworkMode.always,
-    this.immersiveBackground = false,
-    this.animateAlbumCover = true,
-    this.ambientGlow = false,
-    this.cacheLimitMB = 300,
+    this.mode = AnimatedArtworkMode.never,
+    this.source = AnimatedArtworkSource.apple,
+    this.immersiveBackground = AppDefaults.animatedArtworkImmersiveBackground,
+    this.animateAlbumCover = AppDefaults.animatedArtworkAnimateAlbumCover,
+    this.animateAlbumCoverByStyle = const {},
+    this.ambientGlow = AppDefaults.animatedArtworkAmbientGlow,
+    this.cacheLimitMB = AppDefaults.animatedArtworkCacheLimitMB,
   });
+
+  static String normalizeStyle(String? style) => switch (style) {
+    'arc' => 'arc',
+    'linear' => 'linear',
+    'card' || 'box' => 'card',
+    _ => 'classic',
+  };
+
+  bool isAlbumCoverAnimated(String? style) {
+    final key = normalizeStyle(style);
+    return animateAlbumCoverByStyle[key] ?? animateAlbumCover;
+  }
+
+  AnimatedArtworkSettings withAlbumCoverForStyle(String? style, bool enabled) {
+    final key = normalizeStyle(style);
+    final updated = Map<String, bool>.from(animateAlbumCoverByStyle);
+    updated[key] = enabled;
+    return copyWith(
+      animateAlbumCoverByStyle: updated,
+      animateAlbumCover: key == 'classic' ? enabled : animateAlbumCover,
+    );
+  }
 
   AnimatedArtworkSettings copyWith({
     AnimatedArtworkMode? mode,
+    AnimatedArtworkSource? source,
     bool? immersiveBackground,
     bool? animateAlbumCover,
+    Map<String, bool>? animateAlbumCoverByStyle,
     bool? ambientGlow,
     int? cacheLimitMB,
   }) {
     return AnimatedArtworkSettings(
       mode: mode ?? this.mode,
+      source: source ?? this.source,
       immersiveBackground: immersiveBackground ?? this.immersiveBackground,
       animateAlbumCover: animateAlbumCover ?? this.animateAlbumCover,
+      animateAlbumCoverByStyle:
+          animateAlbumCoverByStyle ?? this.animateAlbumCoverByStyle,
       ambientGlow: ambientGlow ?? this.ambientGlow,
       cacheLimitMB: cacheLimitMB ?? this.cacheLimitMB,
     );
@@ -48,20 +96,39 @@ class AnimatedArtworkSettings {
 
   Map<String, dynamic> toJson() => {
     'mode': mode.name,
+    'source': source.name,
     'immersiveBackground': immersiveBackground,
     'animateAlbumCover': animateAlbumCover,
+    'animateAlbumCoverByStyle': animateAlbumCoverByStyle,
     'ambientGlow': ambientGlow,
     'cacheLimitMB': cacheLimitMB,
   };
 
   factory AnimatedArtworkSettings.fromJson(Map<String, dynamic> json) {
+    final byStyleRaw = json['animateAlbumCoverByStyle'];
+    final Map<String, bool> byStyle;
+    if (byStyleRaw is Map) {
+      byStyle = byStyleRaw.map((k, v) => MapEntry(k.toString(), v == true));
+    } else {
+      byStyle = const {};
+    }
+
     return AnimatedArtworkSettings(
       mode: AnimatedArtworkMode.values.firstWhere(
         (m) => m.name == json['mode'],
-        orElse: () => AnimatedArtworkMode.always,
+        orElse: () => AnimatedArtworkMode.never,
       ),
-      immersiveBackground: json['immersiveBackground'] as bool? ?? false,
-      animateAlbumCover: json['animateAlbumCover'] as bool? ?? true,
+      source: AnimatedArtworkSource.values.firstWhere(
+        (s) => s.name == json['source'],
+        orElse: () => AnimatedArtworkSource.apple,
+      ),
+      immersiveBackground:
+          json['immersiveBackground'] as bool? ??
+          AppDefaults.animatedArtworkImmersiveBackground,
+      animateAlbumCover:
+          json['animateAlbumCover'] as bool? ??
+          AppDefaults.animatedArtworkAnimateAlbumCover,
+      animateAlbumCoverByStyle: byStyle,
       ambientGlow: json['ambientGlow'] as bool? ?? false,
       cacheLimitMB: json['cacheLimitMB'] as int? ?? 300,
     );

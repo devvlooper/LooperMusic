@@ -77,8 +77,9 @@ class OnlineCardSkeleton extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(4),
         child: Column(
-          crossAxisAlignment:
-              round ? CrossAxisAlignment.center : CrossAxisAlignment.start,
+          crossAxisAlignment: round
+              ? CrossAxisAlignment.center
+              : CrossAxisAlignment.start,
           children: [
             round
                 ? const Bone.circle(size: 132)
@@ -122,8 +123,7 @@ class OnlineShelfSkeleton extends StatelessWidget {
             physics: const NeverScrollableScrollPhysics(),
             padding: const EdgeInsets.symmetric(horizontal: 12),
             children: [
-              for (var i = 0; i < 5; i++)
-                OnlineCardSkeleton(round: round),
+              for (var i = 0; i < 5; i++) OnlineCardSkeleton(round: round),
             ],
           ),
         ),
@@ -272,12 +272,12 @@ class OfflineCardRowSkeleton extends StatelessWidget {
             children: [
               Bone.text(fontSize: 22, width: 120),
               Spacer(),
-              Bone(width: 76, height: 36, uniRadius: 18),
+              Bone(width: 90, height: 40, uniRadius: 20),
             ],
           ),
         ),
         SizedBox(
-          height: 170,
+          height: circle ? 108 : 190,
           child: ListView(
             scrollDirection: Axis.horizontal,
             physics: const NeverScrollableScrollPhysics(),
@@ -285,8 +285,8 @@ class OfflineCardRowSkeleton extends StatelessWidget {
             children: [
               for (var i = 0; i < 5; i++)
                 Container(
-                  width: circle ? 110 : 120,
-                  margin: const EdgeInsets.symmetric(horizontal: 6),
+                  width: circle ? 90 : 128,
+                  margin: EdgeInsets.symmetric(horizontal: circle ? 4 : 8),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     crossAxisAlignment: circle
@@ -294,13 +294,13 @@ class OfflineCardRowSkeleton extends StatelessWidget {
                         : CrossAxisAlignment.start,
                     children: [
                       circle
-                          ? const Bone.circle(size: 92)
-                          : const Bone.square(size: 120, uniRadius: 16),
-                      const SizedBox(height: 8),
-                      Bone.text(fontSize: 13, width: circle ? 70 : 90),
+                          ? const Bone.circle(size: 60)
+                          : const Bone.square(size: 128, uniRadius: 5),
+                      SizedBox(height: circle ? 10 : 8),
+                      Bone.text(fontSize: 14, width: circle ? 64 : 90),
                       if (!circle) ...[
                         const SizedBox(height: 4),
-                        const Bone.text(fontSize: 11, width: 56),
+                        const Bone.text(fontSize: 14, width: 56),
                       ],
                     ],
                   ),

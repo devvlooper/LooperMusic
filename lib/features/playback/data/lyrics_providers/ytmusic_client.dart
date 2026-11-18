@@ -28,7 +28,11 @@ abstract final class YtMusicLyricsClient {
 
   /// The first of the top results that is the same recording: duration
   /// within 5 s, or, with no duration known, the title in its title.
-  static Future<String?> _match(String title, String artist, int seconds) async {
+  static Future<String?> _match(
+    String title,
+    String artist,
+    int seconds,
+  ) async {
     final (songs, _) = await OnlineApi.searchSongs(
       '$artist $title',
       automatic: true,

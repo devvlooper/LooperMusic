@@ -25,6 +25,15 @@ abstract final class AccountDataSync {
   ///
   /// Returns the synced account artists so recommendations and taste can be
   /// updated by the caller.
+  /// Pages per library list (~100 rows each, paced by [OnlineApi.listItems]).
+  static const _pages = 30;
+
+  static Future<OnlineShelf> _likedMusic() async {
+    final page = await OnlineApi.page('VLLM', automatic: true);
+    if (page.songs.isEmpty) throw StateError('Liked Music came back empty');
+    return OnlineShelf('Liked Music', songs: page.songs);
+  }
+
   static Future<List<TasteArtist>> sync({bool force = false}) async {
     final auth = await AccountAuth.instance.headers();
     if (auth.isEmpty) return const [];
@@ -36,38 +45,35 @@ abstract final class AccountDataSync {
         OnlineApi.listItems(
           'FEmusic_library_corpus_artists',
           'Artists',
-          pages: 2,
+          pages: _pages,
           automatic: true,
         ).catchError((_) => const OnlineShelf('Artists')),
         OnlineApi.listItems(
           'FEmusic_liked_playlists',
           'Playlists',
-          pages: 2,
+          pages: _pages,
           automatic: true,
         ).catchError((_) => const OnlineShelf('Playlists')),
         OnlineApi.listItems(
           'FEmusic_liked_albums',
           'Albums',
-          pages: 2,
+          pages: _pages,
           automatic: true,
         ).catchError((_) => const OnlineShelf('Albums')),
-        OnlineApi.listItems(
-          'FEmusic_liked_videos',
-          'Liked Music',
-          pages: 2,
-          automatic: true,
-        ).catchError((_) async {
-          return OnlineApi.listItems(
-            'LM',
+        // The Liked Music playlist is the list (and count) YouTube Music
+        // shows; the library's liked-songs page leaves some out.
+        _likedMusic().catchError(
+          (_) => OnlineApi.listItems(
+            'FEmusic_liked_videos',
             'Liked Music',
-            pages: 2,
+            pages: _pages,
             automatic: true,
-          ).catchError((_) => const OnlineShelf('Liked Music'));
-        }),
+          ).catchError((_) => const OnlineShelf('Liked Music')),
+        ),
         OnlineApi.listItems(
           'FEmusic_history',
           'History',
-          pages: 2,
+          pages: _pages,
           automatic: true,
         ).catchError((_) => const OnlineShelf('History')),
       ]);
@@ -123,41 +129,31 @@ abstract final class AccountDataSync {
   static Future<List<OnlineCollection>> getAccountPlaylists() async {
     final raw = await LocalJsonStore.read(accountPlaylistsCacheKey);
     if (raw is! List) return const [];
-    return [
-      for (final j in raw) ?OnlineCollection.fromJson(j),
-    ];
+    return [for (final j in raw) ?OnlineCollection.fromJson(j)];
   }
 
   static Future<List<OnlineCollection>> getAccountArtists() async {
     final raw = await LocalJsonStore.read(accountArtistsCacheKey);
     if (raw is! List) return const [];
-    return [
-      for (final j in raw) ?OnlineCollection.fromJson(j),
-    ];
+    return [for (final j in raw) ?OnlineCollection.fromJson(j)];
   }
 
   static Future<List<OnlineCollection>> getAccountAlbums() async {
     final raw = await LocalJsonStore.read(accountAlbumsCacheKey);
     if (raw is! List) return const [];
-    return [
-      for (final j in raw) ?OnlineCollection.fromJson(j),
-    ];
+    return [for (final j in raw) ?OnlineCollection.fromJson(j)];
   }
 
   static Future<List<OnlineSong>> getAccountFavorites() async {
     final raw = await LocalJsonStore.read(accountFavoritesCacheKey);
     if (raw is! List) return const [];
-    return [
-      for (final j in raw) ?OnlineSong.fromJson(j),
-    ];
+    return [for (final j in raw) ?OnlineSong.fromJson(j)];
   }
 
   static Future<List<OnlineSong>> getAccountHistory() async {
     final raw = await LocalJsonStore.read(accountHistoryCacheKey);
     if (raw is! List) return const [];
-    return [
-      for (final j in raw) ?OnlineSong.fromJson(j),
-    ];
+    return [for (final j in raw) ?OnlineSong.fromJson(j)];
   }
 
   /// Clears account data caches when signed out.

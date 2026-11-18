@@ -4,10 +4,17 @@ class AppLinks {
   AppLinks._();
 
   // App GitHub & Releases Links
-  static const String githubRepo =
-      'https://github.com/sthrnilshaaa/Looper-music';
+  static const String githubRepo = 'https://github.com/sthrnilshaaa/Looper';
   static const String githubReleasesApi =
-      'https://api.github.com/repos/sthrnilshaaa/Looper-music/releases/latest';
+      'https://api.github.com/repos/sthrnilshaaa/Looper/releases/latest';
+
+  /// Hand-uploaded builds, checked alongside the releases (see UpdateService).
+  static const String githubMediaBuildsApi =
+      'https://api.github.com/repos/sthrnilshaaa/Looper/contents/media';
+  static const String githubMediaRaw =
+      'https://raw.githubusercontent.com/sthrnilshaaa/Looper/main/media';
+  static const String githubMediaBuildsWeb =
+      'https://github.com/sthrnilshaaa/Looper/tree/main/media';
 
   /// Everyone who has committed to the repo; the About screen's maintainers
   /// row is built from it, so new contributors show up without a release.
@@ -20,17 +27,21 @@ class AppLinks {
   static const String githubStatsRepo =
       'https://github.com/sthrnilshaaa/looper';
   static const String githubReleasesWeb =
-      'https://github.com/sthrnilshaaa/Looper-music/releases';
+      'https://github.com/sthrnilshaaa/Looper/releases';
   static const String playStoreWeb =
       'https://play.google.com/store/apps/details?id=com.looper.player';
 
   // About > Socials. Empty until the channels exist; empty links do nothing.
-  static const String socialDiscord = '';
-  static const String socialGithub = '';
-  static const String socialTelegram = '';
+  static const String socialDiscord = 'https://discord.gg/9nFHhg94wn';
+  static const String socialGithub = 'https://github.com/sthrnilshaaa/looper';
+  static const String socialTelegram = 'https://t.me/looperPlayer';
 
   // Support & Donation
   static const String koFi = 'https://ko-fi.com/L2L124TL7L';
+
+  /// UPI payment link (`upi://pay?pa=<vpa>&pn=Looper`). Empty hides the
+  /// "Support Via UPI" row in setup.
+  static const String upi = '';
 
   // Maintainers & Developer Profiles
   static const String nileshGithub = 'https://github.com/SthrNilshaaa';
@@ -39,8 +50,8 @@ class AppLinks {
   static const String karanGithub = 'https://github.com/sthrkaran';
   static const String karanTelegram = 'https://t.me/karanwhy';
 
-  static const String madanGithub = 'https://github.com/';
-  static const String madanTelegram = 'https://t.me/madansthr';
+  static const String madanGithub = '';
+  static const String madanTelegram = '';
 
   // Media & Metadata API Endpoints
   static const String deezerApiBase = 'https://api.deezer.com';

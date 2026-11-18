@@ -77,7 +77,7 @@ class AnalyzeCard extends StatelessWidget {
     super.key,
     required this.child,
     this.padding = const EdgeInsets.all(16),
-    this.radius = 22,
+    this.radius = 12,
     this.gradient,
   });
 
@@ -89,7 +89,6 @@ class AnalyzeCard extends StatelessWidget {
         color: gradient == null ? Colors.white.withValues(alpha: 0.055) : null,
         gradient: gradient,
         borderRadius: BorderRadius.circular(radius),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.07)),
       ),
       child: child,
     );

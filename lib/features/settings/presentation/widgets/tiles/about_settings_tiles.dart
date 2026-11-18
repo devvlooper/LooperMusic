@@ -209,7 +209,8 @@ class _CheckForUpdatesTileState extends ConsumerState<CheckForUpdatesTile> {
     if (!mounted) return;
     setState(() => _checking = false);
 
-    if (result == ApkCheckResult.available) {
+    if (result == ApkCheckResult.available ||
+        result == ApkCheckResult.upToDate) {
       showApkUpdateSheet(context);
       return;
     }
@@ -217,11 +218,7 @@ class _CheckForUpdatesTileState extends ConsumerState<CheckForUpdatesTile> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         behavior: SnackBarBehavior.floating,
-        content: Text(
-          result == ApkCheckResult.upToDate
-              ? l10n.updateUpToDate
-              : l10n.updateCheckFailed,
-        ),
+        content: Text(l10n.updateCheckFailed),
       ),
     );
   }
@@ -593,7 +590,8 @@ Future<void> _openUrl(String url) async {
   } catch (e) {}
 }
 
-const _aboutCardFill = Color(0x0DFFFFFF);
+// Opaque: 5% white over #0A0A0A, so the animated backdrop stays behind it.
+const _aboutCardFill = Color(0xFF161616);
 
 TextStyle _dmSans(double size, FontWeight weight, Color color) =>
     AppFonts.settingsStyle(fontSize: size, fontWeight: weight, color: color);
@@ -638,10 +636,7 @@ class AboutHeroCard extends ConsumerWidget {
                     maxHeight: boxH,
                     child: Transform.rotate(
                       angle: -rad,
-                      child: _AboutScrollingPattern(
-                        width: boxW,
-                        height: boxH,
-                      ),
+                      child: _AboutScrollingPattern(width: boxW, height: boxH),
                     ),
                   );
                 },
@@ -731,10 +726,7 @@ class _AboutScrollingPattern extends StatefulWidget {
   final double width;
   final double height;
 
-  const _AboutScrollingPattern({
-    required this.width,
-    required this.height,
-  });
+  const _AboutScrollingPattern({required this.width, required this.height});
 
   @override
   State<_AboutScrollingPattern> createState() => _AboutScrollingPatternState();
@@ -768,8 +760,9 @@ class _AboutScrollingPatternState extends State<_AboutScrollingPattern>
   }
 
   void _resolveImage() {
-    final stream = const AssetImage(AppAssets.aboutPattern)
-        .resolve(createLocalImageConfiguration(context));
+    final stream = const AssetImage(
+      AppAssets.aboutPattern,
+    ).resolve(createLocalImageConfiguration(context));
     if (stream.key == _imageStream?.key) return;
 
     if (_imageStream != null && _listener != null) {
@@ -802,10 +795,7 @@ class _AboutScrollingPatternState extends State<_AboutScrollingPattern>
       child: RepaintBoundary(
         child: CustomPaint(
           size: Size(widget.width, widget.height),
-          painter: _AboutPatternPainter(
-            image: image,
-            animation: _controller,
-          ),
+          painter: _AboutPatternPainter(image: image, animation: _controller),
         ),
       ),
     );
@@ -830,10 +820,8 @@ class _AboutPatternPainter extends CustomPainter {
     ..isAntiAlias = true
     ..filterQuality = FilterQuality.medium;
 
-  _AboutPatternPainter({
-    required this.image,
-    required this.animation,
-  }) : super(repaint: animation);
+  _AboutPatternPainter({required this.image, required this.animation})
+    : super(repaint: animation);
 
   @override
   void paint(Canvas canvas, Size size) {

@@ -1,3 +1,4 @@
+import 'package:looper_player/ui/widgets/common/empty_state_card.dart';
 import 'dart:async';
 import 'dart:math' as math;
 
@@ -20,263 +21,21 @@ import 'package:looper_player/l10n/app_localizations.dart';
 import 'package:looper_player/ui/widgets/common/filter_pill.dart';
 import 'package:looper_player/ui/widgets/common/app_loading_indicator.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:looper_player/ui/android/tabs/library/categories/category_detail_wrapper.dart'
+    show CategorySearch;
 
-enum PagedQueryKind { favorites, history, downloads }
-
-/// Which songs Favorites / History show, like the playlist screen's chips.
-enum SongSource { all, onDevice, youtube }
-
-class PagedSongs {
-  final List<Song> items;
-  final int total;
-  final bool loadingMore;
-
-  /// Favorites / History show one page at a time; downloads scroll on.
-  final int page;
-  final SongSource source;
-
-  const PagedSongs({
-    required this.items,
-    required this.total,
-    this.loadingMore = false,
-    this.page = 0,
-    this.source = SongSource.all,
-  });
-
-  int get pageCount => (total / PagedSongsNotifier.pageSize).ceil();
-
-  PagedSongs copyWith({
-    List<Song>? items,
-    int? total,
-    bool? loadingMore,
-  }) =>
-      PagedSongs(
-        items: items ?? this.items,
-        total: total ?? this.total,
-        loadingMore: loadingMore ?? this.loadingMore,
-        page: page,
-        source: source,
-      );
-}
-
-final pagedSongsProvider =
-    AsyncNotifierProvider.family<PagedSongsNotifier, PagedSongs, PagedQueryKind>(
-  PagedSongsNotifier.new,
-);
-
-class PagedSongsNotifier extends AsyncNotifier<PagedSongs> {
-  PagedSongsNotifier(this.kind);
-  final PagedQueryKind kind;
-
-  static const int pageSize = 100;
-  StreamSubscription? _sub;
-  Timer? _debounce;
-  bool _disposed = false;
-  List<String> _downloadDirs = const [];
-  SongSource _source = SongSource.all;
-  int _page = 0;
-
-  bool get _paged => kind != PagedQueryKind.downloads;
-
-  QueryBuilder<Song, Song, QAfterFilterCondition> _filterQuery({
-    String? search,
-  }) {
-    var q = switch (kind) {
-      PagedQueryKind.favorites =>
-        DbService.isar.songs.filter().isFavoriteEqualTo(true),
-      PagedQueryKind.history =>
-        DbService.isar.songs.filter().lastPlayedIsNotNull(),
-      // Files inside a folder downloads went to (never a guess by name).
-      PagedQueryKind.downloads => DbService.isar.songs.filter().anyOf(
-        _downloadDirs.isEmpty ? const ['\u0000none'] : _downloadDirs,
-        (q, dir) => q.pathStartsWith(dir.endsWith('/') ? dir : '$dir/'),
-      ),
-    };
-    q = switch (_source) {
-      SongSource.all => q,
-      SongSource.onDevice => q.and().not().pathStartsWith('yt:'),
-      SongSource.youtube => q.and().pathStartsWith('yt:'),
-    };
-    if (search != null && search.trim().isNotEmpty) {
-      final term = search.trim();
-      q = q.and().group(
-            (g) => g
-                .titleContains(term, caseSensitive: false)
-                .or()
-                .artistContains(term, caseSensitive: false),
-          );
-    }
-    return q;
-  }
-
-  QueryBuilder<Song, Song, QAfterSortBy> _sortedQuery({
-    String? search,
-  }) {
-    final filtered = _filterQuery(search: search);
-    return switch (kind) {
-      PagedQueryKind.favorites => filtered.sortByTitle(),
-      PagedQueryKind.history => filtered.sortByLastPlayedDesc(),
-      PagedQueryKind.downloads => filtered.sortByDateAddedDesc(),
-    };
-  }
-
-  /// Signed-in account favorites / history not already in the local list,
-  /// shown after the local songs.
-  Future<List<Song>> _onlineExtras() async {
-    if (_source == SongSource.onDevice ||
-        !ref.read(isOnlineConnectedProvider)) {
-      return const [];
-    }
-    final online = switch (kind) {
-      PagedQueryKind.favorites => await AccountDataSync.getAccountFavorites(),
-      PagedQueryKind.history => await AccountDataSync.getAccountHistory(),
-      PagedQueryKind.downloads => const <OnlineSong>[],
-    };
-    if (online.isEmpty) return const [];
-    final seen = {
-      for (final t in await _filterQuery().titleProperty().findAll())
-        t.toLowerCase(),
-    };
-    return [
-      for (final s in online)
-        if (seen.add(s.title.toLowerCase()))
-          s.toSong()..isFavorite = kind == PagedQueryKind.favorites,
-    ];
-  }
-
-  /// The current page (Favorites / History) or the first [limit] rows
-  /// (downloads).
-  Future<PagedSongs> _load({int limit = pageSize}) async {
-    if (kind == PagedQueryKind.downloads) {
-      _downloadDirs = (await DownloadFolders.all()).toList();
-    }
-    final localTotal = await _filterQuery().count();
-    final extra = await _onlineExtras();
-    final total = localTotal + extra.length;
-    if (!_paged) {
-      final items = await _sortedQuery().limit(limit).findAll();
-      return PagedSongs(items: items, total: total, source: _source);
-    }
-    _page = _page.clamp(0, math.max(0, (total - 1) ~/ pageSize));
-    final start = _page * pageSize;
-    final local = start < localTotal
-        ? await _sortedQuery().offset(start).limit(pageSize).findAll()
-        : <Song>[];
-    final items = [
-      ...local,
-      ...extra
-          .skip(math.max(0, start - localTotal))
-          .take(pageSize - local.length),
-    ];
-    return PagedSongs(
-      items: items,
-      total: total,
-      page: _page,
-      source: _source,
-    );
-  }
-
-  @override
-  Future<PagedSongs> build() async {
-    ref.onDispose(() {
-      _disposed = true;
-      _sub?.cancel();
-      _debounce?.cancel();
-    });
-
-    _sub ??= DbService.isar.songs.watchLazy().listen((_) {
-      _debounce?.cancel();
-      _debounce = Timer(const Duration(milliseconds: 500), () {
-        if (!_disposed) {
-          unawaited(refresh());
-        }
-      });
-    });
-
-    // Reload when the account connects / disconnects (cloud extras).
-    ref.watch(isOnlineConnectedProvider);
-    return _load();
-  }
-
-  Future<void> loadMore() async {
-    final current = state.value;
-    if (_paged ||
-        current == null ||
-        current.loadingMore ||
-        current.items.length >= current.total) {
-      return;
-    }
-    state = AsyncData(current.copyWith(loadingMore: true));
-    try {
-      final nextChunk = await _sortedQuery()
-          .offset(current.items.length)
-          .limit(pageSize)
-          .findAll();
-      final total = await _filterQuery().count();
-      state = AsyncData(
-        current.copyWith(
-          items: [...current.items, ...nextChunk],
-          total: total,
-          loadingMore: false,
-        ),
-      );
-    } catch (_) {
-      state = AsyncData(current.copyWith(loadingMore: false));
-    }
-  }
-
-  Future<void> refresh() async {
-    final loaded = state.value?.items.length ?? pageSize;
-    final page = _page, source = _source;
-    final next = await _load(limit: math.max(pageSize, loaded));
-    // A newer page / filter change already replaced this result.
-    if (_disposed || page != _page || source != _source) return;
-    state = AsyncData(next);
-  }
-
-  Future<void> goToPage(int page) async {
-    _page = page;
-    await refresh();
-  }
-
-  Future<void> setSource(SongSource source) async {
-    if (source == _source) return;
-    _source = source;
-    _page = 0;
-    await refresh();
-  }
-
-  /// Every song of the current filter, for the play queue.
-  Future<List<Song>> fetchAll({String? search}) async {
-    final local = await _sortedQuery(search: search).findAll();
-    return [...local, ...await _onlineExtras()];
-  }
-}
-
-/// Backwards compatibility provider for [favorites].
-final favoritesProvider = Provider.autoDispose<AsyncValue<List<Song>>>((ref) {
-  return ref.watch(pagedSongsProvider(PagedQueryKind.favorites)).whenData(
-        (p) => p.items,
-      );
-});
-
-/// Backwards compatibility provider for [recentlyPlayedScreen].
-final recentlyPlayedScreenProvider =
-    Provider.autoDispose<AsyncValue<List<Song>>>((ref) {
-  return ref.watch(pagedSongsProvider(PagedQueryKind.history)).whenData(
-        (p) => p.items,
-      );
-});
+import 'package:looper_player/features/library/presentation/providers/library/paged_songs_notifier.dart';
+export 'package:looper_player/features/library/presentation/providers/library/paged_songs_notifier.dart';
 
 class FavoritesView extends StatelessWidget {
   const FavoritesView({super.key});
 
   @override
   Widget build(BuildContext context) => _PagedSongsView(
-        kind: PagedQueryKind.favorites,
-        emptyIcon: LucideIcons.heart,
-        emptyText: AppLocalizations.of(context)!.noFavoritesYet,
-      );
+    kind: PagedQueryKind.favorites,
+    emptyIcon: LucideIcons.heart,
+    emptyText: AppLocalizations.of(context)!.noFavoritesYet,
+  );
 }
 
 class RecentlyPlayedView extends StatelessWidget {
@@ -284,10 +43,10 @@ class RecentlyPlayedView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => _PagedSongsView(
-        kind: PagedQueryKind.history,
-        emptyIcon: LucideIcons.clock,
-        emptyText: AppLocalizations.of(context)!.noHistoryYet,
-      );
+    kind: PagedQueryKind.history,
+    emptyIcon: LucideIcons.clock,
+    emptyText: AppLocalizations.of(context)!.noHistoryYet,
+  );
 }
 
 /// Favorites / History: source chips on top (while online music is on),
@@ -311,9 +70,12 @@ class _PagedSongsView extends ConsumerWidget {
     final showChips = ref.watch(onlineActiveProvider);
     final accent = ref.watch(settingsProvider).accent;
 
+    final q = CategorySearch.of(context);
     return pagedAsync.when(
       data: (paged) {
-        final list = paged.items.isEmpty
+        final list = q.isNotEmpty
+            ? _SearchedSongs(query: q, fetch: notifier.fetchAll)
+            : paged.items.isEmpty
             ? _buildEmpty(context, emptyIcon, emptyText)
             : SongsList(
                 // New page: fresh list scrolled to the top.
@@ -335,7 +97,7 @@ class _PagedSongsView extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
               child: SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: Row(
@@ -412,17 +174,56 @@ class _PageBar extends StatelessWidget {
   }
 }
 
+/// Every song of a paged list matching [query] (title or artist), not just
+/// the page on screen.
+class _SearchedSongs extends StatefulWidget {
+  const _SearchedSongs({required this.query, required this.fetch});
+
+  final String query;
+  final Future<List<Song>> Function({String? search}) fetch;
+
+  @override
+  State<_SearchedSongs> createState() => _SearchedSongsState();
+}
+
+class _SearchedSongsState extends State<_SearchedSongs> {
+  late Future<List<Song>> _results = _load();
+
+  // fetchAll filters local songs only; the account's online extras come
+  // back unfiltered, so filter the whole result here.
+  Future<List<Song>> _load() async => [
+    for (final s in await widget.fetch(search: widget.query))
+      if (CategorySearch.matches(widget.query, [s.title, s.artist])) s,
+  ];
+
+  @override
+  void didUpdateWidget(_SearchedSongs old) {
+    super.didUpdateWidget(old);
+    if (old.query != widget.query) _results = _load();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<List<Song>>(
+      future: _results,
+      builder: (context, snap) {
+        final songs = snap.data;
+        if (songs == null) return const AppLoadingIndicator();
+        if (songs.isEmpty) {
+          return _buildEmpty(
+            context,
+            LucideIcons.searchX,
+            context.l10n.noSongsFound,
+          );
+        }
+        return SongsList(songs: songs, searchQuery: widget.query);
+      },
+    );
+  }
+}
+
 Widget _buildEmpty(BuildContext context, IconData icon, String text) {
-  return Center(
-    child: Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Icon(icon, size: 64, color: Colors.grey.withValues(alpha: 0.2)),
-        const SizedBox(height: 16),
-        Text(text),
-      ],
-    ),
-  );
+  return EmptyStateCard(icon: icon, title: text);
 }
 
 /// Whether Library shows "Downloads": always while online music is on (so
@@ -430,8 +231,10 @@ Widget _buildEmpty(BuildContext context, IconData icon, String text) {
 final hasDownloadsProvider = Provider<bool>((ref) {
   if (ref.watch(onlineActiveProvider)) return true;
   if (ref.watch(downloadsProvider).isNotEmpty) return true;
-  final paged =
-      ref.watch(pagedSongsProvider(PagedQueryKind.downloads)).asData?.value;
+  final paged = ref
+      .watch(pagedSongsProvider(PagedQueryKind.downloads))
+      .asData
+      ?.value;
   return (paged?.total ?? 0) > 0;
 });
 
@@ -444,12 +247,23 @@ class DownloadsView extends ConsumerWidget {
     final pagedAsync = ref.watch(pagedSongsProvider(PagedQueryKind.downloads));
     final downloadsMap = ref.watch(downloadsProvider);
     final activeDownloads = downloadsMap.values
-        .where((d) =>
-            d.status == DownloadStatus.downloading ||
-            d.status == DownloadStatus.queued ||
-            d.status == DownloadStatus.failed)
+        .where(
+          (d) =>
+              d.status == DownloadStatus.downloading ||
+              d.status == DownloadStatus.queued ||
+              d.status == DownloadStatus.failed,
+        )
         .toList();
 
+    final q = CategorySearch.of(context);
+    if (q.isNotEmpty) {
+      return _SearchedSongs(
+        query: q,
+        fetch: ref
+            .read(pagedSongsProvider(PagedQueryKind.downloads).notifier)
+            .fetchAll,
+      );
+    }
     return pagedAsync.when(
       data: (paged) {
         if (paged.items.isEmpty && activeDownloads.isEmpty) {
@@ -474,8 +288,9 @@ class DownloadsView extends ConsumerWidget {
                             color: Colors.white70,
                           ),
                         ),
-                        if (activeDownloads
-                            .any((d) => d.status == DownloadStatus.failed))
+                        if (activeDownloads.any(
+                          (d) => d.status == DownloadStatus.failed,
+                        ))
                           TextButton(
                             onPressed: () => ref
                                 .read(downloadsProvider.notifier)
@@ -500,9 +315,7 @@ class DownloadsView extends ConsumerWidget {
               );
 
         if (paged.items.isEmpty) {
-          return SingleChildScrollView(
-            child: activeSection!,
-          );
+          return SingleChildScrollView(child: activeSection!);
         }
 
         if (activeSection == null) {
@@ -566,17 +379,15 @@ class _DownloadProgressTile extends ConsumerWidget {
     final statusText = isDownloading
         ? '$percent%'
         : isQueued
-            ? 'Queued'
-            : 'Failed';
+        ? 'Queued'
+        : 'Failed';
 
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.08),
-        ),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -626,8 +437,8 @@ class _DownloadProgressTile extends ConsumerWidget {
                   color: isFailed
                       ? Colors.redAccent
                       : isDownloading
-                          ? accent
-                          : Colors.white54,
+                      ? accent
+                      : Colors.white54,
                 ),
               ),
               const SizedBox(width: 4),
@@ -638,7 +449,9 @@ class _DownloadProgressTile extends ConsumerWidget {
                 constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
                 onPressed: () {
                   AppHaptics.light();
-                  ref.read(downloadsProvider.notifier).cancel(item.song.videoId);
+                  ref
+                      .read(downloadsProvider.notifier)
+                      .cancel(item.song.videoId);
                 },
               ),
             ],
@@ -650,8 +463,8 @@ class _DownloadProgressTile extends ConsumerWidget {
               value: isDownloading
                   ? item.progress
                   : isQueued
-                      ? null
-                      : 1.0,
+                  ? null
+                  : 1.0,
               backgroundColor: Colors.white.withValues(alpha: 0.08),
               valueColor: AlwaysStoppedAnimation<Color>(
                 isFailed ? Colors.redAccent : accent,

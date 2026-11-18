@@ -1,6 +1,7 @@
 import 'package:looper_player/core/motion/list_wave.dart';
 import 'package:looper_player/core/providers/collection_navigation.dart';
 import 'package:flutter/material.dart';
+import 'package:looper_player/ui/widgets/common/filter_pill.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:looper_player/core/services/haptics/app_haptics.dart';
 import 'package:looper_player/core/services/storage/db_service.dart';
@@ -39,23 +40,34 @@ class _ArtistsGridViewState extends ConsumerState<ArtistsGridView> {
         .values[sortOptionIndex.clamp(0, ArtistSortOption.values.length - 1)];
     final sortedArtists = ref.watch(artistsSortedProvider(sortOption));
     final onlineArtists =
-        ref.watch(onlineAccountArtistsProvider).value ?? const <OnlineCollection>[];
+        ref.watch(onlineAccountArtistsProvider).value ??
+        const <OnlineCollection>[];
     final accent = ref.watch(settingsProvider).accent;
 
     final showOnline = onlineArtists.isNotEmpty;
-    final showLocal = _filter == _ArtistSourceFilter.all ||
+    final showLocal =
+        _filter == _ArtistSourceFilter.all ||
         _filter == _ArtistSourceFilter.onDevice;
-    final showCloud = showOnline &&
+    final showCloud =
+        showOnline &&
         (_filter == _ArtistSourceFilter.all ||
             _filter == _ArtistSourceFilter.youtube);
 
-    final displayLocal = showLocal ? sortedArtists : const <Artist>[];
+    final q = CategorySearch.of(context);
+    final displayLocal = showLocal
+        ? [
+            for (final a in sortedArtists)
+              if (CategorySearch.matches(q, [a.name])) a,
+          ]
+        : const <Artist>[];
     // Deduplicate online artists that have local counterparts by name
     final localNames = {for (final a in sortedArtists) a.name.toLowerCase()};
     final displayOnline = showCloud
         ? [
             for (final a in onlineArtists)
-              if (!showLocal || !localNames.contains(a.title.toLowerCase())) a,
+              if ((!showLocal || !localNames.contains(a.title.toLowerCase())) &&
+                  CategorySearch.matches(q, [a.title]))
+                a,
           ]
         : const <OnlineCollection>[];
 
@@ -70,20 +82,21 @@ class _ArtistsGridViewState extends ConsumerState<ArtistsGridView> {
       children: [
         if (showOnline)
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
                 children: [
-                  _buildFilterChip(
+                  FilterPill(
                     label:
                         'All (${sortedArtists.length + onlineArtists.length})',
                     isSelected: _filter == _ArtistSourceFilter.all,
                     accent: accent,
-                    onTap: () => setState(() => _filter = _ArtistSourceFilter.all),
+                    onTap: () =>
+                        setState(() => _filter = _ArtistSourceFilter.all),
                   ),
                   const SizedBox(width: 8),
-                  _buildFilterChip(
+                  FilterPill(
                     label: 'On Device (${sortedArtists.length})',
                     isSelected: _filter == _ArtistSourceFilter.onDevice,
                     accent: accent,
@@ -91,7 +104,7 @@ class _ArtistsGridViewState extends ConsumerState<ArtistsGridView> {
                         setState(() => _filter = _ArtistSourceFilter.onDevice),
                   ),
                   const SizedBox(width: 8),
-                  _buildFilterChip(
+                  FilterPill(
                     label: 'YouTube Music (${onlineArtists.length})',
                     isSelected: _filter == _ArtistSourceFilter.youtube,
                     accent: accent,
@@ -104,7 +117,10 @@ class _ArtistsGridViewState extends ConsumerState<ArtistsGridView> {
           ),
         Expanded(
           child: totalDisplayCount == 0
-              ? EmptyStateCard(icon: LucideIcons.user, title: l10n.noArtistsFound)
+              ? EmptyStateCard(
+                  icon: LucideIcons.user,
+                  title: l10n.noArtistsFound,
+                )
               : ListWave(
                   child: GridView.builder(
                     padding: const EdgeInsets.only(
@@ -115,11 +131,11 @@ class _ArtistsGridViewState extends ConsumerState<ArtistsGridView> {
                     ),
                     gridDelegate:
                         const SliverGridDelegateWithMaxCrossAxisExtent(
-                      maxCrossAxisExtent: 200,
-                      mainAxisSpacing: 24,
-                      crossAxisSpacing: 24,
-                      childAspectRatio: 0.8,
-                    ),
+                          maxCrossAxisExtent: 200,
+                          mainAxisSpacing: 24,
+                          crossAxisSpacing: 24,
+                          childAspectRatio: 0.8,
+                        ),
                     itemCount: totalDisplayCount,
                     itemBuilder: waveItems((context, index) {
                       if (index < displayLocal.length) {
@@ -135,14 +151,18 @@ class _ArtistsGridViewState extends ConsumerState<ArtistsGridView> {
                               Expanded(
                                 child: ClipOval(
                                   child: OptimizedImage(
-                                    imageUrl: artist.artistImageUrl != null &&
-                                            artist.artistImageUrl!
-                                                .startsWith('http')
+                                    imageUrl:
+                                        artist.artistImageUrl != null &&
+                                            artist.artistImageUrl!.startsWith(
+                                              'http',
+                                            )
                                         ? artist.artistImageUrl
                                         : null,
-                                    imagePath: artist.artistImageUrl != null &&
-                                            !artist.artistImageUrl!
-                                                .startsWith('http')
+                                    imagePath:
+                                        artist.artistImageUrl != null &&
+                                            !artist.artistImageUrl!.startsWith(
+                                              'http',
+                                            )
                                         ? artist.artistImageUrl
                                         : artist.artPath,
                                     fit: BoxFit.cover,
@@ -182,43 +202,6 @@ class _ArtistsGridViewState extends ConsumerState<ArtistsGridView> {
                 ),
         ),
       ],
-    );
-  }
-
-  Widget _buildFilterChip({
-    required String label,
-    required bool isSelected,
-    required Color accent,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(20),
-      onTap: () {
-        AppHaptics.selection();
-        onTap();
-      },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? accent.withValues(alpha: 0.22)
-              : Colors.white.withValues(alpha: 0.05),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: isSelected ? accent : Colors.white12,
-            width: 1,
-          ),
-        ),
-        child: Text(
-          label,
-          style: AppFonts.jostStyle(
-            color: isSelected ? Colors.white : Colors.white70,
-            fontSize: 13,
-            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-          ),
-        ),
-      ),
     );
   }
 }
@@ -290,10 +273,7 @@ class _OnlineArtistItem extends StatelessWidget {
           ),
           Text(
             artist.subtitle ?? 'YouTube Music',
-            style: AppFonts.jostStyle(
-              fontSize: 12,
-              color: Colors.white38,
-            ),
+            style: AppFonts.jostStyle(fontSize: 12, color: Colors.white38),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),

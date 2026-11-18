@@ -7,12 +7,14 @@ import 'package:isar_community/isar.dart';
 import 'package:looper_player/core/services/haptics/app_haptics.dart';
 import 'package:looper_player/core/services/storage/db_service.dart';
 import 'package:looper_player/core/theme/app_fonts.dart';
+import 'package:looper_player/core/utils/motion.dart';
 import 'package:looper_player/features/online/data/online_api.dart';
 import 'package:looper_player/features/online/data/parsers.dart';
 import 'package:looper_player/features/online/data/taste_store.dart';
 import 'package:looper_player/features/online/presentation/online_providers.dart';
 import 'package:looper_player/features/online/presentation/online_widgets.dart';
 import 'package:looper_player/l10n/app_localizations.dart';
+import 'package:looper_player/ui/widgets/common/setup_kit.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 /// Fixed genre list: YouTube Music's own genre grid is per country and
@@ -282,7 +284,21 @@ const _familiarArtistSeeds = [
 /// First-run interest profile: genres, then artists. Every pick is saved as
 /// it is made, so leaving half-way keeps it.
 class TasteSetupScreen extends ConsumerStatefulWidget {
-  const TasteSetupScreen({super.key});
+  const TasteSetupScreen({
+    super.key,
+    this.steps,
+    this.onBack,
+    this.onDone,
+    this.startOnArtists = false,
+  });
+
+  /// Set when embedded in first-run setup: the step label, and where back
+  /// (from genres) and done (after artists) go. Standalone it pops itself.
+  /// Step labels for (genres, artists) in first-run setup.
+  final (String, String)? steps;
+  final VoidCallback? onBack;
+  final VoidCallback? onDone;
+  final bool startOnArtists;
 
   @override
   ConsumerState<TasteSetupScreen> createState() => _TasteSetupScreenState();
@@ -290,29 +306,36 @@ class TasteSetupScreen extends ConsumerStatefulWidget {
 
 class _TasteSetupScreenState extends ConsumerState<TasteSetupScreen> {
   int _step = 0;
+  bool _reverse = false;
   List<String> _localGenres = const [];
   final List<String> _expandedGenres = [];
   List<OnlineCollection> _artists = const [];
   bool _loadingArtists = false;
   final _search = TextEditingController();
+  final _genreSearch = TextEditingController();
   Timer? _debounce;
 
   // Similar / "Fans might also like" state
-  int _similarReqCounter = 0;
-  OnlineCollection? _activeSimilarArtist;
-  List<OnlineCollection> _similarArtists = const [];
-  bool _loadingSimilar = false;
+  /// Artists whose similar artists were already pulled in, so re-picking
+  /// one doesn't fetch again.
+  final Set<String> _expandedArtists = {};
+
+  /// Freshly added suggestions, faded in once when they land in the grid.
+  final Set<String> _fresh = {};
 
   @override
   void initState() {
     super.initState();
     _loadLocalGenres();
+    if (widget.startOnArtists) _step = 1;
+    _loadArtists();
   }
 
   @override
   void dispose() {
     _debounce?.cancel();
     _search.dispose();
+    _genreSearch.dispose();
     super.dispose();
   }
 
@@ -354,127 +377,109 @@ class _TasteSetupScreenState extends ConsumerState<TasteSetupScreen> {
     }
   }
 
-  /// Artists start from the user: their library's top artists arrive
-  /// picked, then artists for the chosen genres, ensuring at least 60 familiar artists initially.
-  Future<void> _loadArtists() async {
-    setState(() => _loadingArtists = true);
-    final notifier = ref.read(tasteProvider.notifier);
-    final found = <String, OnlineCollection>{};
-    void add(Iterable<OnlineCollection> xs) {
-      for (final c in xs) {
-        found.putIfAbsent(c.title.toLowerCase(), () => c);
-      }
-    }
-
-    final local = await _topLocal(
-      () => DbService.isar.songs
-          .filter()
-          .not()
-          .pathStartsWith('yt:')
-          .artistProperty()
-          .findAll(),
-      8,
-    );
-    final resolved = await Future.wait(
-      local.map((name) async {
-        try {
-          final r = await OnlineApi.searchCollections(
-            name,
-            CollectionKind.artist,
-          );
-          return r
-              .where((c) => c.title.toLowerCase() == name.toLowerCase())
-              .firstOrNull;
-        } catch (_) {
-          return null;
-        }
-      }),
-    );
-    final mine = resolved.whereType<OnlineCollection>().toList();
-    add(mine);
-    if (ref.read(tasteProvider).artists.isEmpty) {
-      for (final c in mine) {
-        await notifier.toggleArtist(
-          TasteArtist(c.title, browseId: c.browseId, thumbnail: c.thumbnail),
-        );
-      }
-    }
-
-    final genres = ref.read(tasteProvider).genres;
-    final queries = [
-      for (final g in genres.take(8)) '$g top artists',
-      for (final g in genres.take(4)) '$g hits',
-      'top global artists',
-      'billboard hot 100 artists',
-      'popular artists hits',
-      'trending music artists',
-      'all time greatest artists',
-      'top hit artists',
-    ];
-
-    // Parallel fetch in batches of 3 for fast loading
-    for (var i = 0; i < queries.length; i += 3) {
-      if (found.length >= 60) break;
-      final batch = queries.skip(i).take(3);
-      final batchResults = await Future.wait(
-        batch.map((q) async {
-          try {
-            return await OnlineApi.searchCollections(q, CollectionKind.artist);
-          } catch (_) {
-            return const <OnlineCollection>[];
-          }
-        }),
-      );
-      for (final list in batchResults) {
-        add(list);
-      }
-    }
-
-    // Ensure familiar household-name artists pool to hit at least 60 familiar choices
-    if (found.length < 60) {
-      for (var i = 0; i < _familiarArtistSeeds.length; i += 4) {
-        if (found.length >= 60) break;
-        final batch = _familiarArtistSeeds.skip(i).take(4);
-        final batchResults = await Future.wait(
-          batch.map((name) async {
-            if (found.containsKey(name.toLowerCase())) return null;
-            try {
-              final list = await OnlineApi.searchCollections(
-                name,
-                CollectionKind.artist,
-              );
-              return list
-                      .where((c) => c.title.toLowerCase() == name.toLowerCase())
-                      .firstOrNull ??
-                  list.firstOrNull;
-            } catch (_) {
-              return null;
-            }
-          }),
-        );
-        for (final item in batchResults) {
-          if (item != null) add([item]);
-        }
-      }
-    }
-
+  /// Adds artists not in the grid yet ([front]: ahead of the rest).
+  void _addArtists(Iterable<OnlineCollection> xs, {bool front = false}) {
     if (!mounted) return;
-    setState(() {
-      _artists = found.values.toList();
-      _loadingArtists = false;
-    });
+    final have = {for (final a in _artists) a.title.toLowerCase()};
+    final fresh = <OnlineCollection>[];
+    for (final c in xs) {
+      if (have.add(c.title.toLowerCase())) fresh.add(c);
+    }
+    if (fresh.isEmpty) return;
+    setState(
+      () =>
+          _artists = front ? [...fresh, ..._artists] : [..._artists, ...fresh],
+    );
   }
 
-  /// Dynamically fetches 10 similar or "Fans might also like" artists for the
-  /// selected artist and displays them in a dedicated horizontal row.
-  Future<void> _expandSimilarArtists(OnlineCollection artist) async {
-    final reqId = ++_similarReqCounter;
-    setState(() {
-      _activeSimilarArtist = artist;
-      _loadingSimilar = true;
-      _similarArtists = const [];
-    });
+  Future<List<OnlineCollection>> _searchArtists(String q) async {
+    try {
+      return await OnlineApi.searchCollections(q, CollectionKind.artist);
+    } catch (_) {
+      return const [];
+    }
+  }
 
+  /// Exact-name match for [name], or null.
+  Future<OnlineCollection?> _resolveArtist(
+    String name, {
+    bool loose = false,
+  }) async {
+    final r = await _searchArtists(name);
+    return r
+            .where((c) => c.title.toLowerCase() == name.toLowerCase())
+            .firstOrNull ??
+        (loose ? r.firstOrNull : null);
+  }
+
+  /// Artists start from the user: their library's top artists arrive picked
+  /// and go first, then popular artists. Starts while the genres step is
+  /// still open; every search runs in parallel and lands in the grid as soon
+  /// as it answers, so the first artists show after one round trip.
+  Future<void> _loadArtists() async {
+    if (_loadingArtists || _artists.isNotEmpty) return;
+    setState(() => _loadingArtists = true);
+    final notifier = ref.read(tasteProvider.notifier);
+
+    Future<void> mine() async {
+      final local = await _topLocal(
+        () => DbService.isar.songs
+            .filter()
+            .not()
+            .pathStartsWith('yt:')
+            .artistProperty()
+            .findAll(),
+        8,
+      );
+      final found = (await Future.wait(
+        local.map(_resolveArtist),
+      )).whereType<OnlineCollection>().toList();
+      _addArtists(found, front: true);
+      if (ref.read(tasteProvider).artists.isEmpty) {
+        for (final c in found) {
+          await notifier.toggleArtist(
+            TasteArtist(c.title, browseId: c.browseId, thumbnail: c.thumbnail),
+          );
+        }
+      }
+    }
+
+    // Familiar names resolve one each; fired together, they fill the grid
+    // with recognisable faces while the broader searches come back.
+    Future<void> familiar() => Future.wait(
+      _familiarArtistSeeds.take(24).map((name) async {
+        final c = await _resolveArtist(name, loose: true);
+        if (c != null) _addArtists([c]);
+      }),
+    );
+
+    Future<void> popular() => Future.wait(
+      const [
+        'top global artists',
+        'billboard hot 100 artists',
+        'popular artists hits',
+        'trending music artists',
+      ].map((q) async => _addArtists(await _searchArtists(q))),
+    );
+
+    await Future.wait([mine(), familiar(), popular()]);
+    if (mounted) setState(() => _loadingArtists = false);
+  }
+
+  /// Artists for the genres picked on step one, added when moving on.
+  Future<void> _loadGenreArtists() async {
+    final genres = ref.read(tasteProvider).genres;
+    await Future.wait(
+      [
+        for (final g in genres.take(8)) '$g top artists',
+      ].map((q) async => _addArtists(await _searchArtists(q))),
+    );
+  }
+
+  /// Fetches up to 10 similar / "Fans might also like" artists for [artist]
+  /// and slots them into the grid right after it.
+  Future<void> _expandSimilarArtists(OnlineCollection artist) async {
+    if (!_expandedArtists.add(artist.title.toLowerCase())) return;
     final results = <OnlineCollection>[];
     final seen = <String>{artist.title.toLowerCase()};
 
@@ -524,19 +529,19 @@ class _TasteSetupScreenState extends ConsumerState<TasteSetupScreen> {
       }
     }
 
-    if (!mounted || reqId != _similarReqCounter) return;
-
+    if (!mounted) return;
     setState(() {
-      _similarArtists = results.take(10).toList();
-      _loadingSimilar = false;
-      // Merge into _artists catalog so they persist
-      final existingNames = {for (final a in _artists) a.title.toLowerCase()};
-      final toAdd = _similarArtists
-          .where((a) => !existingNames.contains(a.title.toLowerCase()))
+      final have = {for (final a in _artists) a.title.toLowerCase()};
+      final toAdd = results
+          .where((a) => !have.contains(a.title.toLowerCase()))
+          .take(10)
           .toList();
-      if (toAdd.isNotEmpty) {
-        _artists = [..._artists, ...toAdd];
-      }
+      if (toAdd.isEmpty) return;
+      _fresh.addAll(toAdd.map((a) => a.title.toLowerCase()));
+      final at = _artists.indexWhere(
+        (a) => a.title.toLowerCase() == artist.title.toLowerCase(),
+      );
+      _artists = [..._artists]..insertAll(at + 1, toAdd);
     });
   }
 
@@ -562,16 +567,53 @@ class _TasteSetupScreenState extends ConsumerState<TasteSetupScreen> {
   Future<void> _finish() async {
     await ref.read(tasteProvider.notifier).markSeen();
     unawaited(ref.read(onlineHomeProvider.notifier).load(force: true));
-    if (mounted) Navigator.of(context).pop();
+    if (!mounted) return;
+    if (widget.onDone != null) {
+      widget.onDone!();
+    } else {
+      Navigator.of(context).pop();
+    }
+  }
+
+  void _back() {
+    if (_step == 1) {
+      setState(() {
+        _reverse = true;
+        _step = 0;
+      });
+    } else if (widget.onBack != null) {
+      widget.onBack!();
+    } else {
+      Navigator.of(context).maybePop();
+    }
+  }
+
+  void _next() {
+    if (_step == 0) {
+      setState(() {
+        _reverse = false;
+        _step = 1;
+      });
+      _loadArtists();
+      _loadGenreArtists();
+    } else {
+      _finish();
+    }
   }
 
   Widget _buildArtistCard(OnlineCollection a, Taste taste, Color accent) {
     final picked = taste.hasArtist(a.title);
-    final isExpanded =
-        _activeSimilarArtist?.title.toLowerCase() == a.title.toLowerCase();
-
-    return InkWell(
-      borderRadius: BorderRadius.circular(12),
+    final tile = _ArtistTile(
+      picked: picked,
+      name: a.title,
+      art: OnlineArt(
+        url: a.thumbnail,
+        size: 60,
+        round: true,
+        icon: LucideIcons.user,
+      ),
+    );
+    return SetupPressable(
       onTap: () {
         AppHaptics.selection();
         final willBePicked = !picked;
@@ -584,234 +626,82 @@ class _TasteSetupScreenState extends ConsumerState<TasteSetupScreen> {
                 thumbnail: a.thumbnail,
               ),
             );
-        if (willBePicked) {
-          unawaited(_expandSimilarArtists(a));
-        } else if (isExpanded) {
+        if (willBePicked) unawaited(_expandSimilarArtists(a));
+      },
+      // Always the same wrapper: swapping it out when the fade ended rebuilt
+      // the tile and reloaded its picture (a second flicker). The tween only
+      // runs on the first build, so non-fresh tiles start at 1 and stay put.
+      child: TweenAnimationBuilder<double>(
+        tween: Tween(
+          begin: _fresh.contains(a.title.toLowerCase()) ? 0 : 1,
+          end: 1,
+        ),
+        duration: const Duration(milliseconds: 420),
+        curve: Curves.easeOutCubic,
+        onEnd: () => _fresh.remove(a.title.toLowerCase()),
+        builder: (_, t, child) => Opacity(
+          opacity: t,
+          child: Transform.scale(scale: 0.85 + 0.15 * t, child: child),
+        ),
+        child: tile,
+      ),
+    );
+  }
+
+  Widget _genreChip(String g, Taste taste) {
+    final picked = taste.genres.contains(g);
+    return SetupPressable(
+      onTap: () {
+        AppHaptics.selection();
+        ref.read(tasteProvider.notifier).toggleGenre(g);
+        final sub = _similarGenres[g];
+        if (!picked && sub != null) {
           setState(() {
-            _activeSimilarArtist = null;
-            _similarArtists = const [];
+            for (final item in sub) {
+              if (!_expandedGenres.contains(item)) _expandedGenres.add(item);
+            }
           });
         }
       },
-      child: Column(
-        children: [
-          Stack(
-            children: [
-              OnlineArt(
-                url: a.thumbnail,
-                size: 84,
-                round: true,
-                icon: LucideIcons.user,
-              ),
-              if (picked)
-                Positioned.fill(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: accent.withValues(alpha: 0.55),
-                    ),
-                    child: const Icon(
-                      LucideIcons.check,
-                      color: Colors.white,
-                      size: 32,
-                    ),
-                  ),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOutCubic,
+        height: 39,
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        decoration: BoxDecoration(
+          color: picked ? kSetupInner : kSetupInner.withValues(alpha: 0),
+          borderRadius: BorderRadius.circular(8.5),
+          border: Border.all(
+            color: picked ? const Color(0xFF2A2A2A) : kSetupLine,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // The width changes once, not per frame: an AnimatedSize here
+            // re-flowed the whole Wrap for 220 ms and made the card shimmer.
+            if (picked)
+              TweenAnimationBuilder<double>(
+                tween: Tween(begin: 0, end: 1),
+                duration: const Duration(milliseconds: 220),
+                curve: Curves.easeOutBack,
+                builder: (context, t, child) => Transform.scale(
+                  scale: t,
+                  child: Opacity(opacity: t.clamp(0.0, 1.0), child: child),
                 ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Text(
-            a.title,
-            maxLines: 2,
-            textAlign: TextAlign.center,
-            overflow: TextOverflow.ellipsis,
-            style: AppFonts.jostStyle(
-              color: Colors.white,
-              fontSize: 13,
-              fontWeight: picked ? FontWeight.w600 : FontWeight.normal,
-            ),
-          ),
-        ],
+                child: const Padding(
+                  padding: EdgeInsets.only(right: 8),
+                  child: SetupCheck(on: true, size: 16),
+                ),
+              ),
+            Text(g, style: setupBody(size: 15, color: Colors.white)),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildSimilarArtistsSection(Taste taste, Color accent) {
-    final artistName = _activeSimilarArtist?.title ?? '';
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.04),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: accent.withValues(alpha: 0.3), width: 1),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Row(
-              children: [
-                Icon(LucideIcons.sparkles, size: 16, color: accent),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Fans of $artistName might also like',
-                    style: AppFonts.jostStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                if (_loadingSimilar)
-                  Padding(
-                    padding: const EdgeInsets.only(right: 6),
-                    child: SizedBox(
-                      width: 14,
-                      height: 14,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: accent,
-                      ),
-                    ),
-                  )
-                else
-                  InkWell(
-                    borderRadius: BorderRadius.circular(12),
-                    onTap: () => setState(() {
-                      _activeSimilarArtist = null;
-                      _similarArtists = const [];
-                    }),
-                    child: const Padding(
-                      padding: EdgeInsets.all(4),
-                      child: Icon(
-                        LucideIcons.x,
-                        size: 16,
-                        color: Colors.white54,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 10),
-          if (_loadingSimilar && _similarArtists.isEmpty)
-            SizedBox(
-              height: 100,
-              child: Center(
-                child: Text(
-                  'Finding artists similar to $artistName...',
-                  style: AppFonts.jostStyle(
-                    color: Colors.white54,
-                    fontSize: 12,
-                  ),
-                ),
-              ),
-            )
-          else if (_similarArtists.isEmpty)
-            SizedBox(
-              height: 50,
-              child: Center(
-                child: Text(
-                  'No similar artists found',
-                  style: AppFonts.jostStyle(
-                    color: Colors.white38,
-                    fontSize: 12,
-                  ),
-                ),
-              ),
-            )
-          else
-            SizedBox(
-              height: 116,
-              child: ListView.separated(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                scrollDirection: Axis.horizontal,
-                itemCount: _similarArtists.length,
-                separatorBuilder: (_, _) => const SizedBox(width: 12),
-                itemBuilder: (context, i) {
-                  final a = _similarArtists[i];
-                  final picked = taste.hasArtist(a.title);
-                  return SizedBox(
-                    width: 80,
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(10),
-                      onTap: () {
-                        AppHaptics.selection();
-                        ref
-                            .read(tasteProvider.notifier)
-                            .toggleArtist(
-                              TasteArtist(
-                                a.title,
-                                browseId: a.browseId,
-                                thumbnail: a.thumbnail,
-                              ),
-                            );
-                      },
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Stack(
-                            children: [
-                              OnlineArt(
-                                url: a.thumbnail,
-                                size: 68,
-                                round: true,
-                                icon: LucideIcons.user,
-                              ),
-                              if (picked)
-                                Positioned.fill(
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: accent.withValues(alpha: 0.55),
-                                    ),
-                                    child: const Icon(
-                                      LucideIcons.check,
-                                      color: Colors.white,
-                                      size: 26,
-                                    ),
-                                  ),
-                                ),
-                            ],
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            a.title,
-                            maxLines: 2,
-                            textAlign: TextAlign.center,
-                            overflow: TextOverflow.ellipsis,
-                            style: AppFonts.jostStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: picked
-                                  ? FontWeight.w600
-                                  : FontWeight.normal,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    final taste = ref.watch(tasteProvider);
-    final accent = Theme.of(context).colorScheme.primary;
-
+  Widget _genresPage(AppLocalizations l10n, Taste taste) {
     final baseGenres = [
       ..._localGenres,
       ..._genres.where(
@@ -822,270 +712,385 @@ class _TasteSetupScreenState extends ConsumerState<TasteSetupScreen> {
       ...baseGenres,
       ..._expandedGenres.where((g) => !baseGenres.contains(g)),
     ];
-
-    return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.surface,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        foregroundColor: Colors.white,
-        title: Text(
-          _step == 0 ? l10n.tasteGenresTitle : l10n.tasteArtistsTitle,
-          style: AppFonts.jostStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
+    final q = _genreSearch.text.trim().toLowerCase();
+    final shown = q.isEmpty
+        ? genreList
+        : genreList.where((g) => g.toLowerCase().contains(q)).toList();
+    return SetupPage(
+      step: widget.steps?.$1,
+      expand: true,
+      // Title and description sit right above the card; the card takes 80%
+      // of the space under them, so picking chips (and the genres they
+      // reveal) scrolls inside it instead of growing it.
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Spacer(),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Text(l10n.tasteGenresTitle, style: setupTitleStyle()),
           ),
-        ),
-        actions: [TextButton(onPressed: _finish, child: Text(l10n.tasteSkip))],
-      ),
-      body: _step == 0
-          ? SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  for (final g in genreList)
-                    FilterChip(
-                      label: Text(g),
-                      selected: taste.genres.contains(g),
-                      selectedColor: accent.withValues(alpha: 0.35),
-                      onSelected: (_) {
-                        AppHaptics.selection();
-                        final isSelected = taste.genres.contains(g);
-                        ref.read(tasteProvider.notifier).toggleGenre(g);
-                        if (!isSelected) {
-                          final sub = _similarGenres[g];
-                          if (sub != null) {
-                            setState(() {
-                              for (final item in sub) {
-                                if (!_expandedGenres.contains(item)) {
-                                  _expandedGenres.add(item);
-                                }
-                              }
-                            });
-                          }
-                        }
-                      },
-                    ),
-                ],
+          const SizedBox(height: 4),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Text(l10n.setupGenresDesc, style: setupBody()),
+          ),
+          const SizedBox(height: 16),
+          Expanded(
+            flex: 4,
+            child: Container(
+              decoration: BoxDecoration(
+                color: kSetupCard,
+                borderRadius: BorderRadius.circular(15),
               ),
-            )
-          : Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                  child: TextField(
-                    controller: _search,
-                    onChanged: _onSearch,
-                    style: AppFonts.jostStyle(color: Colors.white),
-                    decoration: InputDecoration(
-                      prefixIcon: const Icon(LucideIcons.search),
-                      hintText: l10n.tasteSearchArtists,
-                      filled: true,
-                      fillColor: Colors.white.withValues(alpha: 0.06),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(28),
-                        borderSide: BorderSide.none,
+              clipBehavior: Clip.antiAlias,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(15, 15, 15, 0),
+                    child: _searchField(
+                      _genreSearch,
+                      l10n.setupSearchGenre,
+                      (_) => setState(() {}),
+                    ),
+                  ),
+                  Expanded(
+                    child: _fadeBottom(
+                      SingleChildScrollView(
+                        padding: const EdgeInsets.fromLTRB(15, 16, 15, 16),
+                        child: shown.isEmpty
+                            ? Text(
+                                l10n.noResultsFound,
+                                textAlign: TextAlign.center,
+                                style: setupBody(size: 14),
+                              )
+                            : Wrap(
+                                spacing: 8,
+                                runSpacing: 12,
+                                children: [
+                                  for (final g in shown) _genreChip(g, taste),
+                                ],
+                              ),
                       ),
                     ),
                   ),
-                ),
-                Expanded(
-                  child: _loadingArtists && _artists.isEmpty
-                      ? const Center(child: CircularProgressIndicator())
-                      : LayoutBuilder(
-                          builder: (context, constraints) {
-                            final q = _search.text.trim().toLowerCase();
-                            final displayed = q.isEmpty
-                                ? _artists
-                                : _artists
-                                      .where(
-                                        (a) =>
-                                            a.title.toLowerCase().contains(q),
-                                      )
-                                      .toList();
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+      bottom: SetupBottomBar(
+        label: l10n.setupContinue,
+        onBack: _back,
+        onNext: _next,
+      ),
+    );
+  }
 
-                            if (displayed.isEmpty && !_loadingArtists) {
-                              return Center(
-                                child: Text(
-                                  'No artists found',
-                                  style: AppFonts.jostStyle(
-                                    color: Colors.white54,
-                                  ),
-                                ),
-                              );
-                            }
+  /// Fades the last bit of a scrolling card into it, like the design.
+  static Widget _fadeBottom(Widget child) => ShaderMask(
+    blendMode: BlendMode.dstIn,
+    shaderCallback: (r) => const LinearGradient(
+      begin: Alignment.topCenter,
+      end: Alignment.bottomCenter,
+      stops: [0, 0.86, 1],
+      colors: [Colors.white, Colors.white, Colors.transparent],
+    ).createShader(r),
+    child: child,
+  );
 
-                            final crossAxisCount = (constraints.maxWidth / 110)
-                                .floor()
-                                .clamp(2, 8);
-                            final slivers = <Widget>[];
+  SliverGrid _grid(
+    List<OnlineCollection> items,
+    Taste taste,
+    int count,
+    double width,
+  ) {
+    final cellW = (width - 14 * (count - 1)) / count;
+    final cellH = cellW / (101 / 116);
+    Offset at(int i) =>
+        Offset((i % count) * (cellW + 14), (i ~/ count) * (cellH + 16));
+    return SliverGrid(
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: count,
+        childAspectRatio: 101 / 116,
+        mainAxisSpacing: 16,
+        crossAxisSpacing: 14,
+      ),
+      // Keyed by artist so an insert moves tiles instead of handing every
+      // later slot a different artist (which reloaded each picture).
+      delegate: SliverChildBuilderDelegate(
+        (_, i) => _SlideToSlot(
+          key: ValueKey(items[i].title.toLowerCase()),
+          offset: at(i),
+          child: _buildArtistCard(items[i], taste, kSetupAccent),
+        ),
+        childCount: items.length,
+        findChildIndexCallback: (key) {
+          final name = (key as ValueKey<String>).value;
+          final i = items.indexWhere((a) => a.title.toLowerCase() == name);
+          return i < 0 ? null : i;
+        },
+      ),
+    );
+  }
 
-                            final activeIdx = _activeSimilarArtist == null
-                                ? -1
-                                : displayed.indexWhere(
-                                    (a) =>
-                                        a.title.toLowerCase() ==
-                                        _activeSimilarArtist!.title
-                                            .toLowerCase(),
-                                  );
+  Widget _artistGrid(Taste taste) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final count = (constraints.maxWidth / 110).floor().clamp(3, 8);
+        if (_loadingArtists && _artists.isEmpty) {
+          // Placeholder tiles instead of a spinner while artists load.
+          return GridView.builder(
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: count,
+              childAspectRatio: 101 / 116,
+              mainAxisSpacing: 16,
+              crossAxisSpacing: 14,
+            ),
+            itemCount: count * 4,
+            itemBuilder: (_, _) => const _ArtistTile(
+              picked: false,
+              name: null,
+              art: CircleAvatar(radius: 30, backgroundColor: Color(0xFF3B3B3B)),
+            ),
+          );
+        }
+        final q = _search.text.trim().toLowerCase();
+        final displayed = q.isEmpty
+            ? _artists
+            : _artists.where((a) => a.title.toLowerCase().contains(q)).toList();
+        if (displayed.isEmpty && !_loadingArtists) {
+          return Center(
+            child: Text(
+              AppLocalizations.of(context)!.noArtistsFound,
+              style: setupBody(size: 14),
+            ),
+          );
+        }
 
-                            if (activeIdx != -1) {
-                              final rowEnd = math.min(
-                                displayed.length,
-                                ((activeIdx ~/ crossAxisCount) + 1) *
-                                    crossAxisCount,
-                              );
+        final slivers = <Widget>[
+          _grid(displayed, taste, count, constraints.maxWidth),
+        ];
+        slivers.add(const SliverToBoxAdapter(child: SizedBox(height: 40)));
+        return _fadeBottom(CustomScrollView(slivers: slivers));
+      },
+    );
+  }
 
-                              // Top grid up to end of row containing selected artist
-                              slivers.add(
-                                SliverPadding(
-                                  padding: const EdgeInsets.fromLTRB(
-                                    12,
-                                    4,
-                                    12,
-                                    0,
-                                  ),
-                                  sliver: SliverGrid(
-                                    gridDelegate:
-                                        SliverGridDelegateWithFixedCrossAxisCount(
-                                          crossAxisCount: crossAxisCount,
-                                          childAspectRatio: 0.75,
-                                          mainAxisSpacing: 8,
-                                          crossAxisSpacing: 8,
-                                        ),
-                                    delegate: SliverChildBuilderDelegate(
-                                      (_, i) => _buildArtistCard(
-                                        displayed[i],
-                                        taste,
-                                        accent,
-                                      ),
-                                      childCount: rowEnd,
-                                    ),
-                                  ),
-                                ),
-                              );
+  /// The rounded search box the genre and artist cards open with.
+  Widget _searchField(
+    TextEditingController controller,
+    String hint,
+    ValueChanged<String> onChanged,
+  ) => TextField(
+    controller: controller,
+    onChanged: onChanged,
+    cursorColor: kSetupAccent,
+    style: setupBody(size: 15, color: Colors.white),
+    decoration: InputDecoration(
+      hintText: hint,
+      hintStyle: setupBody(size: 15, color: const Color(0xFF808080)),
+      isDense: true,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      suffixIcon: controller.text.isEmpty
+          ? null
+          : IconButton(
+              icon: const Icon(
+                Icons.close_rounded,
+                size: 18,
+                color: Color(0xFF808080),
+              ),
+              onPressed: () {
+                controller.clear();
+                onChanged('');
+              },
+            ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8.5),
+        borderSide: const BorderSide(color: Color(0xFF2A2A2A)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8.5),
+        borderSide: const BorderSide(color: Color(0xFF3A3A3A)),
+      ),
+    ),
+  );
 
-                              // Horizontal row of 10 similar artists directly between the rows
-                              slivers.add(
-                                SliverToBoxAdapter(
-                                  child: _buildSimilarArtistsSection(
-                                    taste,
-                                    accent,
-                                  ),
-                                ),
-                              );
+  Widget _artistsPage(AppLocalizations l10n, Taste taste) {
+    return SetupPage(
+      step: widget.steps?.$2,
+      title: l10n.setupArtistsTitle,
+      description: l10n.setupArtistsDesc,
+      expand: true,
+      body: Container(
+        padding: const EdgeInsets.fromLTRB(15, 15, 15, 0),
+        decoration: BoxDecoration(
+          color: const Color(0xFF141414),
+          borderRadius: BorderRadius.circular(15),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          children: [
+            _searchField(_search, l10n.setupSearchArtist, _onSearch),
+            const SizedBox(height: 16),
+            Expanded(child: _artistGrid(taste)),
+          ],
+        ),
+      ),
+      bottom: SetupBottomBar(
+        label: l10n.setupAlmostThere,
+        onBack: _back,
+        onNext: _next,
+      ),
+    );
+  }
 
-                              // Bottom grid of remaining artists
-                              if (rowEnd < displayed.length) {
-                                slivers.add(
-                                  SliverPadding(
-                                    padding: const EdgeInsets.fromLTRB(
-                                      12,
-                                      8,
-                                      12,
-                                      16,
-                                    ),
-                                    sliver: SliverGrid(
-                                      gridDelegate:
-                                          SliverGridDelegateWithFixedCrossAxisCount(
-                                            crossAxisCount: crossAxisCount,
-                                            childAspectRatio: 0.75,
-                                            mainAxisSpacing: 8,
-                                            crossAxisSpacing: 8,
-                                          ),
-                                      delegate: SliverChildBuilderDelegate(
-                                        (_, i) => _buildArtistCard(
-                                          displayed[rowEnd + i],
-                                          taste,
-                                          accent,
-                                        ),
-                                        childCount: displayed.length - rowEnd,
-                                      ),
-                                    ),
-                                  ),
-                                );
-                              }
-                            } else if (_activeSimilarArtist != null) {
-                              // Selected artist not in current filter/view
-                              slivers.add(
-                                SliverToBoxAdapter(
-                                  child: _buildSimilarArtistsSection(
-                                    taste,
-                                    accent,
-                                  ),
-                                ),
-                              );
-                              slivers.add(
-                                SliverPadding(
-                                  padding: const EdgeInsets.all(12),
-                                  sliver: SliverGrid(
-                                    gridDelegate:
-                                        SliverGridDelegateWithFixedCrossAxisCount(
-                                          crossAxisCount: crossAxisCount,
-                                          childAspectRatio: 0.75,
-                                          mainAxisSpacing: 8,
-                                          crossAxisSpacing: 8,
-                                        ),
-                                    delegate: SliverChildBuilderDelegate(
-                                      (_, i) => _buildArtistCard(
-                                        displayed[i],
-                                        taste,
-                                        accent,
-                                      ),
-                                      childCount: displayed.length,
-                                    ),
-                                  ),
-                                ),
-                              );
-                            } else {
-                              // Standard grid without active similar shelf
-                              slivers.add(
-                                SliverPadding(
-                                  padding: const EdgeInsets.all(12),
-                                  sliver: SliverGrid(
-                                    gridDelegate:
-                                        SliverGridDelegateWithFixedCrossAxisCount(
-                                          crossAxisCount: crossAxisCount,
-                                          childAspectRatio: 0.75,
-                                          mainAxisSpacing: 8,
-                                          crossAxisSpacing: 8,
-                                        ),
-                                    delegate: SliverChildBuilderDelegate(
-                                      (_, i) => _buildArtistCard(
-                                        displayed[i],
-                                        taste,
-                                        accent,
-                                      ),
-                                      childCount: displayed.length,
-                                    ),
-                                  ),
-                                ),
-                              );
-                            }
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final taste = ref.watch(tasteProvider);
+    final pages = SetupSwitcher(
+      reverse: _reverse,
+      child: KeyedSubtree(
+        key: ValueKey(_step),
+        child: _step == 0
+            ? _genresPage(l10n, taste)
+            : _artistsPage(l10n, taste),
+      ),
+    );
+    // Embedded in first-run setup, which already draws the backdrop.
+    if (widget.onDone != null) {
+      return PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, _) {
+          if (!didPop) _back();
+        },
+        child: pages,
+      );
+    }
+    return PopScope(
+      canPop: _step == 0,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _back();
+      },
+      child: Scaffold(
+        backgroundColor: kSetupBg,
+        body: SetupBackground(child: pages),
+      ),
+    );
+  }
+}
 
-                            return CustomScrollView(slivers: slivers);
-                          },
-                        ),
+/// Glides a grid tile from its previous slot to its new one when artists
+/// are inserted ahead of it, instead of jumping there.
+class _SlideToSlot extends StatefulWidget {
+  const _SlideToSlot({super.key, required this.offset, required this.child});
+
+  /// This tile's slot position inside the grid.
+  final Offset offset;
+  final Widget child;
+
+  @override
+  State<_SlideToSlot> createState() => _SlideToSlotState();
+}
+
+class _SlideToSlotState extends State<_SlideToSlot>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 380),
+  );
+  Offset _from = Offset.zero;
+
+  @override
+  void didUpdateWidget(_SlideToSlot old) {
+    super.didUpdateWidget(old);
+    if (old.offset == widget.offset || Motion.reducedOf(context)) return;
+    // Start from wherever it is drawn right now, so back-to-back inserts
+    // chain smoothly.
+    final t = Curves.easeOutCubic.transform(_c.value);
+    _from = old.offset + _from * (1 - t) - widget.offset;
+    _c.forward(from: 0);
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AnimatedBuilder(
+    animation: _c,
+    builder: (_, child) => Transform.translate(
+      offset: _c.isAnimating
+          ? _from * (1 - Curves.easeOutCubic.transform(_c.value))
+          : Offset.zero,
+      child: child,
+    ),
+    child: widget.child,
+  );
+}
+
+/// Grey rounded tile: round avatar with a check badge, name underneath.
+class _ArtistTile extends StatelessWidget {
+  const _ArtistTile({
+    required this.picked,
+    required this.name,
+    required this.art,
+  });
+
+  final bool picked;
+  final String? name;
+  final Widget art;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 220),
+      decoration: BoxDecoration(
+        color: picked ? kSetupInner : kSetupInner.withValues(alpha: 0),
+        borderRadius: BorderRadius.circular(8.5),
+        border: Border.all(
+          color: picked ? const Color(0xFF2A2A2A) : const Color(0xFF1A1A1A),
+        ),
+      ),
+      padding: const EdgeInsets.fromLTRB(6, 14, 6, 12),
+      child: Column(
+        children: [
+          SizedBox(
+            width: 66,
+            height: 60,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                art,
+                Positioned(
+                  top: 0,
+                  right: 0,
+                  child: AnimatedScale(
+                    scale: picked ? 1 : 0,
+                    duration: const Duration(milliseconds: 260),
+                    curve: picked ? Curves.easeOutBack : Curves.easeIn,
+                    child: const SetupCheck(on: true, size: 16),
+                  ),
                 ),
               ],
             ),
-      bottomNavigationBar: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: FilledButton(
-            onPressed: () {
-              AppHaptics.light();
-              if (_step == 0) {
-                setState(() => _step = 1);
-                _loadArtists();
-              } else {
-                _finish();
-              }
-            },
-            child: Text(_step == 0 ? l10n.nextLabel : l10n.done),
           ),
-        ),
+          const Spacer(),
+          if (name != null)
+            Text(
+              name!,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: setupBody(size: 14, color: Colors.white, height: 1.2),
+            ),
+        ],
       ),
     );
   }

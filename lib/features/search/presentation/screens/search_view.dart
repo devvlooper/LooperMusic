@@ -258,9 +258,9 @@ class SearchView extends ConsumerWidget {
       return CustomScrollView(
         slivers: [
           OnlineSearchSliver(
-          query: ref.read(searchQueryProvider),
-          hideIds: {for (final s in results.songs) s.path},
-        ),
+            query: ref.read(searchQueryProvider),
+            hideIds: {for (final s in results.songs) s.path},
+          ),
           const SliverToBoxAdapter(child: SizedBox(height: 180)),
         ],
       );

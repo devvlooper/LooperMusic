@@ -3,11 +3,9 @@ import 'package:looper_player/ui/widgets/common/app_loading_indicator.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:looper_player/features/library/presentation/providers/library/library_notifier.dart';
-import 'package:looper_player/features/settings/presentation/providers/settings_notifier.dart';
 import 'package:looper_player/core/theme/app_fonts.dart';
 import 'package:looper_player/l10n/app_localizations.dart';
 import 'package:looper_player/ui/widgets/common/folder_picker_helper.dart';
-import 'premium_section.dart';
 import 'package:looper_player/core/services/haptics/app_haptics.dart';
 
 class EmptyLibraryView extends ConsumerWidget {
@@ -17,19 +15,17 @@ class EmptyLibraryView extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final library = ref.watch(libraryProvider);
-    final settings = ref.watch(settingsProvider);
     final isScanning = library.isScanning;
     final l10n = AppLocalizations.of(context)!;
 
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24.0),
-        child: PremiumSection(
-          borderRadius: BorderRadius.circular(24),
-          useBlur: true,
-          // Static background behind it: a live blur looks the same.
-          forceNoBlur: true,
-          useExpanded: false,
+        child: Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFF282828),
+            borderRadius: BorderRadius.circular(8),
+          ),
           padding: const EdgeInsets.symmetric(vertical: 40.0, horizontal: 24.0),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -42,7 +38,7 @@ class EmptyLibraryView extends ConsumerWidget {
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: settings.accent.withValues(alpha: 0.06),
+                    color: Colors.white.withValues(alpha: 0.06),
                   ),
                   child: const AppLoadingIndicator(size: 96),
                 )
@@ -51,16 +47,12 @@ class EmptyLibraryView extends ConsumerWidget {
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: Colors.white.withValues(alpha: 0.02),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.04),
-                      width: 1.5,
-                    ),
+                    color: Colors.white.withValues(alpha: 0.06),
                   ),
                   child: Icon(
                     LucideIcons.music,
                     size: 48,
-                    color: settings.accent.withValues(alpha: 0.8),
+                    color: Colors.white70,
                   ),
                 ),
               const SizedBox(height: 24),
@@ -101,7 +93,6 @@ class EmptyLibraryView extends ConsumerWidget {
                   label: l10n.scanForMusic,
                   icon: LucideIcons.searchCode,
                   isPrimary: true,
-                  accentColor: settings.accent,
                 ),
                 const SizedBox(height: 12),
                 // Secondary Action: Select Folder
@@ -113,7 +104,6 @@ class EmptyLibraryView extends ConsumerWidget {
                   label: l10n.selectCustomFolder,
                   icon: LucideIcons.folderPlus,
                   isPrimary: false,
-                  accentColor: settings.accent,
                 ),
               ] else ...[
                 // Loading indicator auxiliary status
@@ -139,14 +129,12 @@ class _EmptyActionButton extends StatelessWidget {
   final String label;
   final IconData icon;
   final bool isPrimary;
-  final Color accentColor;
 
   const _EmptyActionButton({
     required this.onPressed,
     required this.label,
     required this.icon,
     required this.isPrimary,
-    required this.accentColor,
   });
 
   @override
@@ -155,24 +143,14 @@ class _EmptyActionButton extends StatelessWidget {
       width: double.infinity,
       height: 48,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
-        gradient: isPrimary
-            ? LinearGradient(
-                colors: [accentColor, accentColor.withValues(alpha: 0.75)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              )
-            : null,
-        color: isPrimary ? null : Colors.white.withValues(alpha: 0.03),
-        border: isPrimary
-            ? null
-            : Border.all(color: Colors.white.withValues(alpha: 0.08), width: 1),
+        borderRadius: BorderRadius.circular(8),
+        color: isPrimary ? Colors.white : Colors.white.withValues(alpha: 0.08),
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
           onTap: onPressed,
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(8),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [

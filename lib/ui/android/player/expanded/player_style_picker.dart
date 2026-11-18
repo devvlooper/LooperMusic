@@ -5,13 +5,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:looper_player/core/providers/player_expand_provider.dart';
 import 'package:looper_player/core/services/haptics/app_haptics.dart';
 import 'package:looper_player/core/theme/app_fonts.dart';
+import 'package:looper_player/core/utils/motion.dart';
 import 'package:looper_player/features/settings/presentation/providers/settings_notifier.dart';
 import 'package:looper_player/l10n/app_localizations.dart';
 
 import 'android_expanded_player.dart';
 import 'styled_player_layout.dart';
 
-/// Holding the artwork for ~5 s opens the style picker. A shorter hold
+/// Holding the artwork for ~3 s opens the style picker. A shorter hold
 /// still runs [onLongPress] (on release, so the two never both fire).
 class HoldForPlayerStyles extends StatefulWidget {
   final Widget child;
@@ -27,8 +28,10 @@ class _HoldForPlayerStylesState extends State<HoldForPlayerStyles> {
 
   void _start() {
     _timer?.cancel();
-    // The long press itself starts after 500 ms, so this lands at ~5.5 s.
-    _timer = Timer(const Duration(seconds: 5), () {
+    AppHaptics.selection();
+    // The long press itself starts after 500 ms (kLongPressTimeout), so 2.5 s
+    // lands at ~3.0 s of hold.
+    _timer = Timer(const Duration(milliseconds: 2500), () {
       _timer = null;
       if (!mounted) return;
       AppHaptics.success();
@@ -94,13 +97,15 @@ class _PlayerStylePickerScreenState
 
   late final PageController _pages;
   late int _index;
+  late final int _initialStyleIndex;
 
   @override
   void initState() {
     super.initState();
-    _index = PlayerLayoutStyle.fromSetting(
+    _initialStyleIndex = PlayerLayoutStyle.fromSetting(
       ref.read(settingsProvider).playerStyle,
     ).index;
+    _index = _initialStyleIndex;
     _pages = PageController(
       initialPage: _index,
       viewportFraction: _cardFraction + _gapFraction,
@@ -117,7 +122,7 @@ class _PlayerStylePickerScreenState
     PlayerLayoutStyle.classic => l10n.playerStyleClassic,
     PlayerLayoutStyle.arc => l10n.playerStyleArc,
     PlayerLayoutStyle.linear => l10n.playerStyleLinear,
-    PlayerLayoutStyle.card => l10n.playerStyleClassic,
+    PlayerLayoutStyle.card => l10n.playerStyleCard,
   };
 
   void _save() {
@@ -130,6 +135,10 @@ class _PlayerStylePickerScreenState
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final mq = MediaQuery.of(context);
+    final reduced = Motion.reducedOf(context);
+    final duration = reduced
+        ? Duration.zero
+        : const Duration(milliseconds: 240);
     // Previews are always the portrait layout, at the phone's own shape.
     final Size frame = mq.size.width < mq.size.height
         ? mq.size
@@ -154,9 +163,9 @@ class _PlayerStylePickerScreenState
                       l10n.playerStyleTitle(_name(l10n, _styles[_index])),
                       textAlign: TextAlign.center,
                       style: AppFonts.jostStyle(
-                        color: Colors.white.withValues(alpha: 0.5),
+                        color: Colors.white,
                         fontSize: 18,
-                        fontWeight: FontWeight.w500,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
@@ -177,17 +186,61 @@ class _PlayerStylePickerScreenState
                   AppHaptics.selection();
                   setState(() => _index = i);
                 },
-                itemBuilder: (context, i) => Padding(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: mq.size.width * _gapFraction / 2,
-                  ),
-                  child: Center(
-                    child: AspectRatio(
-                      aspectRatio: frame.width / frame.height,
-                      child: _StylePreview(style: _styles[i], frame: frame),
+                itemBuilder: (context, i) {
+                  final isSelected = i == _index;
+                  final isAlreadySet = i == _initialStyleIndex;
+                  return Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: mq.size.width * _gapFraction / 2,
                     ),
-                  ),
-                ),
+                    child: Center(
+                      child: AspectRatio(
+                        aspectRatio: frame.width / frame.height,
+                        child: GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () {
+                            if (_index != i) {
+                              AppHaptics.selection();
+                              _pages.animateToPage(
+                                i,
+                                duration: const Duration(milliseconds: 280),
+                                curve: Curves.easeOutCubic,
+                              );
+                            }
+                          },
+                          child: AnimatedScale(
+                            scale: isSelected || reduced ? 1.0 : 0.94,
+                            duration: duration,
+                            curve: Curves.easeOutCubic,
+                            child: AnimatedOpacity(
+                              opacity: isSelected || reduced ? 1.0 : 0.65,
+                              duration: duration,
+                              curve: Curves.easeOutCubic,
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                foregroundDecoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(
+                                    color: isAlreadySet
+                                        ? const Color(0xFF888888)
+                                        : Colors.transparent,
+                                    width: 2.0,
+                                  ),
+                                ),
+                                child: _StylePreview(
+                                  style: _styles[i],
+                                  frame: frame,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
               ),
             ),
             const SizedBox(height: 24),
@@ -196,15 +249,15 @@ class _PlayerStylePickerScreenState
               children: [
                 for (int i = 0; i < _styles.length; i++)
                   AnimatedContainer(
-                    duration: const Duration(milliseconds: 220),
+                    duration: duration,
                     curve: Curves.easeOutCubic,
                     margin: const EdgeInsets.symmetric(horizontal: 3),
-                    width: i == _index ? 14 : 8,
-                    height: 3,
+                    width: i == _index ? 16 : 8,
+                    height: 4,
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(
-                        alpha: i == _index ? 1 : 0.18,
-                      ),
+                      color: i == _index
+                          ? Colors.white
+                          : Colors.white.withValues(alpha: 0.18),
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),

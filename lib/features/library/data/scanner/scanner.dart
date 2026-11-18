@@ -21,7 +21,8 @@ import 'scan_result.dart';
 import '../../domain/artist_names.dart';
 import '../services/artist_catalog.dart';
 import 'linux_tag_reader.dart';
-import 'package:looper_player/features/online/data/online_downloader.dart' show DownloadFolders;
+import 'package:looper_player/features/online/data/online_downloader.dart'
+    show DownloadFolders;
 part 'scan_paths.dart';
 part 'media_sources.dart';
 part 'metadata_extraction.dart';

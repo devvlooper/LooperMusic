@@ -9,9 +9,16 @@ import 'package:looper_player/l10n/app_localizations.dart';
 import 'package:looper_player/ui/android/player/expanded/android_expanded_player.dart';
 import 'package:looper_player/ui/android/shell/music_bar/premium_music_bar.dart';
 
+import 'package:looper_player/ui/widgets/common/optimized_image.dart';
+
 class _FakeSettings extends Settings {
+  final String playerStyle;
+  _FakeSettings({this.playerStyle = 'classic'});
+
   @override
-  AppSettings build() => AppSettings()..enableSlideGesture = true;
+  AppSettings build() => AppSettings()
+    ..enableSlideGesture = true
+    ..playerStyle = playerStyle;
 }
 
 class _FakePlayback extends Playback {
@@ -378,4 +385,101 @@ void main() {
 
     expect(playback.calls, contains('skipNext'));
   });
+
+  for (final style in ['card', 'arc', 'linear']) {
+    testWidgets('style $style: horizontal swipe outside artwork does NOT skip song', (tester) async {
+      final s1 = _testSong('1', 'Song 1');
+      final s2 = _testSong('2', 'Song 2');
+      final playback = _FakePlayback(
+        PlaybackState(
+          currentSong: s1,
+          queue: [s1, s2],
+          isPlaying: true,
+        ),
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            settingsProvider.overrideWith(() => _FakeSettings(playerStyle: style)),
+            playbackProvider.overrideWith(() => playback),
+            currentSongAnalysisProvider.overrideWith((ref) => null),
+          ],
+          child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            theme: ThemeData.dark(),
+            home: const Scaffold(
+              body: Stack(
+                children: [
+                  PremiumMusicBar(key: ValueKey('music_bar')),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final barFinder = find.byKey(const ValueKey('music_bar'));
+      final barState = tester.state<PremiumMusicBarState>(barFinder);
+      barState.expandForTesting();
+      await tester.pumpAndSettle();
+
+      // Swipe on the title area (outside artwork)
+      final titleFinder = find.text('Song 1');
+      expect(titleFinder, findsOneWidget);
+      await tester.fling(titleFinder, const Offset(-150, 0), 800.0);
+      await tester.pumpAndSettle();
+
+      expect(playback.calls, isEmpty);
+    });
+
+    testWidgets('style $style: horizontal swipe on artwork skips song', (tester) async {
+      final s1 = _testSong('1', 'Song 1');
+      final s2 = _testSong('2', 'Song 2');
+      final playback = _FakePlayback(
+        PlaybackState(
+          currentSong: s1,
+          queue: [s1, s2],
+          isPlaying: true,
+        ),
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            settingsProvider.overrideWith(() => _FakeSettings(playerStyle: style)),
+            playbackProvider.overrideWith(() => playback),
+            currentSongAnalysisProvider.overrideWith((ref) => null),
+          ],
+          child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            theme: ThemeData.dark(),
+            home: const Scaffold(
+              body: Stack(
+                children: [
+                  PremiumMusicBar(key: ValueKey('music_bar')),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final barFinder = find.byKey(const ValueKey('music_bar'));
+      final barState = tester.state<PremiumMusicBarState>(barFinder);
+      barState.expandForTesting();
+      await tester.pumpAndSettle();
+
+      final artFinder = find.byType(OptimizedImage);
+      expect(artFinder, findsOneWidget);
+      await tester.fling(artFinder, const Offset(-150, 0), 800.0);
+      await tester.pumpAndSettle();
+
+      expect(playback.calls, contains('skipNext'));
+    });
+  }
 }

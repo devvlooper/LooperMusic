@@ -56,6 +56,9 @@ class OnlineHomeState {
     this.activeMood,
     this.loading = false,
     this.error,
+    this.continuation,
+    this.loadingMore = false,
+    this.moreFailed = false,
   });
   final List<OnlineShelf> shelves;
   final List<OnlineSong> forYou;
@@ -64,6 +67,13 @@ class OnlineHomeState {
   final bool loading;
   final Object? error;
 
+  /// Cursor for more YouTube home shelves (load on scroll).
+  final String? continuation;
+  final bool loadingMore;
+
+  /// The last more-shelves load failed; the footer shows a retry button.
+  final bool moreFailed;
+
   OnlineHomeState copyWith({
     List<OnlineShelf>? shelves,
     List<OnlineSong>? forYou,
@@ -71,6 +81,8 @@ class OnlineHomeState {
     OnlineMood? activeMood,
     bool? loading,
     Object? error,
+    bool? loadingMore,
+    bool? moreFailed,
   }) => OnlineHomeState(
     shelves: shelves ?? this.shelves,
     forYou: forYou ?? this.forYou,
@@ -78,6 +90,9 @@ class OnlineHomeState {
     activeMood: activeMood ?? this.activeMood,
     loading: loading ?? this.loading,
     error: error,
+    continuation: continuation,
+    loadingMore: loadingMore ?? this.loadingMore,
+    moreFailed: moreFailed ?? this.moreFailed,
   );
 }
 
@@ -142,8 +157,20 @@ class OnlineHomeNotifier extends Notifier<OnlineHomeState> {
   DateTime? _loadedAt;
   Future<void>? _running;
 
+  /// The taste profile relearned since For you was fetched: the next load
+  /// may replace it instead of keeping what is on screen.
+  bool _tasteChanged = false;
+
   @override
   OnlineHomeState build() {
+    // Riverpod 3 reuses this notifier when the provider is invalidated
+    // ("Not interested", taste edits). The state below starts loading, so
+    // the next load must really run: a kept _loadedAt skipped it and left
+    // the loading line on forever.
+    _loadedAt = null;
+    void onTaste() => unawaited(_applyTaste());
+    TasteProfileStore.revision.addListener(onTaste);
+    ref.onDispose(() => TasteProfileStore.revision.removeListener(onTaste));
     ref.listen(tasteProvider, (previous, next) {
       if (previous != null && !identical(previous, next)) {
         TasteProfileStore.invalidate();
@@ -155,7 +182,9 @@ class OnlineHomeNotifier extends Notifier<OnlineHomeState> {
       }
     });
     final syncCached = _parseCached(LocalJsonStore.readSync(_cacheKey));
-    unawaited(_boot());
+    // After build returns: _boot reads state, which throws while the first
+    // build runs, and that silently skipped the first load (endless line).
+    unawaited(Future.microtask(_boot));
     return syncCached ?? const OnlineHomeState(loading: true);
   }
 
@@ -192,6 +221,25 @@ class OnlineHomeNotifier extends Notifier<OnlineHomeState> {
     return null;
   }
 
+  /// A new taste profile (a few plays, a liked song, a new time of day):
+  /// re-order For you right away, then fetch fresh picks once allowed.
+  Future<void> _applyTaste() async {
+    if (!ref.read(onlineActiveProvider)) return;
+    _tasteChanged = true;
+    final current = state.forYou;
+    if (current.isNotEmpty) {
+      try {
+        final ranked = await RecommendationEngine.rerank(current);
+        if (identical(state.forYou, current)) {
+          state = state.copyWith(forYou: ranked);
+        }
+      } catch (e) {
+        LoggerHelper.write('Online home: re-rank failed', e);
+      }
+    }
+    unawaited(load());
+  }
+
   Future<void> _boot() async {
     if (state.shelves.isEmpty) {
       final raw = await LocalJsonStore.read(_cacheKey);
@@ -205,8 +253,11 @@ class OnlineHomeNotifier extends Notifier<OnlineHomeState> {
 
   Future<void> selectMood(OnlineMood? mood) async {
     final newMood = state.activeMood == mood ? null : mood;
+    if (newMood != null) await TasteProfileStore.recordMoodPick(newMood.title);
     state = state.copyWith(activeMood: newMood, loading: true);
-    await _load(true, mood: newMood);
+    // A mood only changes the YouTube shelves: reuse saved searches instead
+    // of redoing every For you / Discover search, but still a user request.
+    await _load(false, mood: newMood, user: true);
   }
 
   Future<void> load({bool force = false}) {
@@ -220,7 +271,8 @@ class OnlineHomeNotifier extends Notifier<OnlineHomeState> {
     ).whenComplete(() => _running = null);
   }
 
-  Future<void> _load(bool force, {OnlineMood? mood}) async {
+  Future<void> _load(bool force, {OnlineMood? mood, bool? user}) async {
+    final automatic = !(user ?? force);
     final active = ref.read(onlineActiveProvider);
     if (!active) {
       state = state.copyWith(
@@ -237,20 +289,39 @@ class OnlineHomeNotifier extends Notifier<OnlineHomeState> {
       List<OnlineShelf> rawShelves;
       List<OnlineSong> forYouSongs = const [];
       List<OnlineMood> youtubeMoods = const [];
+      String? homeToken;
 
       if (!isConnected && mood == null) {
         // Guest mode: Synthesize home feed from offline library signals
-        final guestService = GuestFeedService();
-        final guestShelves = await guestService.buildGuestFeed(force: force);
+        // Both at once: neither needs the other.
+        final ytF = OnlineApi.home(automatic: automatic, pages: 1);
+        unawaited(ytF.then((_) {}, onError: (_) {}));
+        final guestShelves = await GuestFeedService().buildGuestFeed(
+          force: force,
+        );
         List<OnlineShelf> ytShelves = const [];
         try {
-          final yt = await OnlineApi.home(automatic: !force, pages: 1);
+          final yt = await ytF;
           ytShelves = yt.$1;
           youtubeMoods = yt.$2;
+          homeToken = yt.$3;
         } catch (_) {}
         // Exploration shelves from public YouTube home (fixes B18, §7.2)
         rawShelves = [...guestShelves, ...ytShelves];
       } else {
+        // Pull-to-refresh wants new songs; background reloads reuse saved
+        // searches longer.
+        RecommendationEngine.searchMaxAge = force
+            ? const Duration(minutes: 30)
+            : const Duration(hours: 6);
+        // YouTube home doesn't need the taste profile: start it first so
+        // its pages load while the recommendation searches run.
+        final ytF = OnlineApi.home(
+          params: mood?.params,
+          pages: 3,
+          automatic: automatic,
+        );
+        unawaited(ytF.then((_) {}, onError: (_) {}));
         final profile = await RecommendationEngine.buildProfile(force: force);
         final results = await Future.wait([
           RecommendationEngine.forYou(profile),
@@ -259,13 +330,10 @@ class OnlineHomeNotifier extends Notifier<OnlineHomeState> {
         ]);
         List<OnlineShelf> youtubeShelves = const [];
         try {
-          final yt = await OnlineApi.home(
-            params: mood?.params,
-            pages: 3,
-            automatic: !force,
-          );
+          final yt = await ytF;
           youtubeShelves = yt.$1;
           youtubeMoods = yt.$2;
+          homeToken = yt.$3;
         } catch (e) {
           LoggerHelper.write('Online home: YouTube shelves failed', e);
         }
@@ -312,9 +380,11 @@ class OnlineHomeNotifier extends Notifier<OnlineHomeState> {
       // Keep visible Quick Picks stable during background refresh: if we
       // already have items showing, don't swap them out under the user's
       // fingers. Explicit pull-to-refresh (force: true) still applies right away.
-      final effectiveForYou = (!force && state.forYou.isNotEmpty)
+      final keepForYou = !force && !_tasteChanged && state.forYou.isNotEmpty;
+      final effectiveForYou = keepForYou
           ? state.forYou
           : (forYouSongs.isNotEmpty ? forYouSongs : state.forYou);
+      if (forYouSongs.isNotEmpty) _tasteChanged = false;
 
       state = OnlineHomeState(
         shelves: shelves,
@@ -322,11 +392,13 @@ class OnlineHomeNotifier extends Notifier<OnlineHomeState> {
         moods: nextMoods,
         activeMood: mood,
         loading: false,
+        continuation: homeToken,
       );
       await LocalJsonStore.write(_cacheKey, {
         'shelves': [for (final s in shelves) s.toJson()],
         'forYou': [
-          for (final s in (forYouSongs.isNotEmpty ? forYouSongs : effectiveForYou))
+          for (final s
+              in (forYouSongs.isNotEmpty ? forYouSongs : effectiveForYou))
             s.toJson(),
         ],
         'moods': [for (final m in nextMoods) m.toJson()],
@@ -334,6 +406,35 @@ class OnlineHomeNotifier extends Notifier<OnlineHomeState> {
     } catch (e) {
       LoggerHelper.write('Online home failed', e);
       state = state.copyWith(loading: false, error: e);
+    }
+  }
+
+  /// More YouTube home shelves, appended as the user scrolls to the end.
+  Future<void> loadMore() async {
+    final token = state.continuation;
+    if (token == null || state.loadingMore || state.loading) return;
+    state = state.copyWith(loadingMore: true, moreFailed: false);
+    try {
+      final (more, next) = await OnlineApi.homeMore(token);
+      // A reload while this was in flight owns the list now.
+      if (state.continuation != token) return;
+      final old = state.shelves;
+      // Old shelves are already deduped, so they come back unchanged.
+      final fresh = applyFeedLayoutPass(
+        deduplicateShelves([...old, ...more]).skip(old.length).toList(),
+      );
+      state = OnlineHomeState(
+        shelves: [...old, ...fresh],
+        forYou: state.forYou,
+        moods: state.moods,
+        activeMood: state.activeMood,
+        // Nothing new means YouTube is repeating; stop here.
+        continuation: fresh.isEmpty ? null : next,
+      );
+    } catch (e) {
+      if (state.continuation != token) return;
+      LoggerHelper.write('Online home: more shelves failed', e);
+      state = state.copyWith(loadingMore: false, moreFailed: true);
     }
   }
 
@@ -362,6 +463,8 @@ class OnlineSearchState {
     this.loadingMore = false,
     this.error,
     this.continuation,
+    this.cardTokens = const {},
+    this.cardsLoading = const {},
   });
   final String query;
   final List<OnlineSong> songs;
@@ -373,6 +476,16 @@ class OnlineSearchState {
   final Object? error;
   final String? continuation;
 
+  /// Next-page cursors of the artist / album / playlist searches.
+  final Map<CollectionKind, String> cardTokens;
+  final Set<CollectionKind> cardsLoading;
+
+  List<OnlineCollection> cardsOf(CollectionKind kind) => switch (kind) {
+    CollectionKind.artist => artists,
+    CollectionKind.album => albums,
+    CollectionKind.playlist => playlists,
+  };
+
   bool get isEmpty =>
       songs.isEmpty && artists.isEmpty && albums.isEmpty && playlists.isEmpty;
 
@@ -381,16 +494,23 @@ class OnlineSearchState {
     bool? loadingMore,
     Object? error,
     String? continuation,
+    List<OnlineCollection>? artists,
+    List<OnlineCollection>? albums,
+    List<OnlineCollection>? playlists,
+    Map<CollectionKind, String>? cardTokens,
+    Set<CollectionKind>? cardsLoading,
   }) => OnlineSearchState(
     query: query,
     songs: songs ?? this.songs,
-    artists: artists,
-    albums: albums,
-    playlists: playlists,
+    artists: artists ?? this.artists,
+    albums: albums ?? this.albums,
+    playlists: playlists ?? this.playlists,
     loading: loading,
     loadingMore: loadingMore ?? this.loadingMore,
     error: error,
     continuation: continuation,
+    cardTokens: cardTokens ?? this.cardTokens,
+    cardsLoading: cardsLoading ?? this.cardsLoading,
   );
 }
 
@@ -432,9 +552,12 @@ class OnlineSearchNotifier extends Notifier<OnlineSearchState> {
 
   Future<void> _run(String query) async {
     state = OnlineSearchState(query: query, loading: true);
+    final tokens = <CollectionKind, String>{};
     Future<List<OnlineCollection>> cards(CollectionKind k) async {
       try {
-        return await OnlineApi.searchCollections(query, k);
+        final (list, token) = await OnlineApi.searchCollectionsPage(query, k);
+        if (token != null) tokens[k] = token;
+        return list;
       } catch (_) {
         return const [];
       }
@@ -453,6 +576,7 @@ class OnlineSearchNotifier extends Notifier<OnlineSearchState> {
         albums: await albumsF,
         playlists: await playlistsF,
         continuation: token,
+        cardTokens: tokens,
       );
       if (state.query != query) return;
       state = next;
@@ -486,6 +610,53 @@ class OnlineSearchNotifier extends Notifier<OnlineSearchState> {
       if (state.query != query) return;
       // Keep the cursor so the user can try again.
       state = state.copyWith(loadingMore: false, continuation: token);
+    }
+  }
+
+  /// Next page of one card kind (the Artists / Albums / Playlists filters).
+  /// Returns false when the load failed, so the caller can offer a retry.
+  Future<bool> loadMoreCards(CollectionKind kind) async {
+    final token = state.cardTokens[kind];
+    if (token == null || state.cardsLoading.contains(kind)) return true;
+    final query = state.query;
+    state = state.copyWith(
+      continuation: state.continuation,
+      cardsLoading: {...state.cardsLoading, kind},
+    );
+    try {
+      final (more, next) = await OnlineApi.searchCollectionsPage(
+        query,
+        kind,
+        continuation: token,
+      );
+      if (state.query != query) return true;
+      final seen = {for (final c in state.cardsOf(kind)) c.browseId};
+      final merged = [
+        ...state.cardsOf(kind),
+        ...more.where((c) => seen.add(c.browseId)),
+      ];
+      final tokens = {...state.cardTokens}..remove(kind);
+      // A page that adds nothing means YouTube is repeating; stop.
+      if (next != null && merged.length > state.cardsOf(kind).length) {
+        tokens[kind] = next;
+      }
+      state = state.copyWith(
+        continuation: state.continuation,
+        artists: kind == CollectionKind.artist ? merged : null,
+        albums: kind == CollectionKind.album ? merged : null,
+        playlists: kind == CollectionKind.playlist ? merged : null,
+        cardTokens: tokens,
+        cardsLoading: {...state.cardsLoading}..remove(kind),
+      );
+      _cache[query] = (DateTime.now(), state);
+      return true;
+    } catch (_) {
+      if (state.query != query) return true;
+      state = state.copyWith(
+        continuation: state.continuation,
+        cardsLoading: {...state.cardsLoading}..remove(kind),
+      );
+      return false;
     }
   }
 }
@@ -529,7 +700,8 @@ final onlineArtistsForYouProvider = FutureProvider<List<OnlineArtistForYou>>((
   if (!ref.watch(onlineActiveProvider)) return const [];
   final taste = ref.watch(tasteProvider);
   const cacheKey = 'online_artists_for_you_v1';
-  final raw = LocalJsonStore.readSync(cacheKey) ?? await LocalJsonStore.read(cacheKey);
+  final raw =
+      LocalJsonStore.readSync(cacheKey) ?? await LocalJsonStore.read(cacheKey);
   if (raw is Map) {
     final savedAt = raw['savedAt'] as int? ?? 0;
     if (DateTime.now().millisecondsSinceEpoch - savedAt < 7 * 86400 * 1000) {
@@ -735,3 +907,79 @@ final onlineAccountHistoryProvider = FutureProvider<List<OnlineSong>>((
   ref.watch(accountDataRevisionProvider);
   return AccountDataSync.getAccountHistory();
 });
+
+/// Follows [TasteProfileStore.revision]: bumps whenever the profile relearns.
+class _TasteRevision extends Notifier<int> {
+  @override
+  int build() {
+    final revision = TasteProfileStore.revision;
+    void listener() => state = revision.value;
+    revision.addListener(listener);
+    ref.onDispose(() => revision.removeListener(listener));
+    return revision.value;
+  }
+}
+
+final _tasteRevisionProvider = NotifierProvider<_TasteRevision, int>(
+  _TasteRevision.new,
+);
+
+/// The home hero in online mode: For you as Today Mix, and a pool of online
+/// songs (For you, the home shelves and the user's own online plays from the
+/// last month, with play counts) for the artist pick, Weekly and Surprise
+/// Me. Null when online mode is off. Refreshes as the taste profile relearns.
+final homeHeroOnlineProvider =
+    FutureProvider<({List<Song> mix, List<Song> pool})?>((ref) async {
+      if (!ref.watch(onlineActiveProvider)) return null;
+      final (forYou, shelves) = ref.watch(
+        onlineHomeProvider.select((h) => (h.forYou, h.shelves)),
+      );
+      ref.watch(_tasteRevisionProvider);
+
+      final pool = <String, Song>{};
+      void add(OnlineSong o) => pool.putIfAbsent(o.path, o.toSong);
+      forYou.forEach(add);
+      for (final shelf in shelves) {
+        shelf.songs.forEach(add);
+      }
+
+      try {
+        final since = DateTime.now().subtract(const Duration(days: 30));
+        final events = await DbService.isar.playEvents
+            .filter()
+            .songPathStartsWith('yt:')
+            .playedAtGreaterThan(since)
+            .findAll();
+        for (final e in events) {
+          // Skips are not plays.
+          if ((e.durationMs ?? 0) > 0 && e.listenedMs < 30000) continue;
+          final s = pool.putIfAbsent(
+            e.songPath,
+            () => Song()
+              ..path = e.songPath
+              ..title = e.songTitle
+              ..artist = e.artist
+              ..album = e.album
+              ..duration = e.durationMs
+              ..artPath =
+                  'https://i.ytimg.com/vi/${e.songPath.substring(3)}/hqdefault.jpg'
+              ..dateAdded = e.playedAt,
+          );
+          s.playCount++;
+          final last = s.lastPlayed;
+          if (last == null || e.playedAt.isAfter(last)) {
+            s.lastPlayed = e.playedAt;
+          }
+        }
+      } catch (e) {
+        LoggerHelper.write('Home hero: online plays failed', e);
+      }
+
+      return (
+        // Guests have no For you: the shelves' songs make the mix instead.
+        mix: forYou.isNotEmpty
+            ? [for (final o in forYou) pool[o.path]!]
+            : pool.values.take(30).toList(),
+        pool: pool.values.toList(),
+      );
+    });

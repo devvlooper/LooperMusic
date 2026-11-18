@@ -9,7 +9,7 @@ abstract final class OnlineApi {
   static const _playlists = 'EgeKAQQoADgBagwQDhAKEAMQBRAJEAQ%3D';
 
   /// Cap for long playlist walks (100 rows a page).
-  static const _maxPages = 20;
+  static const _maxPages = 50;
 
   static InnerTube get _it => InnerTube.instance;
 
@@ -31,18 +31,32 @@ abstract final class OnlineApi {
     String query,
     CollectionKind kind, {
     bool automatic = false,
+  }) async =>
+      (await searchCollectionsPage(query, kind, automatic: automatic)).$1;
+
+  /// One page of a filtered album / artist / playlist search and its
+  /// next-page token.
+  static Future<(List<OnlineCollection>, String?)> searchCollectionsPage(
+    String query,
+    CollectionKind kind, {
+    String? continuation,
+    bool automatic = false,
   }) async {
     final params = switch (kind) {
       CollectionKind.album => _albums,
       CollectionKind.artist => _artists,
       CollectionKind.playlist => _playlists,
     };
-    return parseCollectionSearch(
-      await _it.music('search', {
-        'query': query,
-        'params': params,
-      }, automatic: automatic),
-    ).where((c) => c.kind == kind).toList();
+    final (cards, token) = parseCollectionSearchPage(
+      await _it.music(
+        'search',
+        continuation == null
+            ? {'query': query, 'params': params}
+            : {'continuation': continuation},
+        automatic: automatic,
+      ),
+    );
+    return (cards.where((c) => c.kind == kind).toList(), token);
   }
 
   static Future<List<String>> suggestions(String input) async =>
@@ -76,6 +90,16 @@ abstract final class OnlineApi {
   }) async =>
       radioPlaylist('RDAMVM$videoId', videoId: videoId, automatic: automatic);
 
+  /// The music video behind a song ([videoId] an audio track), from the
+  /// Song / Video toggle of its watch page; null when it has none.
+  static Future<String?> videoCounterpart(
+    String videoId, {
+    bool automatic = true,
+  }) async => parseCounterpart(
+    await _it.music('next', {'videoId': videoId}, automatic: automatic),
+    videoId,
+  );
+
   /// Album, year, credits and type of one song (for downloads' tags).
   static Future<OnlineSong?> details(String videoId) async => parseSongDetails(
     await _it.music('next', {'videoId': videoId, 'isAudioOnly': true}),
@@ -86,7 +110,7 @@ abstract final class OnlineApi {
   /// page order and the mood chips. Signed in, the personal shelves (Speed
   /// dial, Quick picks, Forgotten favourites, Albums for you...) are spread
   /// over several continuation pages, so up to [pages] are read.
-  static Future<(List<OnlineShelf>, List<OnlineMood>)> home({
+  static Future<(List<OnlineShelf>, List<OnlineMood>, String?)> home({
     String? params,
     int pages = 2,
     bool automatic = false,
@@ -108,7 +132,18 @@ abstract final class OnlineApi {
         break; // what loaded is enough to show
       }
     }
-    return (shelves, parseMoods(first));
+    return (shelves, parseMoods(first), token);
+  }
+
+  /// The next page of home shelves after [home], with its own next token.
+  static Future<(List<OnlineShelf>, String?)> homeMore(
+    String continuation, {
+    bool automatic = false,
+  }) async {
+    final json = await _it.music('browse', {
+      'continuation': continuation,
+    }, automatic: automatic);
+    return (parseShelves(json), homeContinuation(json));
   }
 
   /// A list page walked up to [pages] pages: the account's library lists
@@ -131,10 +166,12 @@ abstract final class OnlineApi {
     final seen = <String>{};
     for (var i = 0; ; i++) {
       final page = parseListItems(json, title);
+      final before = seen.length;
       songs.addAll(page.songs.where((s) => seen.add(s.videoId)));
       cards.addAll(page.collections.where((c) => seen.add(c.browseId)));
       final token = listContinuation(json);
-      if (token == null || i + 1 >= pages) break;
+      // A page that adds nothing means YouTube is repeating itself.
+      if (token == null || i + 1 >= pages || seen.length == before) break;
       await Future<void>.delayed(const Duration(milliseconds: 800));
       try {
         json = await _it.music('browse', {
@@ -177,18 +214,24 @@ abstract final class OnlineApi {
 
   /// An album, playlist or artist page, with a long playlist walked to its
   /// end (or [_maxPages]). A failed later page keeps what was loaded.
-  static Future<OnlinePage> page(String browseId) async {
-    final page = parsePage(await _it.music('browse', {'browseId': browseId}));
+  static Future<OnlinePage> page(
+    String browseId, {
+    bool automatic = false,
+  }) async {
+    final page = parsePage(
+      await _it.music('browse', {'browseId': browseId}, automatic: automatic),
+    );
     var token = page.continuation;
     if (browseId.startsWith('UC')) {
       // For artists: YouTube Music only puts 5 songs on the overview shelf.
       // Fetch the "Top songs" playlist from bottomEndpoint to load the full list.
       if (page.moreSongsBrowseId != null) {
         try {
-          final (moreShelf, _) = await listPage(
-            page.moreSongsBrowseId,
+          final moreShelf = await listItems(
+            page.moreSongsBrowseId!,
             page.title,
             params: page.moreSongsParams,
+            pages: _maxPages,
             automatic: true,
           );
           if (moreShelf.songs.isNotEmpty) {
@@ -218,7 +261,9 @@ abstract final class OnlineApi {
     for (var i = 0; i < _maxPages && token != null; i++) {
       try {
         final (more, next) = parsePageContinuation(
-          await _it.music('browse', {'continuation': token}),
+          await _it.music('browse', {
+            'continuation': token,
+          }, automatic: automatic),
           thumbFallback: page.thumbnail,
         );
         // Mixes repeat themselves forever; stop when a page adds nothing.

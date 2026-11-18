@@ -28,6 +28,7 @@ import '../widgets/tiles/about_settings_tiles.dart';
 import '../widgets/tiles/backup_logs_settings_tiles.dart';
 import 'package:looper_player/core/theme/app_assets.dart';
 import 'account_view.dart';
+import 'package:looper_player/ui/widgets/common/setup_kit.dart';
 import 'package:looper_player/core/services/haptics/app_haptics.dart';
 import 'package:looper_player/features/playback/data/crossmix/crossmix_settings.dart';
 
@@ -85,6 +86,7 @@ class SettingsCategoryScreen extends ConsumerWidget {
               const DisableBlurTile()
             else
               const AlwaysBlurSheetsTile(),
+            const StatusBarBlurTile(),
             // Dynamic theming paints its own background.
             if (!dynamicTheming) ...[
               demo(
@@ -130,6 +132,7 @@ class SettingsCategoryScreen extends ConsumerWidget {
           tiles: [
             // Desktop has its own UI scale row in its settings view.
             if (!UiUtils.isDesktop) const UiScaleTile(),
+            const LetterSpacingTile(),
             const UseNewFontTile(),
             sub(settings.useNewFont, const [
               FontFamilySelectionTile(),
@@ -150,10 +153,10 @@ class SettingsCategoryScreen extends ConsumerWidget {
           UiUtils.isDesktop ||
           settings.playerStyle.isEmpty ||
           settings.playerStyle == 'classic';
-      // Arc / linear draw their own blurred background and show lyrics from
-      // the player menu, so the classic background, line and artwork
-      // options don't apply there. Dynamic background and the gradient are
-      // alternatives: while one is on, the other is hidden.
+      // Arc / linear / card draw their own blurred background and show lyrics from
+      // the player menu, so the classic background and line options don't
+      // apply there. Dynamic background and the gradient are alternatives:
+      // while one is on, the other is hidden.
       final dynamicBg = settings.playerDynamicBackground;
       final gradient = settings.enablePlayerGradient;
       sections = [
@@ -201,8 +204,11 @@ class SettingsCategoryScreen extends ConsumerWidget {
                   const MusicDarknessSlider(),
               ],
             ),
-          (title: l10n.animatedArtworks, tiles: animatedArtworkTiles(ref)),
         ],
+        (
+          title: l10n.animatedArtworks,
+          tiles: animatedArtworkTiles(ref, classic: classic),
+        ),
       ];
     } else if (categoryId == 'lyrics') {
       sections = [
@@ -222,10 +228,7 @@ class SettingsCategoryScreen extends ConsumerWidget {
         (
           title: l10n.sectionBackground,
           tiles: [
-            demo(
-              SettingsDemoKind.gradient,
-              const EnableLyricsGradientTile(),
-            ),
+            demo(SettingsDemoKind.gradient, const EnableLyricsGradientTile()),
             sub(settings.enableLyricsGradient, const [
               AnimatePlayerGradientTile(),
               AmbientLyricsBgTile(),
@@ -431,100 +434,103 @@ class SettingsCategoryScreen extends ConsumerWidget {
         // See the comment on the main SettingsView's Scaffold above - same
         // reasoning applies here.
         backgroundColor: Theme.of(context).colorScheme.surface,
-        body: SafeArea(
-          child: Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(22, 12, 22, 8),
-                child: SettingsHeader(
-                  title: title,
-                  onBack: () {
-                    AppHaptics.light();
-                    // Go through appNavigationProvider (not a raw Navigator
-                    // pop) so its logical history stays in sync with the
-                    // physical route stack -- see showSettingsCategory's
-                    // call site for why that matters for the back button.
-                    ref.read(appNavigationProvider.notifier).goBack();
-                  },
-                ),
-              ),
-              Expanded(
-                child: ListView(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 22.0,
-                    vertical: 4.0,
+        body: _aboutBackground(
+          categoryId == 'about',
+          SafeArea(
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(22, 12, 22, 8),
+                  child: SettingsHeader(
+                    title: title,
+                    onBack: () {
+                      AppHaptics.light();
+                      // Go through appNavigationProvider (not a raw Navigator
+                      // pop) so its logical history stays in sync with the
+                      // physical route stack -- see showSettingsCategory's
+                      // call site for why that matters for the back button.
+                      ref.read(appNavigationProvider.notifier).goBack();
+                    },
                   ),
-                  physics: const LooperScrollPhysics(),
-                  children: categoryId == 'about'
-                      ? [
-                          const SizedBox(height: 20),
-                          const AboutHeroCard(),
-                          const SizedBox(height: 13),
-                          const IntrinsicHeight(
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  flex: 176,
-                                  child: AboutMaintainersCard(),
-                                ),
-                                SizedBox(width: 18),
-                                Expanded(flex: 164, child: AboutStarsCard()),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 14),
-                          const AboutSocialsCard(),
-                          if (ApkInstaller.supported) ...[
-                            const SizedBox(height: 14),
-                            const CheckForUpdatesTile(card: true),
-                          ],
-                          const SizedBox(height: 14),
-                          AboutLicensesPrivacyCard(
-                            content: [
-                              ...children.sublist(2),
-                              const Divider(
-                                height: 1,
-                                indent: 20,
-                                endIndent: 20,
-                                color: kSettingsDivider,
-                              ),
-                              const OpenSourceLicensesTile(),
-                            ],
-                          ),
-                          const SizedBox(height: 120),
-                        ]
-                      : sections.isNotEmpty
-                      ? [
-                          for (final section in sections)
-                            _Section(
-                              // Keyed by title so fold state survives the
-                              // list changing above it.
-                              key: ValueKey(section.title),
-                              title: section.title,
-                              collapsible: collapsed.contains(section.title),
-                              children: [
-                                for (final (i, tile)
-                                    in section.tiles.indexed) ...[
-                                  if (i > 0 && tile is! _SubGroup)
-                                    const Divider(
-                                      height: 1,
-                                      indent: 20,
-                                      endIndent: 20,
-                                      color: kSettingsDivider,
-                                    ),
-                                  tile,
-                                ],
-                              ],
-                            ),
-                          const SizedBox(height: 120),
-                        ]
-                      : [
-                          _SettingsCard(children: children),
-                          const SizedBox(height: 120),
-                        ],
                 ),
-              ),
-            ],
+                Expanded(
+                  child: ListView(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 22.0,
+                      vertical: 4.0,
+                    ),
+                    physics: const LooperScrollPhysics(),
+                    children: categoryId == 'about'
+                        ? [
+                            const SizedBox(height: 20),
+                            const AboutHeroCard(),
+                            const SizedBox(height: 13),
+                            const IntrinsicHeight(
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    flex: 176,
+                                    child: AboutMaintainersCard(),
+                                  ),
+                                  SizedBox(width: 18),
+                                  Expanded(flex: 164, child: AboutStarsCard()),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            const AboutSocialsCard(),
+                            if (ApkInstaller.supported) ...[
+                              const SizedBox(height: 14),
+                              const CheckForUpdatesTile(card: true),
+                            ],
+                            const SizedBox(height: 14),
+                            AboutLicensesPrivacyCard(
+                              content: [
+                                ...children.sublist(2),
+                                const Divider(
+                                  height: 1,
+                                  indent: 20,
+                                  endIndent: 20,
+                                  color: kSettingsDivider,
+                                ),
+                                const OpenSourceLicensesTile(),
+                              ],
+                            ),
+                            const SizedBox(height: 120),
+                          ]
+                        : sections.isNotEmpty
+                        ? [
+                            for (final section in sections)
+                              _Section(
+                                // Keyed by title so fold state survives the
+                                // list changing above it.
+                                key: ValueKey(section.title),
+                                title: section.title,
+                                collapsible: collapsed.contains(section.title),
+                                children: [
+                                  for (final (i, tile)
+                                      in section.tiles.indexed) ...[
+                                    if (i > 0 && tile is! _SubGroup)
+                                      const Divider(
+                                        height: 1,
+                                        indent: 20,
+                                        endIndent: 20,
+                                        color: kSettingsDivider,
+                                      ),
+                                    tile,
+                                  ],
+                                ],
+                              ),
+                            const SizedBox(height: 120),
+                          ]
+                        : [
+                            _SettingsCard(children: children),
+                            const SizedBox(height: 120),
+                          ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -692,3 +698,7 @@ class _SubGroup extends StatelessWidget {
     );
   }
 }
+
+/// About wears the setup flow's animated logo backdrop.
+Widget _aboutBackground(bool about, Widget child) =>
+    about ? SetupBackground(child: child) : child;

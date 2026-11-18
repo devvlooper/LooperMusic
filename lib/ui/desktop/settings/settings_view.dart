@@ -13,7 +13,7 @@ import 'package:looper_player/features/settings/presentation/providers/settings_
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:looper_player/l10n/app_localizations.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:looper_player/ui/android/widgets/premium_section.dart';
+import 'package:looper_player/ui/widgets/common/premium_section.dart';
 import 'package:looper_player/core/providers/providers.dart';
 import 'package:looper_player/ui/desktop/equalizer/desktop_equalizer_dialog.dart';
 import 'package:looper_player/ui/widgets/common/folder_picker_helper.dart';
@@ -477,6 +477,8 @@ class SettingsView extends ConsumerWidget {
                   title: l10n.themeGroupFonts,
                   icon: LucideIcons.type,
                   children: [
+                    const LetterSpacingTile(),
+                    divider,
                     const UseNewFontTile(),
                     if (settings.useNewFont) ...[
                       divider,

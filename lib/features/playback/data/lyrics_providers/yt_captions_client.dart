@@ -38,8 +38,7 @@ class YtCaptionsClient {
       if (response == null) return null;
 
       final captions = response['captions'] as Map?;
-      final tracklist =
-          captions?['playerCaptionsTracklistRenderer'] as Map?;
+      final tracklist = captions?['playerCaptionsTracklistRenderer'] as Map?;
       final tracks = tracklist?['captionTracks'] as List?;
       if (tracks == null || tracks.isEmpty) return null;
 
@@ -92,8 +91,9 @@ class YtCaptionsClient {
         if (text.isEmpty) continue;
 
         final mm = (tStartMs ~/ 60000).toString().padLeft(2, '0');
-        final ss =
-            ((tStartMs % 60000) / 1000).toStringAsFixed(2).padLeft(5, '0');
+        final ss = ((tStartMs % 60000) / 1000)
+            .toStringAsFixed(2)
+            .padLeft(5, '0');
         buffer.writeln('[$mm:$ss]$text');
       }
 

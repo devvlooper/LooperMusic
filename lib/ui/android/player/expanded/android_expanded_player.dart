@@ -199,8 +199,8 @@ class _AndroidExpandedPlayerState extends ConsumerState<AndroidExpandedPlayer>
     final l10n = AppLocalizations.of(context)!;
 
     final isPlaying = ref.watch(playbackProvider.select((s) => s.isPlaying));
-    final isExpandedOpen = widget.previewStyle == null &&
-        TickerMode.valuesOf(context).enabled;
+    final isExpandedOpen =
+        widget.previewStyle == null && TickerMode.valuesOf(context).enabled;
     ScreenAwake.set(this, isExpandedOpen && isPlaying && song != null);
 
     if (song == null) {
@@ -1230,21 +1230,21 @@ class _AndroidExpandedPlayerState extends ConsumerState<AndroidExpandedPlayer>
             // or drops to opacity 0 on bounce / drag.
             child: HoldForPlayerStyles(
               child: RepaintBoundary(
-              child: !enableSlide
-                  ? Hero(
-                      tag: 'album_art',
-                      flightShuttleBuilder: artworkFlightShuttle,
-                      child: ImmersiveHeroArt(
+                child: !enableSlide
+                    ? Hero(
+                        tag: 'album_art',
+                        flightShuttleBuilder: artworkFlightShuttle,
+                        child: ImmersiveHeroArt(
+                          key: ValueKey(song.id),
+                          song: song,
+                          fadeHeight: 160 * k,
+                        ),
+                      )
+                    : ImmersiveHeroArt(
                         key: ValueKey(song.id),
                         song: song,
                         fadeHeight: 160 * k,
                       ),
-                    )
-                  : ImmersiveHeroArt(
-                      key: ValueKey(song.id),
-                      song: song,
-                      fadeHeight: 160 * k,
-                    ),
               ),
             ),
           ),
