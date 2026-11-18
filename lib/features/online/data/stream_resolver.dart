@@ -36,7 +36,7 @@ class StreamPick {
   final double? loudnessDb;
   final DateTime expires;
 
-  /// Which path produced it (visionOS, ANDROID_VR, IOS, yt-dlp).
+  /// Which path produced it (visionOS, ANDROID_VR, IOS).
   final String source;
 
   bool get valid => DateTime.now().isBefore(expires);
@@ -87,8 +87,8 @@ enum OnlineStatus { online, limited, offline }
 enum _Answer { playable, refused, unplayable, failed }
 
 /// Video id to playable URL. Chain (docs/online/02-stream-resolution.md):
-/// visionOS under our own vetted visitor id, then ANDROID_VR, IOS, and on
-/// desktop yt-dlp when installed. Single-flight per song; URLs cached in
+/// visionOS under our own vetted visitor id, then ANDROID_VR, IOS.
+/// Single-flight per song; URLs cached in
 /// memory only (a stored URL could carry a refused identity forward).
 class StreamResolver {
   StreamResolver._() {
@@ -365,16 +365,6 @@ class StreamResolver {
       }
     }
 
-    // 3. yt-dlp on desktop.
-    if (Platform.isLinux || Platform.isWindows || Platform.isMacOS) {
-      final pick = await _ytDlp(id, q, preferMp4: preferMp4);
-      if (pick != null) {
-        _botCheckUntil = null;
-        _updateStatus();
-        return pick;
-      }
-    }
-
     if (refusals > 0) {
       _botCheckUntil = DateTime.now().add(const Duration(minutes: 3));
       _updateStatus();
@@ -523,65 +513,6 @@ class StreamResolver {
       return res.statusCode != 403;
     } catch (_) {
       return true; // Unknown is not a refusal; playback recovery backs it up.
-    }
-  }
-
-  Future<StreamPick?> _ytDlp(
-    String id,
-    OnlineQuality q, {
-    bool preferMp4 = false,
-  }) async {
-    final format = preferMp4
-        ? switch (q) {
-            OnlineQuality.high => 'bestaudio[ext=m4a]/bestaudio',
-            OnlineQuality.normal =>
-              'bestaudio[ext=m4a][abr<=140]/bestaudio[ext=m4a]/bestaudio',
-            OnlineQuality.low => 'worstaudio[ext=m4a]/worstaudio',
-          }
-        : switch (q) {
-            OnlineQuality.high => 'bestaudio',
-            OnlineQuality.normal => 'bestaudio[abr<=140]/bestaudio',
-            OnlineQuality.low => 'worstaudio',
-          };
-    try {
-      final r = await Process.run('yt-dlp', [
-        '-j',
-        '--no-warnings',
-        '--no-playlist',
-        '-f',
-        format,
-        'https://music.youtube.com/watch?v=$id',
-      ], runInShell: Platform.isWindows).timeout(const Duration(seconds: 25));
-      if (r.exitCode != 0) {
-        LoggerHelper.write('$_tag: yt-dlp failed: ${r.stderr}');
-        return null;
-      }
-      final j = jsonDecode(r.stdout as String) as Map<String, dynamic>;
-      final url = j['url'] as String?;
-      if (url == null) return null;
-      final expire = int.tryParse(
-        Uri.parse(url).queryParameters['expire'] ?? '',
-      );
-      return StreamPick(
-        url: url,
-        userAgent:
-            (j['http_headers'] as Map?)?['User-Agent'] as String? ??
-            InnerTubeClients.userAgentFor(url),
-        mime: 'audio/${j['ext'] ?? 'webm'}',
-        bitrate: (((j['abr'] as num?) ?? 0) * 1000).round(),
-        itag: int.tryParse('${j['format_id']}'),
-        contentLength: (j['filesize'] as num?)?.toInt(),
-        expires: expire == null
-            ? DateTime.now().add(const Duration(minutes: 15))
-            : DateTime.fromMillisecondsSinceEpoch(
-                expire * 1000,
-              ).subtract(const Duration(minutes: 5)),
-        source: 'yt-dlp',
-      );
-    } catch (e) {
-      // Not installed, or timed out.
-      LoggerHelper.write('$_tag: yt-dlp unavailable', e);
-      return null;
     }
   }
 }

@@ -45,10 +45,7 @@ class LooperAnalyzeView extends ConsumerWidget {
       child: Material(
         color: Colors.transparent,
         child: Scaffold(
-          // The Linux shell paints the song artwork behind every page.
-          backgroundColor: UiUtils.isDesktop
-              ? Colors.transparent
-              : Colors.black,
+          backgroundColor: Colors.black,
           body: Stack(
             children: [
               SafeArea(

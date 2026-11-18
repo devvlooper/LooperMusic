@@ -1,8 +1,0 @@
-app_id: com.looper.player
-display_name: Looper Music
-icon: assets/branding/linux_icon.png
-categories:
-  - AudioVideo
-  - Audio
-  - Music
-  - Player

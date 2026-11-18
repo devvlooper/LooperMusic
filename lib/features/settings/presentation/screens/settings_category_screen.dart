@@ -130,8 +130,7 @@ class SettingsCategoryScreen extends ConsumerWidget {
         (
           title: l10n.themeGroupFonts,
           tiles: [
-            // Desktop has its own UI scale row in its settings view.
-            if (!UiUtils.isDesktop) const UiScaleTile(),
+            const UiScaleTile(),
             const LetterSpacingTile(),
             const UseNewFontTile(),
             sub(settings.useNewFont, const [
@@ -148,9 +147,7 @@ class SettingsCategoryScreen extends ConsumerWidget {
       ];
       collapsed = {l10n.themeGroupFonts, l10n.sectionHomeRows};
     } else if (categoryId == 'now_playing') {
-      // Desktop has no style picker, so it is always the classic layout.
       final classic =
-          UiUtils.isDesktop ||
           settings.playerStyle.isEmpty ||
           settings.playerStyle == 'classic';
       // Arc / linear / card draw their own blurred background and show lyrics from
@@ -163,8 +160,8 @@ class SettingsCategoryScreen extends ConsumerWidget {
         (
           title: l10n.sectionPlayer,
           tiles: [
-            if (!UiUtils.isDesktop) const FluidPlayerTile(),
-            if (!UiUtils.isDesktop) const PlayerStyleTile(),
+            const FluidPlayerTile(),
+            const PlayerStyleTile(),
             if (classic) ...[
               if (!settings.enableDynamicTheming && (dynamicBg || !gradient))
                 const PlayerDynamicBackgroundTile(),
@@ -173,7 +170,7 @@ class SettingsCategoryScreen extends ConsumerWidget {
                 PlayerLyricLineTransitionTile(),
               ]),
             ],
-            if (!UiUtils.isDesktop) const KeepScreenAwakeTile(),
+            const KeepScreenAwakeTile(),
           ],
         ),
         if (classic) ...[
@@ -293,7 +290,6 @@ class SettingsCategoryScreen extends ConsumerWidget {
             const ShuffleTile(),
             const PersistQueueTile(),
             const KeepSongProgressTile(),
-            if (!Platform.isAndroid) const ResumeOnStartTile(),
           ],
         ),
       ];

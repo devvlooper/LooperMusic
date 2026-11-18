@@ -16,14 +16,6 @@ extension _ScannerMetadata on LibraryScanner {
           ).timeout(const Duration(seconds: 10))).durationMs?.toInt();
         } catch (_) {}
       }
-      if ((duration ?? 0) <= 0 && Platform.isLinux) {
-        try {
-          duration = (await LinuxTagReader.read(
-            song.path,
-            timeout: const Duration(seconds: 10),
-          ))?.durationMs;
-        } catch (_) {}
-      }
       if ((duration ?? 0) <= 0) return;
       await DbService.isar.writeTxn(() async {
         // Re-read inside the transaction: enrichment and playback may have

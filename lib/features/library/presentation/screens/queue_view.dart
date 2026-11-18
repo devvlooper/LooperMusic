@@ -50,18 +50,10 @@ class QueueView extends ConsumerWidget {
         Padding(
           padding: EdgeInsets.symmetric(
             horizontal: 24,
-            vertical: Platform.isAndroid ? 12 : 24,
+            vertical: 12,
           ),
           child: Row(
             children: [
-              if (!Platform.isAndroid)
-                Text(
-                  l10n.playQueue,
-                  style: AppFonts.jostStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.normal,
-                  ),
-                ),
               const Spacer(),
               if (queue.isNotEmpty)
                 TextButton.icon(

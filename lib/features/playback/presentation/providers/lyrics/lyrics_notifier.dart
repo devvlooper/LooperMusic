@@ -1,6 +1,5 @@
 import 'package:looper_player/core/utils/ui_utils.dart';
 
-import 'package:window_manager/window_manager.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:isar_community/isar.dart';
 import 'package:looper_player/core/services/storage/db_service.dart';
@@ -265,20 +264,6 @@ class LyricsManualScroll extends _$LyricsManualScroll {
   bool build() => false;
 
   void set(bool value) => state = value;
-}
-
-/// Desktop only: the lyrics page shown alone (no sidebar, top bar or player
-/// bar) with the window in full screen.
-@Riverpod(keepAlive: true)
-class LyricsFullscreen extends _$LyricsFullscreen {
-  @override
-  bool build() => false;
-
-  void set(bool value) {
-    if (state == value) return;
-    state = value;
-    if (UiUtils.isDesktop) windowManager.setFullScreen(value);
-  }
 }
 
 /// Whether the currently active lyric line's row is within the lyrics

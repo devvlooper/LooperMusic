@@ -5,58 +5,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'lyrics_scale.dart';
 
-/// The lyrics buttons a mouse user needs on the page itself: full screen and
-/// the lyrics menu (text size and sync style live in the menu). Pure
-/// presentation - the lyrics view owns the state.
-class DesktopLyricsToolbar extends StatelessWidget {
-  /// Null disables the menu button (nothing is playing).
-  final VoidCallback? onMenu;
-
-  /// Lyrics-only full screen and its toggle.
-  final bool isFullscreen;
-  final VoidCallback? onToggleFullscreen;
-
-  const DesktopLyricsToolbar({
-    super.key,
-    this.onMenu,
-    this.isFullscreen = false,
-    this.onToggleFullscreen,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        if (onToggleFullscreen != null)
-          IconButton(
-            key: const ValueKey('lyrics-fullscreen'),
-            tooltip: isFullscreen
-                ? l10n.lyricsExitFullscreen
-                : l10n.lyricsFullscreen,
-            onPressed: onToggleFullscreen,
-            icon: Icon(
-              isFullscreen ? LucideIcons.minimize : LucideIcons.maximize,
-              size: 18,
-            ),
-            color: Colors.white70,
-          ),
-        IconButton(
-          key: const ValueKey('lyrics-menu'),
-          tooltip: l10n.lyricsOptions,
-          onPressed: onMenu,
-          icon: const Icon(LucideIcons.moreVertical, size: 18),
-          color: Colors.white70,
-          disabledColor: Colors.white24,
-        ),
-      ],
-    );
-  }
-}
-
-/// A− / 100% / A+ pill for the desktop lyrics text size, shown in the lyrics
-/// menu.
+/// A− / 100% / A+ pill for the lyrics text size, shown in the lyrics menu.
 class LyricsSizeControl extends StatelessWidget {
   /// The user's lyrics scale (1.0 = 100%), before the automatic scale.
   final double scale;

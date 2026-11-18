@@ -7,7 +7,6 @@ import 'package:looper_player/features/settings/presentation/providers/settings_
 import 'package:looper_player/l10n/app_localizations.dart';
 import 'package:looper_player/ui/android/player/equalizer/android_equalizer_screen.dart';
 import 'package:looper_player/core/utils/ui_utils.dart';
-import 'package:looper_player/ui/desktop/equalizer/desktop_equalizer_dialog.dart';
 
 class LanguageTile extends ConsumerWidget {
   const LanguageTile({super.key});
@@ -357,10 +356,6 @@ class EqualizerTile extends ConsumerWidget {
       ),
       trailing: const Icon(LucideIcons.chevronRight, color: Colors.white38),
       onTap: () {
-        if (UiUtils.isDesktop) {
-          showDesktopEqualizer(context);
-          return;
-        }
         showModalBottomSheet(
           context: context,
           isScrollControlled: true,

@@ -155,9 +155,7 @@ class _PlaylistViewState extends ConsumerState<PlaylistView> {
     final totalDisplayCount = displayLocal.length + displayOnline.length;
 
     return Scaffold(
-      backgroundColor: UiUtils.isDesktop
-          ? Colors.transparent
-          : Theme.of(context).colorScheme.surface,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       body: totalCount == 0
           ? Center(
               child: Column(

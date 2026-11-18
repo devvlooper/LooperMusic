@@ -160,7 +160,7 @@ class LoggerHelper {
         'Stacktrace:\n$stack\n'
         '==================================\n';
 
-    // Target 1: Public Download folder on Android/Linux
+    // Target 1: Public Download folder
     try {
       String? downloadDirPath;
       if (Platform.isAndroid) {

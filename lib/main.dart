@@ -9,7 +9,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:looper_player/core/services/haptics/app_haptics.dart';
 import 'package:looper_player/features/settings/presentation/widgets/tiles/theme/theme_settings_tiles.dart';
 import 'package:mpv_audio_kit/mpv_audio_kit.dart';
-import 'package:window_manager/window_manager.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:looper_player/l10n/app_localizations.dart';
 import 'package:looper_player/features/settings/presentation/providers/settings_notifier.dart';
@@ -26,9 +25,6 @@ import 'package:looper_player/core/theme/theme_provider.dart';
 import 'package:looper_player/ui/widgets/common/keyboard_handler.dart';
 import 'package:looper_player/ui/widgets/common/desktop_ui_scale.dart';
 import 'core/utils/logger_helper.dart';
-import 'core/services/window/window_geometry.dart';
-import 'core/services/window/window_geometry_listener.dart';
-import 'core/utils/ui_utils.dart';
 import 'package:looper_player/core/utils/l10n.dart';
 
 final dbInitializerProvider = FutureProvider<void>((ref) async {
@@ -101,50 +97,6 @@ void main(List<String> args) async {
 
   final String? initialFile = args.isNotEmpty ? args.first : null;
 
-  // Initialize desktop/window setups in parallel
-  final Future<void> desktopInit = () async {
-    if (Platform.isLinux || Platform.isWindows || Platform.isMacOS) {
-      try {
-        await windowManager.ensureInitialized();
-        final geometry = WindowGeometry.sanitize(
-          await WindowGeometryStore.load(),
-          WindowGeometry.desktopSize(),
-        );
-        final position = (geometry?.x != null && geometry?.y != null)
-            ? Offset(geometry!.x!, geometry.y!)
-            : null;
-        WindowOptions windowOptions = WindowOptions(
-          size: geometry?.size ?? WindowGeometry.defaultSize,
-          minimumSize: WindowGeometry.minimumSize,
-          center: position == null,
-          skipTaskbar: false,
-          titleBarStyle: TitleBarStyle.hidden,
-          title: 'Looper Music',
-          backgroundColor: const Color(0xFF121214),
-        );
-        await windowManager.waitUntilReadyToShow(windowOptions, () async {
-          if (position != null) {
-            await windowManager.setPosition(position);
-          }
-          await windowManager.show();
-          if (geometry?.maximized ?? false) {
-            await windowManager.maximize();
-          }
-          await windowManager.focus();
-        });
-      } catch (e, s) {
-        LoggerHelper.write('Failed to initialize Window Manager', e, s);
-        // The Windows runner leaves the window hidden for window_manager to
-        // show; make sure a failed setup can't leave it invisible.
-        if (Platform.isWindows) {
-          try {
-            await windowManager.show();
-          } catch (_) {}
-        }
-      }
-    }
-  }();
-
   // Initialize database in parallel
   final Future<void> dbInit = () async {
     try {
@@ -194,7 +146,6 @@ void main(List<String> args) async {
   // Wait for all boot-up stages concurrently
   await Future.wait([
     timed('logs', logsInit),
-    timed('window', desktopInit),
     timed('db', dbInit),
     timed('plugins', nativePluginsInit),
     timed('permissions', permissionCheck),
@@ -240,9 +191,7 @@ class MyApp extends ConsumerWidget {
     Widget buildHome() {
       return dbInit.when(
         data: (_) => KeyboardHandler(
-          child: UiUtils.isDesktop
-              ? const WindowGeometryListener(child: HomeScreen())
-              : const HomeScreen(),
+          child: const HomeScreen(),
         ),
         loading: () => const PreAppLoadingScreenContent(),
         error: (err, stack) {

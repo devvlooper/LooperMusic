@@ -9,7 +9,7 @@ enum ProgressThumbStyle { pill, round, none }
 /// Every user-tunable look of the Android player's seek bar (the expanded
 /// player and the lyrics screen). The defaults are the exact values the bar
 /// used before it became customisable, so an untouched install looks the
-/// same. The Linux/desktop bar keeps its own fixed values and ignores this.
+/// same.
 class ProgressBarStyle {
   /// Squiggle on/off (stored inverted as `AppSettings.disableSquiggle`).
   final bool wave;

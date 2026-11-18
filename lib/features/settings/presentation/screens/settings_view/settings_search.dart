@@ -284,13 +284,12 @@ extension _SettingsSearch on _SettingsViewState {
         category: '${l10n.nowPlaying} · ${l10n.sectionPlayer}',
         widget: const PlayerLyricLineTile(),
       ),
-      if (!UiUtils.isDesktop)
-        SettingsSearchItem(
-          title: l10n.keepScreenAwake,
-          subtitle: l10n.keepScreenAwakeDesc,
-          category: '${l10n.nowPlaying} · ${l10n.sectionPlayer}',
-          widget: const KeepScreenAwakeTile(),
-        ),
+      SettingsSearchItem(
+        title: l10n.keepScreenAwake,
+        subtitle: l10n.keepScreenAwakeDesc,
+        category: '${l10n.nowPlaying} · ${l10n.sectionPlayer}',
+        widget: const KeepScreenAwakeTile(),
+      ),
       SettingsSearchItem(
         title: l10n.accentVibrancy,
         subtitle: l10n.accentVibrancyDesc,
@@ -352,13 +351,12 @@ extension _SettingsSearch on _SettingsViewState {
               '${l10n.catPlayerInterface} · ${l10n.themeGroupBlurBackgrounds}',
           widget: const AnimateBackgroundGradientTile(),
         ),
-      if (!UiUtils.isDesktop)
-        SettingsSearchItem(
-          title: l10n.uiScale,
-          subtitle: l10n.uiScaleDesc,
-          category: '${l10n.catPlayerInterface} · ${l10n.themeGroupFonts}',
-          widget: const UiScaleTile(),
-        ),
+      SettingsSearchItem(
+        title: l10n.uiScale,
+        subtitle: l10n.uiScaleDesc,
+        category: '${l10n.catPlayerInterface} · ${l10n.themeGroupFonts}',
+        widget: const UiScaleTile(),
+      ),
       SettingsSearchItem(
         title: l10n.useCustomFont,
         subtitle: l10n.useCustomFontDesc,
@@ -453,13 +451,12 @@ extension _SettingsSearch on _SettingsViewState {
         category: '${l10n.catMisc} · ${l10n.sectionApp}',
         widget: const LanguageTile(),
       ),
-      if (!UiUtils.isDesktop)
-        SettingsSearchItem(
-          title: l10n.fluidPlayer,
-          subtitle: l10n.fluidPlayerDesc,
-          category: '${l10n.nowPlaying} · ${l10n.sectionPlayer}',
-          widget: const FluidPlayerTile(),
-        ),
+      SettingsSearchItem(
+        title: l10n.fluidPlayer,
+        subtitle: l10n.fluidPlayerDesc,
+        category: '${l10n.nowPlaying} · ${l10n.sectionPlayer}',
+        widget: const FluidPlayerTile(),
+      ),
       if (!settings.enableDynamicTheming)
         SettingsSearchItem(
           title: l10n.playerDynamicBackground,

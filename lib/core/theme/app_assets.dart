@@ -1,7 +1,7 @@
 /// Every bundled (non-icon) asset path in one place. Icons for the Android
 /// UI live in [AppIcons]; avatars are discovered at runtime from
 /// [avatarDir] (see selected_avatar.dart). Build-time-only artwork
-/// (launcher/Linux icons, README logos) sits in assets/branding/ and is
+/// (launcher icons, README logos) sits in assets/branding/ and is
 /// deliberately not bundled.
 class AppAssets {
   AppAssets._();
@@ -36,17 +36,4 @@ class AppAssets {
   // Social icons
   static const String github = 'assets/icons/social/github.svg';
   static const String telegram = 'assets/icons/social/telegram.svg';
-
-  // Desktop player bar icons
-  static const String _desktop = 'assets/icons/desktop/';
-  static const String desktopPrevious = '${_desktop}previous.svg';
-  static const String desktopNext = '${_desktop}next.svg';
-  static const String desktopShuffle = '${_desktop}shuffle.svg';
-  static const String desktopRepeat = '${_desktop}repeat.svg';
-  static const String desktopRepeatOne = '${_desktop}repeat_one.svg';
-  static const String desktopVolume = '${_desktop}volume.svg';
-  static const String desktopMute = '${_desktop}mute.svg';
-  static const String desktopLike = '${_desktop}like.svg';
-  static const String desktopLiked = '${_desktop}liked.svg';
-  static const String desktopLyrics = '${_desktop}lyrics.svg';
 }

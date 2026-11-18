@@ -36,7 +36,6 @@ import 'package:looper_player/ui/widgets/sheets/add_to_playlist_sheet.dart';
 import 'package:looper_player/ui/widgets/sheets/sleep_timer_sheet_content.dart';
 import 'package:looper_player/core/services/haptics/app_haptics.dart';
 import 'package:looper_player/core/utils/ui_utils.dart';
-import 'package:looper_player/ui/desktop/equalizer/desktop_equalizer_dialog.dart';
 
 void showSongOptionsBottomSheet({
   required BuildContext context,
@@ -433,10 +432,6 @@ class _SongOptionsSheetContent extends ConsumerWidget {
                           onTap: () {
                             AppHaptics.light();
                             Navigator.pop(context);
-                            if (UiUtils.isDesktop) {
-                              showDesktopEqualizer(parentContext);
-                              return;
-                            }
                             Navigator.push(
                               parentContext,
                               riseRoute(const AndroidEqualizerScreen()),
@@ -950,8 +945,7 @@ class _PlayerSongOptionsSheet extends _SongOptionsSheetContent {
     final bool canEdit = showRenameOption && local;
     final bool canDelete = showDeleteOption && local;
 
-    final isWide =
-        Responsive.isLandscape(MediaQuery.sizeOf(context)) || UiUtils.isDesktop;
+    final isWide = Responsive.isLandscape(MediaQuery.sizeOf(context));
 
     Widget body = Container(
       decoration: const BoxDecoration(
@@ -1061,10 +1055,6 @@ class _PlayerSongOptionsSheet extends _SongOptionsSheetContent {
                               () {
                                 AppHaptics.light();
                                 Navigator.pop(context);
-                                if (UiUtils.isDesktop) {
-                                  showDesktopEqualizer(parentContext);
-                                  return;
-                                }
                                 Navigator.push(
                                   parentContext,
                                   riseRoute(const AndroidEqualizerScreen()),

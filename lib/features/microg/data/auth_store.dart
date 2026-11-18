@@ -42,7 +42,7 @@ abstract final class AuthStore {
     }
     // Lock the file down before the secret is in it.
     if (!await file.exists()) await file.create(recursive: true);
-    if (!Platform.isWindows) await Process.run('chmod', ['600', file.path]);
+    await Process.run('chmod', ['600', file.path]);
     await file.writeAsString(text, flush: true);
   }
 

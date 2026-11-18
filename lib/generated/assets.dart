@@ -49,7 +49,6 @@ class $AssetsIconsGen {
   const $AssetsIconsGen();
 
   final $AssetsAndroidGen android = const $AssetsAndroidGen();
-  final $AssetsDesktopGen desktop = const $AssetsDesktopGen();
   final $AssetsSocialGen social = const $AssetsSocialGen();
 }
 
@@ -96,33 +95,6 @@ class $AssetsAndroidGen {
     'assets/icons/android/shuffle_home.svg',
   );
   final SvgGenImage songs = const SvgGenImage('assets/icons/android/songs.svg');
-}
-
-class $AssetsDesktopGen {
-  const $AssetsDesktopGen();
-
-  final SvgGenImage like = const SvgGenImage('assets/icons/desktop/like.svg');
-  final SvgGenImage liked = const SvgGenImage('assets/icons/desktop/liked.svg');
-  final SvgGenImage lyrics = const SvgGenImage(
-    'assets/icons/desktop/lyrics.svg',
-  );
-  final SvgGenImage mute = const SvgGenImage('assets/icons/desktop/mute.svg');
-  final SvgGenImage next = const SvgGenImage('assets/icons/desktop/next.svg');
-  final SvgGenImage previous = const SvgGenImage(
-    'assets/icons/desktop/previous.svg',
-  );
-  final SvgGenImage repeat = const SvgGenImage(
-    'assets/icons/desktop/repeat.svg',
-  );
-  final SvgGenImage repeatOne = const SvgGenImage(
-    'assets/icons/desktop/repeat_one.svg',
-  );
-  final SvgGenImage shuffle = const SvgGenImage(
-    'assets/icons/desktop/shuffle.svg',
-  );
-  final SvgGenImage volume = const SvgGenImage(
-    'assets/icons/desktop/volume.svg',
-  );
 }
 
 class $AssetsSocialGen {

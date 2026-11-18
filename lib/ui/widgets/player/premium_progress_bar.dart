@@ -20,7 +20,7 @@ class ExpressiveSlider extends ConsumerStatefulWidget {
   final bool isStreaming;
 
   /// Overrides the style from settings - used by the settings preview to
-  /// show unsaved changes live. Ignored on Linux, which keeps its own look.
+  /// show unsaved changes live.
   final ProgressBarStyle? style;
 
   const ExpressiveSlider({
@@ -37,11 +37,6 @@ class ExpressiveSlider extends ConsumerStatefulWidget {
     this.isStreaming = false,
     this.style,
   });
-
-  /// Whether this is the desktop (Linux/Windows) bar with its own fixed look.
-  /// Overridable so tests (which run on Linux) can reach the Android bar.
-  @visibleForTesting
-  static bool useDesktopLayout = UiUtils.isDesktop;
 
   @override
   ConsumerState<ExpressiveSlider> createState() => _ExpressiveSliderState();
@@ -64,7 +59,7 @@ class _ExpressiveSliderState extends ConsumerState<ExpressiveSlider> {
         durationStr,
         style: AppFonts.jostStyle(
           color: Colors.white,
-          fontWeight: UiUtils.isDesktop ? FontWeight.w300 : FontWeight.w600,
+          fontWeight: FontWeight.w600,
           fontSize: 14,
           fontFeatures: const [FontFeature.tabularFigures()],
         ),
@@ -101,9 +96,7 @@ class _ExpressiveSliderState extends ConsumerState<ExpressiveSlider> {
               key: ValueKey(char),
               style: AppFonts.jostStyle(
                 color: Colors.white,
-                fontWeight: UiUtils.isDesktop
-                    ? FontWeight.w300
-                    : FontWeight.w600,
+                fontWeight: FontWeight.w600,
                 fontSize: 12,
                 fontFeatures: const [FontFeature.tabularFigures()],
               ),
@@ -134,48 +127,6 @@ class _ExpressiveSliderState extends ConsumerState<ExpressiveSlider> {
   /// off), then grows in over the next 6% instead of popping in at 12%.
   static double _startRamp(double progress) =>
       Curves.easeInOut.transform(((progress - 0.12) / 0.06).clamp(0.0, 1.0));
-
-  /// The desktop (Linux) bar: fixed look, not affected by the progress bar
-  /// style settings apart from the flat-bar toggle.
-  Widget _buildLinuxSlider(double displayValue, double? secondaryTrackValue) {
-    final disableSquiggle = ref.watch(
-      settingsProvider.select((s) => s.disableSquiggle),
-    );
-    final targetAmplitude = disableSquiggle || !widget.isPlaying
-        ? 0.0
-        : 2.0 * _startRamp(displayValue);
-    return SliderTheme(
-      data: SliderTheme.of(context).copyWith(
-        trackHeight: 3.0,
-        activeTrackColor: widget.color,
-        inactiveTrackColor: Colors.white10,
-        secondaryActiveTrackColor: Colors.white.withValues(alpha: 0.2),
-        thumbShape: const LineThumbShape(thumbHeight: 12, thumbWidth: 3),
-        overlayShape: SliderComponentShape.noOverlay,
-      ),
-      child: TweenAnimationBuilder<double>(
-        tween: Tween<double>(begin: 0.0, end: targetAmplitude),
-        duration: const Duration(milliseconds: 350),
-        curve: Curves.easeInOutCubic,
-        builder: (context, amplitude, child) {
-          return SquigglySlider(
-            value: displayValue,
-            secondaryTrackValue: secondaryTrackValue,
-            onChanged: _onChanged,
-            onChangeStart: _onChangeStart,
-            onChangeEnd: _onChangeEnd,
-            activeColor: widget.color,
-            inactiveColor: Colors.white10,
-            secondaryActiveColor: Colors.white.withValues(alpha: 0.2),
-            squiggleAmplitude: amplitude,
-            squiggleWavelength: 4.5,
-            squiggleSpeed: 0.08,
-            useLineThumb: false,
-          );
-        },
-      ),
-    );
-  }
 
   Widget _buildStyledSlider(
     double displayValue,
@@ -268,42 +219,12 @@ class _ExpressiveSliderState extends ConsumerState<ExpressiveSlider> {
               .clamp(0.0, 1.0)
         : null;
 
-    final sliderWidget = ExpressiveSlider.useDesktopLayout
-        ? _buildLinuxSlider(displayValue, secondaryTrackValue)
-        : _buildStyledSlider(
-            displayValue,
-            secondaryTrackValue,
-            widget.style ??
-                ref.watch(
-                  settingsProvider.select(ProgressBarStyle.fromSettings),
-                ),
-          );
-
-    if (ExpressiveSlider.useDesktopLayout) {
-      // In a narrow window the two timestamps alone are wider than the bar's
-      // slot: drop them and keep the slider.
-      return LayoutBuilder(
-        builder: (context, constraints) {
-          final showTimestamps =
-              widget.showTimestamps && constraints.maxWidth >= 180;
-          return Row(
-            mainAxisSize: MainAxisSize.max,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              if (showTimestamps) ...[
-                _buildAnimatedDuration(_formatDuration(displayPosition), false),
-                const SizedBox(width: 12),
-              ],
-              Expanded(child: sliderWidget),
-              if (showTimestamps) ...[
-                const SizedBox(width: 12),
-                _buildAnimatedDuration(_formatDuration(widget.duration), true),
-              ],
-            ],
-          );
-        },
-      );
-    }
+    final sliderWidget = _buildStyledSlider(
+      displayValue,
+      secondaryTrackValue,
+      widget.style ??
+          ref.watch(settingsProvider.select(ProgressBarStyle.fromSettings)),
+    );
 
     return Column(
       mainAxisSize: MainAxisSize.min,

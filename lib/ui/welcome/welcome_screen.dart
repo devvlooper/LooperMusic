@@ -10,7 +10,6 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:looper_player/core/providers/providers.dart';
 import 'package:looper_player/core/services/storage/storage_access.dart';
 import 'package:looper_player/core/utils/app_links.dart';
-import 'package:looper_player/core/utils/desktop_paths.dart';
 import 'package:looper_player/features/online/data/online_settings.dart';
 import 'package:looper_player/features/online/data/taste_store.dart';
 import 'package:looper_player/features/online/presentation/online_providers.dart';
@@ -31,17 +30,6 @@ class WelcomeBypassed extends _$WelcomeBypassed {
   bool build() {
     final forceWelcome = ref.watch(forceWelcomeProvider);
     if (forceWelcome) return false;
-
-    // Desktop (Linux, Windows, macOS) shows its own setup screen only while
-    // there is no library yet. Until the library has loaded, assume set up,
-    // so returning users never see the setup screen flash.
-    if (!Platform.isAndroid && !Platform.isIOS) {
-      if (!ref.watch(libraryProvider.select((s) => s.isInitialized))) {
-        return true;
-      }
-      return ref.read(libraryProvider).songs.isNotEmpty ||
-          ref.read(settingsProvider).libraryFolders.isNotEmpty;
-    }
 
     // Re-derive when forceWelcome changes, and once more when the library
     // finishes its initial load (isInitialized flips false->true exactly
@@ -234,19 +222,7 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen>
     // Broad/coarse roots (e.g. the whole storage root) that must NOT be
     // recorded as-is in libraryFolders.
     final Set<String> coarseRoots = {};
-    if (Platform.isLinux) {
-      String defaultPath = '${Platform.environment['HOME']}/Music';
-      try {
-        final result = await Process.run('xdg-user-dir', ['MUSIC']);
-        if (result.exitCode == 0 &&
-            result.stdout.toString().trim().isNotEmpty) {
-          defaultPath = result.stdout.toString().trim();
-        }
-      } catch (_) {}
-      scanRoots.add(defaultPath);
-    } else if (Platform.isWindows) {
-      scanRoots.add(windowsMusicFolder(Platform.environment));
-    } else if (Platform.isAndroid && await StorageAccess.hasAllFilesAccess()) {
+    if (Platform.isAndroid && await StorageAccess.hasAllFilesAccess()) {
       // github flavor with All Files Access: walk the whole internal storage
       // root and every SD card; the real per-song folders are recorded after.
       final roots = await StorageAccess.wholeStorageRoots();

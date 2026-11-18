@@ -28,9 +28,8 @@ part 'settings_notifier.g.dart';
 extension AppAccent on AppSettings {
   static const double defaultVibrancy = 1.0;
 
-  /// 0..1. Desktop has no slider, so it draws the saved colour as is.
+  /// 0..1.
   double get accentVibrancyValue {
-    if (UiUtils.isDesktop) return 0;
     final v = accentVibrancy;
     return v == null || v.isNaN ? defaultVibrancy : v.clamp(0.0, 1.0);
   }
@@ -253,13 +252,12 @@ class Settings extends _$Settings {
       state = settings;
     } else {
       // Initialize default settings
-      // Default to off on Android, but enabled on Linux
       final defaultSettings = AppSettings()
         ..lyricsProviderWordSyncMigrated = true
         ..lyricsOffsetEarlierMigrated = true
         ..stackSansDefaultMigrated = true
         ..activeLyricsIntensityDefaultMigrated = true
-        ..enableDynamicTheming = !Platform.isAndroid
+        ..enableDynamicTheming = false
         ..bgBrightness = AppDefaults.bgBrightness
         ..bgOpacity = AppDefaults.bgOpacity
         ..showHomeArtists = AppDefaults.showHomeArtists

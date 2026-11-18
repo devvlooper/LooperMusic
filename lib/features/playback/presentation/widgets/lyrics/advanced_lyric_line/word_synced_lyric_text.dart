@@ -451,11 +451,8 @@ class _SungWord extends StatelessWidget {
     // part of the line reads clearly even over a bright artwork backdrop.
     // The glow fades with the line's emphasis, so a finishing line doesn't
     // drop it in one frame.
-    // Desktop lyrics are much larger, where the phone-sized glow reads as a
-    // heavy halo, so it is toned down there.
-    final desktop = UiUtils.isDesktop;
-    final glowAlpha = desktop ? 0.24 : 0.45;
-    final glowBlur = fontSize * (desktop ? 0.2 : 0.4);
+    const glowAlpha = 0.45;
+    final glowBlur = fontSize * 0.4;
     List<Shadow> glowAt(double strength) => strength <= 0
         ? const <Shadow>[]
         : [

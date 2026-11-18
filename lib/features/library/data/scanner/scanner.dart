@@ -6,7 +6,6 @@ import 'package:flutter/services.dart';
 import 'package:metadata_god/metadata_god.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
-import 'package:looper_player/features/library/data/scanner/windows_tag_reader.dart';
 
 import '../../../../core/services/storage/db_service.dart';
 
@@ -20,7 +19,6 @@ import '../../../../core/services/storage/local_json_store.dart';
 import 'scan_result.dart';
 import '../../domain/artist_names.dart';
 import '../services/artist_catalog.dart';
-import 'linux_tag_reader.dart';
 import 'package:looper_player/features/online/data/online_downloader.dart'
     show DownloadFolders;
 part 'scan_paths.dart';
@@ -737,36 +735,13 @@ class LibraryScanner {
         transient = true;
       } catch (_) {}
 
-      // Linux has no native tag fallback, so when metadata_god couldn't
-      // read the file (or failed to initialise at all) ask ffprobe.
-      LinuxTags? linuxTags;
-      if (Platform.isLinux &&
-          (metadata == null || (metadata.durationMs ?? 0) <= 0)) {
-        try {
-          linuxTags = await LinuxTagReader.read(file.path, timeout: tagTimeout);
-        } on TimeoutException {
-          transient = true;
-        }
-      } else if (Platform.isWindows && metadata == null) {
-        // Windows has no system ffmpeg; read the tags in pure Dart instead.
-        try {
-          linuxTags = await WindowsTagReader.read(
-            file.path,
-            timeout: tagTimeout,
-          );
-        } on TimeoutException {
-          transient = true;
-        }
-      }
-
-      String? title = metadata?.title ?? linuxTags?.title;
-      String? artist = metadata?.artist ?? linuxTags?.artist;
-      String? album = metadata?.album ?? linuxTags?.album;
-      String? genre = _cleanGenre(metadata?.genre ?? linuxTags?.genre);
+      String? title = metadata?.title;
+      String? artist = metadata?.artist;
+      String? album = metadata?.album;
+      String? genre = _cleanGenre(metadata?.genre);
       int? durationMs = metadata?.durationMs?.toInt();
-      if ((durationMs ?? 0) <= 0) durationMs = linuxTags?.durationMs;
-      int? trackNumber = metadata?.trackNumber ?? linuxTags?.trackNumber;
-      int? year = metadata?.year ?? linuxTags?.year;
+      int? trackNumber = metadata?.trackNumber;
+      int? year = metadata?.year;
       List<int>? pictureData = metadata?.picture?.data;
 
       // Use native MediaStore fallbacks if MetadataGod fields are null or empty
@@ -806,28 +781,6 @@ class LibraryScanner {
       if (pictureData == null && Platform.isAndroid) {
         try {
           pictureData = await _fetchNativeEmbeddedPicture(
-            file.path,
-            timeout: pictureTimeout,
-          );
-        } on TimeoutException {
-          transient = true;
-        }
-      }
-
-      if (pictureData == null && Platform.isLinux) {
-        try {
-          pictureData = await LinuxTagReader.readCover(
-            file.path,
-            timeout: pictureTimeout,
-          );
-        } on TimeoutException {
-          transient = true;
-        }
-      }
-
-      if (pictureData == null && Platform.isWindows) {
-        try {
-          pictureData = await WindowsTagReader.readCover(
             file.path,
             timeout: pictureTimeout,
           );

@@ -14,9 +14,7 @@ extension _CollectionPlaylistOptions on CollectionDetailView {
       isScrollControlled: true,
       builder: (context) {
         final l10n = AppLocalizations.of(context)!;
-        final isWide =
-            Responsive.isLandscape(MediaQuery.sizeOf(context)) ||
-            UiUtils.isDesktop;
+        final isWide = Responsive.isLandscape(MediaQuery.sizeOf(context));
 
         Widget surface({
           required double height,

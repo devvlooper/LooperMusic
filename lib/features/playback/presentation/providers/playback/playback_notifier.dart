@@ -1,6 +1,3 @@
-import 'package:looper_player/features/library/data/scanner/windows_tag_reader.dart';
-import 'package:looper_player/features/library/data/scanner/linux_tag_reader.dart';
-import 'package:looper_player/core/utils/desktop_paths.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:async';
@@ -20,7 +17,6 @@ import 'package:looper_player/features/library/data/scanner/scanner.dart';
 import 'package:looper_player/features/library/data/services/artist_catalog.dart';
 import 'package:looper_player/features/playback/data/lyrics_cache.dart';
 import 'package:looper_player/features/playback/data/lyrics_fetcher.dart';
-import 'package:window_manager/window_manager.dart';
 import 'package:looper_player/core/services/storage/db_service.dart';
 import 'package:looper_player/features/settings/presentation/providers/settings_notifier.dart';
 import 'package:looper_player/features/playback/presentation/providers/lyrics/lyrics_notifier.dart';
@@ -1209,12 +1205,6 @@ class Playback extends _$Playback {
 
     _updateWidgetState(); // Update home screen widgets instantly with the new song metadata
 
-    if (Platform.isLinux || Platform.isWindows || Platform.isMacOS) {
-      await windowManager.setTitle(
-        'Looper Music - ${song.title} - ${song.artist ?? currentL10n().unknownArtist}',
-      );
-    }
-
     await DbService.isar.writeTxn(() async {
       final dbSong = await DbService.isar.songs
           .filter()
@@ -1474,11 +1464,6 @@ class Playback extends _$Playback {
         .findAll();
     Song? song = songs.isEmpty ? null : songs.first;
 
-    // metadata_god can't start on Windows; read the file in pure Dart.
-    if (song == null && Platform.isWindows) {
-      song = await _songFromFileWindows(path);
-    }
-
     if (song == null) {
       // Create a temporary song object from metadata
       final metadata = await MetadataGod.readMetadata(file: path);
@@ -1495,7 +1480,7 @@ class Playback extends _$Playback {
 
       song = Song()
         ..path = path
-        ..title = metadata.title ?? displayFileName(path)
+        ..title = metadata.title ?? path.split('/').last
         ..artist = metadata.artist
         ..album = metadata.album
         ..duration = metadata.durationMs?.toInt()
@@ -1503,32 +1488,6 @@ class Playback extends _$Playback {
     }
 
     await play(song);
-  }
-
-  Future<Song> _songFromFileWindows(String path) async {
-    const timeout = Duration(seconds: 10);
-    LinuxTags? tags;
-    Uint8List? cover;
-    try {
-      tags = await WindowsTagReader.read(path, timeout: timeout);
-      cover = await WindowsTagReader.readCover(path, timeout: timeout);
-    } on TimeoutException {
-      // Play it anyway with the file name as the title.
-    }
-    String? artPath;
-    if (cover != null) {
-      artPath = await LibraryScanner().saveAlbumArt(
-        tags?.album ?? 'unknown',
-        cover,
-      );
-    }
-    return Song()
-      ..path = path
-      ..title = tags?.title ?? displayFileName(path)
-      ..artist = tags?.artist
-      ..album = tags?.album
-      ..duration = tags?.durationMs
-      ..artPath = artPath;
   }
 
   Future<void> stop() async {

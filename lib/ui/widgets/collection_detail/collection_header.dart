@@ -11,9 +11,7 @@ extension _CollectionHeader on CollectionDetailView {
       ..showSnackBar(
         SnackBar(
           content: Text(
-            UiUtils.isDesktop
-                ? l10n.addSongsToPlaylistHintDesktop
-                : l10n.addSongsToPlaylistHint,
+            l10n.addSongsToPlaylistHint,
           ),
           behavior: SnackBarBehavior.floating,
           duration: const Duration(seconds: 5),

@@ -43,7 +43,6 @@ import 'package:looper_player/features/online/presentation/online_widgets.dart';
 import 'package:looper_player/features/artwork/data/animated_artwork_service.dart';
 import 'package:looper_player/features/artwork/presentation/widgets/animated_artwork_widget.dart';
 part 'collection_header.dart';
-part 'desktop_collection.dart';
 part 'sort_sheet.dart';
 part 'playlist_options.dart';
 part 'album_groups.dart';
@@ -288,25 +287,6 @@ class CollectionDetailView extends ConsumerWidget {
               for (var i = 0; i < g.songs.length; i++) g.start + i,
             ],
           ];
-
-    if (UiUtils.isDesktop) {
-      return _buildDesktop(
-        context,
-        ref,
-        title: titleToRender,
-        subtitle: subtitleToRender,
-        art: artToRender,
-        imageUrl: imageUrlToRender,
-        songs: sortedSongs,
-        songsLoading: songsLoading,
-        reactivePlaylist: reactivePlaylist,
-        reactiveAlbum: reactiveAlbum,
-        reactiveArtist: reactiveArtist,
-        canReorder: canReorderPlaylist && sortedSongs.isNotEmpty,
-        activePath: activeSong?.path,
-        groupedItems: groupedItems,
-      );
-    }
 
     final l10n = AppLocalizations.of(context)!;
     final isArtist = _isArtistPage(l10n);

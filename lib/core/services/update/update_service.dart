@@ -25,7 +25,7 @@ class UpdateService {
   /// distributed through:
   ///  - Play build (Android `play` flavor): Google Play's In-App Updates API.
   ///    It never contacts GitHub.
-  ///  - GitHub build (Android `github` flavor, and Linux): the latest GitHub
+  ///  - GitHub build (Android `github` flavor): the latest GitHub
   ///    release. The native side answers 'unsupported' for this flavor.
   ///
   /// This only ever links to the release page. The Android github build goes

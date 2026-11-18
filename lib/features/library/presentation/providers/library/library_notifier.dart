@@ -1,4 +1,3 @@
-import 'package:looper_player/core/utils/desktop_paths.dart';
 import 'package:looper_player/features/online/data/online_downloader.dart';
 import 'package:looper_player/features/online/data/online_playback.dart';
 import 'package:looper_player/features/online/data/taste_profile_store.dart';
@@ -839,18 +838,6 @@ class Library extends _$Library {
               }
             }
           }
-        } else if (Platform.isLinux) {
-          String defaultPath = '${Platform.environment['HOME']}/Music';
-          try {
-            final result = await Process.run('xdg-user-dir', ['MUSIC']);
-            if (result.exitCode == 0 &&
-                result.stdout.toString().trim().isNotEmpty) {
-              defaultPath = result.stdout.toString().trim();
-            }
-          } catch (_) {}
-          scanRoots.add(defaultPath);
-        } else if (Platform.isWindows) {
-          scanRoots.add(windowsMusicFolder(Platform.environment));
         }
 
         for (final f in savedFolders) {
@@ -879,15 +866,11 @@ class Library extends _$Library {
                 scanRoots.add(cp);
               }
             }
-          } else if (Platform.isLinux) {
-            scanRoots.add('${Platform.environment['HOME']}/Music');
-          } else if (Platform.isWindows) {
-            scanRoots.add(windowsMusicFolder(Platform.environment));
           }
         }
       }
 
-      if (scanRoots.isEmpty && !Platform.isWindows) {
+      if (scanRoots.isEmpty) {
         scanRoots.add('/storage/emulated/0');
       }
 

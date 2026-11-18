@@ -68,7 +68,7 @@ android {
     //   play   - the Google Play AAB; uses Play's In-App Updates API and never
     //            talks to GitHub.
     // Build with `--flavor github` / `--flavor play` (there is deliberately no
-    // pubspec default-flavor: it would also relocate the Linux build output).
+    // pubspec default-flavor).
     flavorDimensions += "store"
     productFlavors {
         create("github") { dimension = "store" }

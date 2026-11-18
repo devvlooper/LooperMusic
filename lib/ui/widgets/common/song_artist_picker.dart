@@ -45,24 +45,6 @@ Future<String?> pickSongArtist(BuildContext context, Song song) async {
     ),
   );
 
-  if (UiUtils.isDesktop) {
-    return showTaskDialog<String>(
-      context: context,
-      builder: (context) => SimpleDialog(
-        backgroundColor: const Color(0xFF1F1F1F),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: title,
-        contentPadding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
-        children: [
-          ConstrainedBox(
-            constraints: const BoxConstraints(minWidth: 320),
-            child: list(context),
-          ),
-        ],
-      ),
-    );
-  }
-
   return showModalBottomSheet<String>(
     context: context,
     useRootNavigator: true,

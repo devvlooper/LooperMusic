@@ -13,7 +13,7 @@ class AppLoadingIndicator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final size = this.size ?? (UiUtils.isDesktop ? 200.0 : 120.0);
+    final size = this.size ?? 120.0;
     final double mark = size <= 56 ? size : (size * 0.38).clamp(40.0, 72.0);
     return Center(
       child: SizedBox(

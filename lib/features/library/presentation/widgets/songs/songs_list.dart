@@ -38,7 +38,6 @@ import 'song_tile.dart';
 
 import 'package:looper_player/core/utils/ui_utils.dart';
 
-import 'song_columns.dart';
 
 import 'package:looper_player/core/utils/l10n.dart';
 import 'package:looper_player/ui/widgets/sheets/add_to_playlist_sheet.dart';
@@ -351,21 +350,16 @@ class _SongsListState extends ConsumerState<SongsList> {
     );
   }
 
-  /// The list every platform had before two-column mode; moved here
-  /// unchanged so the desktop path can choose between it and the grid.
+  /// Touch screens have no scrollbar to grab, so a long list gets a
+  /// draggable thumb.
   Widget _buildSingleColumnList(AppLocalizations l10n) {
-    if (!UiUtils.isDesktop) {
-      // Touch screens have no scrollbar to grab, so a long list gets a
-      // draggable thumb; desktop keeps its own scrollbar.
-      return FastScroller(
-        controller: _scrollController,
-        itemCount: _rowCount,
-        labelBuilder: _scrollLabelBuilder(),
-        padding: const EdgeInsets.fromLTRB(0, 8, 0, 180),
-        child: _buildSingleColumnListView(l10n, _scrollController),
-      );
-    }
-    return _buildSingleColumnListView(l10n, widget.controller);
+    return FastScroller(
+      controller: _scrollController,
+      itemCount: _rowCount,
+      labelBuilder: _scrollLabelBuilder(),
+      padding: const EdgeInsets.fromLTRB(0, 8, 0, 180),
+      child: _buildSingleColumnListView(l10n, _scrollController),
+    );
   }
 
   /// The fast scroller's bubble text for a row - only where the order makes
@@ -470,23 +464,6 @@ class _SongsListState extends ConsumerState<SongsList> {
 
   /// Desktop only: the same rows laid out two across. 64 is the height of
   /// a two-line SongTile.
-  Widget _buildTwoColumnGrid(AppLocalizations l10n) {
-    return GridView.builder(
-      controller: widget.controller,
-      physics:
-          widget.physics ??
-          const AlwaysScrollableScrollPhysics(parent: LooperScrollPhysics()),
-      padding: const EdgeInsets.fromLTRB(0, 8, 0, 180),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        mainAxisExtent: 64,
-        crossAxisSpacing: 24,
-      ),
-      itemCount: widget.songs.length + (_hasFooter ? 1 : 0),
-      itemBuilder: (context, index) => _buildRow(index, l10n),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
@@ -515,20 +492,7 @@ class _SongsListState extends ConsumerState<SongsList> {
                     () => ref
                         .read(libraryProvider.notifier)
                         .refreshLibrary(showVisualIndicator: false),
-                child: UiUtils.isDesktop
-                    ? LayoutBuilder(
-                        builder: (context, constraints) =>
-                            songColumnsFor(
-                                  constraints.maxWidth,
-                                  desktop: true,
-                                  searching:
-                                      widget.searchQuery?.isNotEmpty ?? false,
-                                ) ==
-                                2
-                            ? _buildTwoColumnGrid(l10n)
-                            : _buildSingleColumnList(l10n),
-                      )
-                    : _buildSingleColumnList(l10n),
+                child: _buildSingleColumnList(l10n),
               ),
             ),
           ),

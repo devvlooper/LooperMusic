@@ -35,23 +35,6 @@ class SongFavoriteButton extends ConsumerWidget {
         currentFav ??
         ref.watch(_favoriteByPathProvider(song.path)).value ??
         song.isFavorite;
-    // Linux keeps its original red heart; Android uses a star.
-    if (UiUtils.isDesktop) {
-      return IconButton(
-        visualDensity: VisualDensity.compact,
-        tooltip: context.l10n.toggleFavorite,
-        icon: SvgPicture.asset(
-          favorite ? AppAssets.desktopLiked : AppAssets.desktopLike,
-          width: 16,
-          height: 16,
-          colorFilter: ColorFilter.mode(
-            favorite ? Colors.red : Colors.white54,
-            BlendMode.srcIn,
-          ),
-        ),
-        onPressed: () => _toggle(ref),
-      );
-    }
     return IconButton(
       tooltip: context.l10n.toggleFavorite,
       padding: EdgeInsets.zero,

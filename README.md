@@ -5,7 +5,7 @@
 <p align="center">
   <b>Looper Music: your own collection and YouTube Music, in one player.</b>
   <br />
-  Word-synced lyrics, album-coloured themes, online streaming. On Android, Linux and Windows.
+  Word-synced lyrics, album-coloured themes, online streaming. On Android.
 </p>
 
 <p align="center">
@@ -16,7 +16,7 @@
   <img height="20" src="https://img.shields.io/github/v/release/devvlooper/LooperMusic?style=flat-square&color=000000" />
   <img height="20" src="https://img.shields.io/github/downloads/devvlooper/LooperMusic/total?style=flat-square&label=Downloads&color=blue&labelColor=000000&logo=github" />
   <img height="20" src="https://img.shields.io/github/stars/devvlooper/LooperMusic?style=flat-square&color=000000" />
-  <img height="20" src="https://img.shields.io/badge/platform-Android%20%7C%20Linux%20%7C%20Windows-blueviolet?style=flat-square" />
+  <img height="20" src="https://img.shields.io/badge/platform-Android-blueviolet?style=flat-square" />
   <img height="20" src="https://img.shields.io/badge/license-GPL--3.0-green?style=flat-square" />
 </p>
 
@@ -54,7 +54,7 @@
 
 Looper Music plays the music files you already own, and, when you want it to, streams from YouTube Music too. Point it at a folder and it builds a library you can browse by song, album, artist, genre or folder. Turn on online music and the same Home screen gains search, personalised shelves, mixes and stations, with online and local songs sharing one queue, one player and one lyrics page.
 
-We started it because we wanted one player that looks the same on a phone and on a Linux or Windows desktop, and that makes the album art the centre of the screen. The player, the lyrics page and the accents across the app all pick up the colours of the current cover.
+We started it because we wanted a player that makes the album art the centre of the screen. The player, the lyrics page and the accents across the app all pick up the colours of the current cover.
 
 There are no ads and no subscription. Your library stays on your device. Online mode is **off by default**; the app goes online only for lyrics, update checks, and the streaming features you switch on.
 
@@ -72,8 +72,6 @@ There are no ads and no subscription. Your library stays on your device. Online 
 - **Fast search.** Search by title, artist, album, or a line of the lyrics. Local and online results side by side.
 - **Reorder Home your way.** Hold any row on Home to drag it into the order you want.
 - **Home-screen widgets** on Android, in 12 layouts, plus a quick-play shortcut.
-- **A real desktop layout** on Linux and Windows, with a sidebar, wide grids and media keys (MPRIS on Linux).
-- **Guided first run** on desktop: Looper finds your Music folder and sets up the library in one click.
 - **14 languages**, including Hindi, Arabic, Japanese, Korean and Chinese.
 - **Backups.** Export your app data and import it again later.
 - **Self-updating** GitHub build on Android.
@@ -87,7 +85,7 @@ Switch on **Settings > Online music** and Looper Music streams from YouTube Musi
 
 - **Search and play anything.** Songs, albums, artists and playlists, played through the normal queue with the same player, equalizer and lyrics.
 - **A Home feed that knows your taste, even signed out.** Guest mode seeds recommendations from the library you already have: quick picks, mixes, stations, moods and genre rows built from what you actually play. Pick your interests once in the taste setup, or keep several taste profiles and switch between them.
-- **Sign in for your own YouTube Music.** On Android with microG (or ReVanced GmsCore) your Google account is picked up with no extra prompt. Without it, and on desktop, sign in through a real Google login screen inside the app. Then you get *Listen again*, *Mixed for you*, your likes, playlists, saved albums and subscriptions, synced into Looper's library, and your plays recorded to your YouTube history. Multiple accounts and brand channels are supported.
+- **Sign in for your own YouTube Music.** On Android with microG (or ReVanced GmsCore) your Google account is picked up with no extra prompt. Without it, sign in through a real Google login screen inside the app. Then you get *Listen again*, *Mixed for you*, your likes, playlists, saved albums and subscriptions, synced into Looper's library, and your plays recorded to your YouTube history. Multiple accounts and brand channels are supported.
 - **Downloads.** Save online songs as tagged `.m4a` files into a folder you choose. They then behave like any other local track.
 - **Plays once, replays without a network.** Every streamed song and its lyrics are cached, so a replay needs no network. Choose streaming and download quality separately for Wi-Fi and mobile data.
 - **Mark what you don't want.** "Not interested" removes a song or artist from future recommendations.
@@ -143,24 +141,6 @@ Online mode is compiled into the GitHub build (`github` flavor) and disabled in 
   <img src="media/screenshots/fluid_player.png" width="32%" alt="Fluid player" />
 </p>
 
-### Desktop (Linux and Windows)
-
-<p align="center">
-  <img src="media/gallery/analyze.png" width="49%" alt="Looper Analyze on desktop" />
-  <img src="media/gallery/lyrics.png" width="49%" alt="Lyrics on desktop" />
-</p>
-<p align="center">
-  <img src="media/gallery/home.png" width="32%" alt="Home" />
-  <img src="media/gallery/albums.png" width="32%" alt="Albums" />
-  <img src="media/gallery/artists.png" width="32%" alt="Artists" />
-</p>
-<p align="center">
-  <img src="media/gallery/songs.png" width="24%" alt="Songs" />
-  <img src="media/gallery/album_detail.png" width="24%" alt="Album" />
-  <img src="media/gallery/album_playing.png" width="24%" alt="Album while playing" />
-  <img src="media/gallery/lyrics_synced.png" width="24%" alt="Synced lyrics" />
-</p>
-
 ---
 
 <a id="videos"></a>
@@ -205,17 +185,6 @@ Needs Android 10 or newer.
 - The GitHub build updates itself from inside the app.
 - Verify a download against the `SHA256SUMS-v<version>.txt` file attached to each release.
 
-### Linux and Windows
-
-Desktop packages are **not published right now** while the desktop builds are being reworked. The desktop app still works; build it from source (see [Contributing](#contributing)) or package it yourself:
-
-```bash
-./release.sh linux --build     # .deb, .rpm, .AppImage and .tar.gz into dist/linux
-./release.sh windows --build   # .zip and -setup.exe into dist/windows (Git Bash, needs Inno Setup)
-```
-
-Desktop releases will return to the Releases page as `looper-music_<version>_*` once they are back.
-
 ---
 
 <a id="tech-stack"></a>
@@ -228,8 +197,8 @@ Desktop releases will return to the Releases page as `looper-music_<version>_*` 
 | Database | Isar (local, on-device) |
 | Playback | mpv, through `mpv_audio_kit` |
 | Streaming | YouTube Music via InnerTube, resolved and cached in Dart |
-| Account sign-in | microG / GmsCore on Android, in-app Google login elsewhere |
-| Tags | `metadata_god` on Android, `ffprobe` on Linux, `audio_metadata_reader` on Windows |
+| Account sign-in | microG / GmsCore, or in-app Google login |
+| Tags | `metadata_god` and Android MediaStore |
 | Analytics / crash reports | AppAmbit (opt-in, only when an `env.json` is supplied at build time) |
 
 ---
@@ -248,12 +217,8 @@ Contributions are welcome, whether it's a bug fix, a new feature, a translation 
    ```
 4. Run it:
    ```bash
-   # Android (use the github flavor for local builds; the play flavor has online mode off)
+   # Use the github flavor for local builds; the play flavor has online mode off
    flutter run --flavor github
-   # Linux. Needs: clang cmake ninja-build pkg-config libgtk-3-dev libmpv-dev
-   flutter run -d linux
-   # Windows. Needs Visual Studio 2022 or newer with "Desktop development with C++"
-   flutter run -d windows
    ```
 5. If you change a Riverpod provider or an Isar model, regenerate the code:
    ```bash

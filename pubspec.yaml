@@ -18,9 +18,7 @@ dependencies:
   cupertino_icons: ^1.0.9
   lucide_icons_flutter: ^3.1.19
   animations: ^3.0.0
-  window_manager: ^0.5.2
   google_fonts: ^8.2.1
-  squiggly_slider: ^2.0.0
   adaptive_palette: ^3.1.0
   material_color_utilities: any
 
@@ -68,7 +66,6 @@ dependencies:
   vibration: ^3.2.1
   skeletonizer: ^3.0.0
   crypto: ^3.0.7
-  audio_metadata_reader: ^1.8.1
   webview_flutter: ^4.14.1
   video_player: ^2.9.2
 
@@ -109,13 +106,12 @@ flutter:
   generate: true
   uses-material-design: true
   # Only runtime assets are bundled. assets/branding/ holds build-time
-  # artwork (launcher + Linux icons, README logos) and is intentionally
+  # artwork (launcher icons, README logos) and is intentionally
   # left out.
   assets:
     - assets/animations/
     - assets/avatars/
     - assets/icons/android/
-    - assets/icons/desktop/
     - assets/icons/library/
     - assets/icons/player_styles/
     - assets/icons/settings/

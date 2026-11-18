@@ -43,7 +43,5 @@ analyzer:
   exclude:
     - build/**
     - android/**
-    - windows/**
-    - linux/**
     - ad_firebase/**
     - third_party/**
