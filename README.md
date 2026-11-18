@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <img src="media/banner.png" width="100%" alt="Looper Music" />
+  <img src="media/banner2.jpg" width="100%" alt="Looper Music" />
 </p>
 
 <p align="center">
