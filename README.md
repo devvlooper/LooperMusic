@@ -200,7 +200,7 @@ Android is on [Google Play](https://play.google.com/store/apps/details?id=com.lo
 
 ### Android (`.apk`)
 Needs Android 10 or newer.
-- Download `looper-music-v<version>-<abi>-release.apk` for your phone. `arm64-v8a` is right for almost every phone from the last several years; use `armeabi-v7a` for older ones, `x86_64` for emulators, or `universal` if unsure.
+- Download `looper-player-v<version>-<abi>-online-release.apk` for your phone. `arm64-v8a` is right for almost every phone from the last several years; use `armeabi-v7a` for older ones, `x86_64` for emulators, or `universal` if unsure.
 - Open it and tap **Install**. Android will ask you to allow installs from your browser or file manager the first time.
 - The GitHub build updates itself from inside the app.
 - Verify a download against the `SHA256SUMS-v<version>.txt` file attached to each release.
