@@ -8,9 +8,6 @@
   Word-synced lyrics, album-coloured themes, online streaming. On Android.
 </p>
 
-<p align="center">
-  <img src="media/banner2.jpg" width="100%" alt="Looper Music" />
-</p>
 
 <p align="center">
   <img height="20" src="https://img.shields.io/github/v/release/devvlooper/LooperMusic?style=flat-square&color=000000" />
@@ -20,11 +17,6 @@
   <img height="20" src="https://img.shields.io/badge/license-GPL--3.0-green?style=flat-square" />
 </p>
 
-<p align="center">
-  <a href="https://play.google.com/store/apps/details?id=com.looper.player">
-    <img src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" alt="Get it on Google Play" height="70">
-  </a>
-</p>
 
 <p align="center">
   <a href="https://ko-fi.com/sthrnilshaaa">
@@ -43,6 +35,10 @@
   <a href="#contributors">Credits</a> •
   <a href="#contact">Contact</a>
 </p>
+
+<p align="center">
+  <img src="media/banner2.jpg" width="100%" alt="Looper Music" />
+</p> 
 
 <p align="center">
   <img src="media/showcase.gif" width="100%" alt="Looper Music showcase" />
