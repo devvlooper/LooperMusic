@@ -10,7 +10,7 @@ import 'package:looper_player/features/library/domain/models/models.dart';
 import 'package:looper_player/features/library/presentation/widgets/songs/song_tile.dart';
 import 'package:looper_player/ui/widgets/common/home_design_kit.dart';
 import 'package:looper_player/ui/widgets/sheets/song_options_bottom_sheet.dart';
-import 'package:looper_player/features/online/data/online_downloader.dart';
+import 'package:looper_player/ui/widgets/sheets/add_to_playlist_sheet.dart';
 import 'package:looper_player/features/online/data/parsers.dart';
 import 'package:looper_player/features/online/data/taste_store.dart';
 import 'package:looper_player/features/online/presentation/online_providers.dart';
@@ -194,19 +194,26 @@ class _OnlineCollectionScreenState
                             ],
                             if (!isArtist && songs.isNotEmpty) ...[
                               const SizedBox(width: 12),
+                              // Adds the whole album to a playlist, or makes
+                              // a new one named after it.
                               HeroRoundButton(
-                                icon: LucideIcons.download,
+                                icon: LucideIcons.listPlus,
                                 size: 48,
-                                onTap: () {
+                                semanticLabel: l10n.addToPlaylists,
+                                onTap: () async {
                                   AppHaptics.light();
-                                  ref
-                                      .read(downloadsProvider.notifier)
-                                      .enqueueAll(p.songs);
-                                  ScaffoldMessenger.of(context).showSnackBar(
+                                  final messenger = ScaffoldMessenger.of(
+                                    context,
+                                  );
+                                  final name = await showAddToPlaylistSheet(
+                                    context,
+                                    songs,
+                                    suggestedName: title,
+                                  );
+                                  if (name == null) return;
+                                  messenger.showSnackBar(
                                     SnackBar(
-                                      content: Text(
-                                        l10n.downloadQueued(songs.length),
-                                      ),
+                                      content: Text(l10n.addedTo(name)),
                                       behavior: SnackBarBehavior.floating,
                                     ),
                                   );

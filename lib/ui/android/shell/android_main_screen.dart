@@ -537,7 +537,19 @@ class _AndroidMainScreenState extends ConsumerState<AndroidMainScreen>
           final bool canPopNavigator =
               navigatorKey.currentState?.canPop() ?? false;
           if (canPopNavigator) {
-            ref.read(appNavigationProvider.notifier).goBack();
+            // Screens opened with a plain Navigator.push (online artists and
+            // albums) aren't in the nav history: pop them directly, or
+            // goBack() would rewind the history and drop to Home.
+            Route<dynamic>? top;
+            navigatorKey.currentState!.popUntil((r) {
+              top = r;
+              return true;
+            });
+            if (top?.settings.name == _navHistoryRoute) {
+              ref.read(appNavigationProvider.notifier).goBack();
+            } else {
+              navigatorKey.currentState!.pop();
+            }
             return;
           }
 
@@ -942,10 +954,15 @@ class _AndroidMainScreenState extends ConsumerState<AndroidMainScreen>
     );
   }
 
+  /// Names the routes pushed from appNavigationProvider's history, so Back
+  /// can tell them from screens pushed straight onto the Navigator.
+  static const _navHistoryRoute = 'nav-history';
+
   Route _createPremiumRoute(Widget page) {
     // System animations off: a short plain crossfade, no slide.
     if (Motion.reduced) {
       return PageRouteBuilder(
+        settings: const RouteSettings(name: _navHistoryRoute),
         opaque: true,
         transitionDuration: const Duration(milliseconds: 120),
         reverseTransitionDuration: const Duration(milliseconds: 120),
@@ -955,6 +972,7 @@ class _AndroidMainScreenState extends ConsumerState<AndroidMainScreen>
       );
     }
     return PageRouteBuilder(
+      settings: const RouteSettings(name: _navHistoryRoute),
       opaque: true,
       transitionDuration: const Duration(milliseconds: 320),
       reverseTransitionDuration: const Duration(milliseconds: 350),

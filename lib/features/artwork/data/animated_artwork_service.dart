@@ -415,6 +415,9 @@ class AnimatedArtworkService {
     final cleanArtist = _cleanMetadata(artist ?? '');
     final cleanAlbum = _cleanMetadata(album ?? '');
     final cleanTitle = _cleanMetadata(title ?? '');
+    // Set when a lookup errored or timed out: that isn't proof there is no
+    // motion art, so nothing is cached and the next play asks again.
+    var failed = false;
 
     // 1. Apple Catalog API with editorialVideo
     try {
@@ -449,6 +452,7 @@ class AnimatedArtworkService {
             )
             .timeout(const Duration(seconds: 8));
 
+        if (res.statusCode == 429 || res.statusCode >= 500) failed = true;
         if (res.statusCode == 401 || res.statusCode == 403) {
           AppleWebToken.invalidate();
         } else if (res.statusCode == 200) {
@@ -520,6 +524,7 @@ class AnimatedArtworkService {
         }
       }
     } catch (e) {
+      failed = true;
       LoggerHelper.write('Apple catalog API motion lookup error: $e');
     }
 
@@ -553,7 +558,9 @@ class AnimatedArtworkService {
           _triggerBackgroundDownload(artwork);
           return artwork;
         }
-      } catch (_) {}
+      } catch (_) {
+        failed = true;
+      }
     }
 
     // 3. Tidal video covers. Album search has no song length, so exact
@@ -577,6 +584,7 @@ class AnimatedArtworkService {
             .get(uri, headers: {'X-Tidal-Token': _tidalToken})
             .timeout(const Duration(seconds: 8));
 
+        if (res.statusCode == 429 || res.statusCode >= 500) failed = true;
         if (res.statusCode == 200) {
           final data = jsonDecode(utf8.decode(res.bodyBytes));
           final items = (data['albums']?['items'] as List? ?? const [])
@@ -622,9 +630,11 @@ class AnimatedArtworkService {
           }
         }
       } catch (e) {
+        failed = true;
         LoggerHelper.write('Tidal video cover lookup error: $e');
       }
     }
+    if (failed) return null;
 
     // 4. Clean negative result (not an unhandled error)
     final negative = AnimatedArtwork(
@@ -1254,8 +1264,11 @@ final animatedArtworkForSongProvider = FutureProvider.autoDispose
         }
         return youtube();
       }
+      // Ask YouTube alongside Apple rather than after it: Apple's chain of
+      // lookups can take 10-30 s to come back empty. Apple still wins.
+      final yt = youtube().catchError((Object _) => null);
       return await AnimatedArtworkService.instance.resolveForSong(song) ??
-          await youtube();
+          await yt;
     });
 
 final animatedArtworkForCollectionProvider = FutureProvider.autoDispose

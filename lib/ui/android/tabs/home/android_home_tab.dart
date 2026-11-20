@@ -519,30 +519,15 @@ class _AndroidHomeTabState extends ConsumerState<AndroidHomeTab>
                   16,
                   19,
                 ),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    HomeRoundButton(
-                      semanticLabel: l10n.playAll,
-                      onTap: () {
-                        AppHaptics.medium();
-                        ref
-                            .read(playbackProvider.notifier)
-                            .setPlaylist(allQuickPicks);
-                      },
-                      child: homeSectionPlayIcon,
-                    ),
-                    const SizedBox(width: 6),
-                    HomeViewAllPill(
-                      label: l10n.viewAll,
-                      onTap: () {
-                        AppHaptics.light();
-                        ref
-                            .read(appNavigationProvider.notifier)
-                            .setItem(NavItem.songs);
-                      },
-                    ),
-                  ],
+                trailing: HomeRoundButton(
+                  semanticLabel: l10n.playAll,
+                  onTap: () {
+                    AppHaptics.medium();
+                    ref
+                        .read(playbackProvider.notifier)
+                        .setPlaylist(allQuickPicks);
+                  },
+                  child: homeSectionPlayIcon,
                 ),
               ),
             ),
