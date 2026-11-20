@@ -17,7 +17,7 @@ import android.util.Log
 open class PlayerWidgetProvider : AppWidgetProvider() {
 
     /** Where a card-style widget's artwork sits, in dp, for a given widget size. */
-    internal class ArtBox(
+    internal data class ArtBox(
         val widthDp: Int,
         val heightDp: Int,
         // Only the right-hand corners are rounded (artwork flush with the card's right edge)
@@ -124,15 +124,6 @@ open class PlayerWidgetProvider : AppWidgetProvider() {
             try {
                 val spec = specFor(providerClass)
                 val layoutId = spec.layoutId
-
-                // Pre-inflate the layout locally to catch inflation exceptions (e.g. invalid layouts/attributes)
-                try {
-                    val inflater = context.getSystemService(Context.LAYOUT_INFLATER_SERVICE) as android.view.LayoutInflater
-                    inflater.inflate(layoutId, null)
-                    Log.d("PlayerWidget", "Pre-inflated layout successfully: ${context.resources.getResourceEntryName(layoutId)}")
-                } catch (ie: Exception) {
-                    Log.e("PlayerWidget", "CRITICAL: Layout pre-inflation failed for ${context.resources.getResourceEntryName(layoutId)}!", ie)
-                }
 
                 val views = RemoteViews(context.packageName, layoutId)
                 val prefs = es.antonborri.home_widget.HomeWidgetPlugin.getData(context)
@@ -305,8 +296,18 @@ open class PlayerWidgetProvider : AppWidgetProvider() {
          * in: widget layouts can't clip an ImageView on the Android versions
          * this app still supports.
          */
+        // Widgets refresh every few seconds while the art stays the same, so
+        // keep the last few rendered bitmaps instead of decoding the file each time.
+        private val artCache = android.util.LruCache<String, Bitmap>(12)
+
         private fun renderArtwork(context: Context, file: java.io.File?, box: ArtBox): Bitmap {
             val (width, height) = artPixelSize(context, box)
+            val key = "${file?.absolutePath}|${file?.lastModified()}|$box|${width}x$height"
+            artCache.get(key)?.let { return it }
+            return renderArtworkUncached(context, file, box, width, height).also { artCache.put(key, it) }
+        }
+
+        private fun renderArtworkUncached(context: Context, file: java.io.File?, box: ArtBox, width: Int, height: Int): Bitmap {
             val source = file?.let {
                 try {
                     decodeSampledBitmapFromFile(it.absolutePath, width, height)

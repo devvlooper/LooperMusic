@@ -2577,6 +2577,9 @@ class Playback extends _$Playback {
   }
 
   bool? _hasHomeWidgetsPinned;
+  // Only these get the updateWidget broadcast; the other types aren't on
+  // any home screen, so redrawing them was wasted work every 5 s.
+  List<String> _pinnedHomeWidgetProviders = _homeWidgetProviders;
   int _lastHomeWidgetPinCheckMs = 0;
   static const int _homeWidgetPinCheckIntervalMs = 60000;
   static const List<String> _homeWidgetProviders = [
@@ -2614,13 +2617,17 @@ class Playback extends _$Playback {
       // home_widget reports Android's *short* class name, which for a class
       // inside the app's own package is ".PlayerWidgetProvider" rather than
       // the fully qualified name - so compare on the simple name only.
-      _hasHomeWidgetsPinned = installed.any(
-        (w) =>
-            _homeWidgetProviders.contains(w.androidClassName?.split('.').last),
-      );
+      _pinnedHomeWidgetProviders = installed
+          .map((w) => w.androidClassName?.split('.').last)
+          .whereType<String>()
+          .where(_homeWidgetProviders.contains)
+          .toSet()
+          .toList();
+      _hasHomeWidgetsPinned = _pinnedHomeWidgetProviders.isNotEmpty;
     } catch (_) {
       // Can't tell - fail open so a widget the user actually placed never
       // silently stops updating.
+      _pinnedHomeWidgetProviders = _homeWidgetProviders;
       _hasHomeWidgetsPinned = true;
     }
     return _hasHomeWidgetsPinned!;
@@ -2877,7 +2884,7 @@ class Playback extends _$Playback {
         state.duration.inMilliseconds,
       );
 
-      for (final name in _homeWidgetProviders) {
+      for (final name in _pinnedHomeWidgetProviders) {
         await HomeWidget.updateWidget(
           name: name,
           qualifiedAndroidName: 'com.looper.player.$name',
