@@ -17,6 +17,13 @@
   <img height="20" src="https://img.shields.io/badge/license-GPL--3.0-green?style=flat-square" />
 </p>
 
+<p align="center">
+  <a href="https://looper-player.web.app/"><img height="28" src="https://img.shields.io/badge/Website-looper--player.web.app-000000?style=for-the-badge&logo=firefoxbrowser&logoColor=white" alt="Website" /></a>
+  <a href="https://play.google.com/store/apps/details?id=com.looper.player"><img height="28" src="https://img.shields.io/badge/Google_Play-414141?style=for-the-badge&logo=googleplay&logoColor=white" alt="Google Play" /></a>
+  <a href="https://t.me/looperPlayer"><img height="28" src="https://img.shields.io/badge/Telegram-26A5E4?style=for-the-badge&logo=telegram&logoColor=white" alt="Telegram" /></a>
+  <a href="https://discord.gg/9nFHhg94wn"><img height="28" src="https://img.shields.io/badge/Discord-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Discord" /></a>
+</p>
+
 
 <p align="center">
   <a href="https://ko-fi.com/sthrnilshaaa">
@@ -295,6 +302,15 @@ See [LICENSE](LICENSE) for details.
 <a id="contact"></a>
 ## Contact
 
-Found a bug or want a feature? Open an [issue](https://github.com/devvlooper/LooperMusic/issues) or say hi on Telegram:
+Found a bug or want a feature? Open an [issue](https://github.com/devvlooper/LooperMusic/issues), or come say hi:
+
+| | |
+|---|---|
+| Website | [looper-player.web.app](https://looper-player.web.app/) |
+| Telegram | [t.me/looperPlayer](https://t.me/looperPlayer) |
+| Discord | [discord.gg/9nFHhg94wn](https://discord.gg/9nFHhg94wn) |
+| Google Play | [Looper Music](https://play.google.com/store/apps/details?id=com.looper.player) |
+| Support us | [Ko-fi](https://ko-fi.com/L2L124TL7L) |
 
 [![Telegram](https://img.shields.io/badge/Telegram-26A5E4?style=for-the-badge&logo=telegram&logoColor=white)](https://t.me/looperPlayer)
+[![Discord](https://img.shields.io/badge/Discord-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/9nFHhg94wn)
