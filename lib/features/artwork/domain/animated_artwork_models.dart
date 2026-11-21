@@ -19,13 +19,14 @@ enum AnimatedArtworkMode {
 
 /// Where moving artwork comes from.
 enum AnimatedArtworkSource {
-  /// Apple Music motion covers (the default).
+  /// Apple Music motion covers.
   apple,
 
   /// The song's own YouTube Music video, for online songs.
   youtube,
 
-  /// Apple's motion cover when there is one, else the YouTube video.
+  /// Apple's motion cover when there is one, else the YouTube video (the
+  /// default).
   appleThenYoutube;
 
   bool get usesApple => this != youtube;
@@ -42,8 +43,8 @@ class AnimatedArtworkSettings {
   final int cacheLimitMB;
 
   const AnimatedArtworkSettings({
-    this.mode = AnimatedArtworkMode.never,
-    this.source = AnimatedArtworkSource.apple,
+    this.mode = AnimatedArtworkMode.always,
+    this.source = AnimatedArtworkSource.appleThenYoutube,
     this.immersiveBackground = AppDefaults.animatedArtworkImmersiveBackground,
     this.animateAlbumCover = AppDefaults.animatedArtworkAnimateAlbumCover,
     this.animateAlbumCoverByStyle = const {},

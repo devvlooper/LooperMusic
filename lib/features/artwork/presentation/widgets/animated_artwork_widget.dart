@@ -94,6 +94,33 @@ class MotionArtworkHost {
     }
   }
 
+  /// A widget showing [playFrom] appeared (+1), disappeared (-1) or just
+  /// took hold of it (0). With nothing on screen the video stops decoding;
+  /// the expanded player stays mounted behind the music bar. Deferred because
+  /// this runs during build and the controller notifies its listeners.
+  static void updateShowing(
+    String playFrom,
+    int change, {
+    required bool shouldPlay,
+  }) {
+    final entry = _active[playFrom];
+    if (entry == null) return;
+    entry.showing += change;
+    scheduleMicrotask(() {
+      if (!identical(_active[playFrom], entry) || !entry.ready) return;
+      final value = entry.controller.value;
+      if (entry.showing <= 0) {
+        if (value.isPlaying) entry.controller.pause();
+      } else if (shouldPlay && !value.isPlaying) {
+        entry.controller.play();
+      }
+    });
+  }
+
+  /// Shared by every widget showing [playFrom], so they correct it only once.
+  static VideoResyncGate? resyncGate(String playFrom) =>
+      _active[playFrom]?.resync;
+
   static void release(String playFrom) {
     final entry = _active[playFrom];
     if (entry == null) return;
@@ -108,10 +135,35 @@ class MotionArtworkHost {
   }
 }
 
+/// Spaces out the seeks that keep a streamed video on the song. A seek drops
+/// the video's buffer, so on a slow connection seeking at a fixed rate means
+/// it never finishes buffering. Each correction doubles the wait (2 s to 16 s)
+/// until the video has stayed in step for a full wait.
+class VideoResyncGate {
+  static const _shortest = Duration(seconds: 2);
+  static const _longest = Duration(seconds: 16);
+
+  Duration _wait = _shortest;
+  DateTime? _next;
+
+  bool tryClaim(DateTime now) {
+    if (_next != null && now.isBefore(_next!)) return false;
+    _next = now.add(_wait);
+    _wait = _wait * 2 > _longest ? _longest : _wait * 2;
+    return true;
+  }
+
+  void inStep(DateTime now) {
+    if (_next == null || !now.isBefore(_next!)) _wait = _shortest;
+  }
+}
+
 class _HostEntry {
   final VideoPlayerController controller;
   final Future<void> initFuture;
+  final VideoResyncGate resync = VideoResyncGate();
   int refCount;
+  int showing = 0;
   bool ready = false;
   Timer? _disposeTimer;
 
@@ -163,6 +215,15 @@ class _AnimatedArtworkWidgetState extends ConsumerState<AnimatedArtworkWidget>
   bool _isInitialized = false;
   bool _hasFirstFrame = false;
   String? _activeSource;
+
+  /// The source this widget holds a host reference on. [_activeSource] is
+  /// set before the load finishes; releasing that dropped another widget's
+  /// reference, and the host then disposed its video 10 s later.
+  String? _heldSource;
+
+  /// False while hidden: a covered route, an off tab, the collapsed player.
+  bool _tickersOn = true;
+  bool _countedShowing = false;
   Timer? _firstFrameTimer;
   bool _built = false;
 
@@ -174,6 +235,28 @@ class _AnimatedArtworkWidgetState extends ConsumerState<AnimatedArtworkWidget>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _initPlayer();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _tickersOn = TickerMode.valuesOf(context).enabled;
+    _syncShowing();
+  }
+
+  bool get _shouldPlay =>
+      widget.autoPlay && ref.read(playbackProvider).isPlaying;
+
+  void _syncShowing() {
+    final source = _heldSource;
+    if (source == null) return;
+    final change = _tickersOn == _countedShowing ? 0 : (_tickersOn ? 1 : -1);
+    _countedShowing = _tickersOn;
+    MotionArtworkHost.updateShowing(
+      source,
+      change,
+      shouldPlay: _tickersOn && _shouldPlay,
+    );
   }
 
   @override
@@ -192,7 +275,8 @@ class _AnimatedArtworkWidgetState extends ConsumerState<AnimatedArtworkWidget>
         state == AppLifecycleState.hidden) {
       _controller?.pause();
     } else if (state == AppLifecycleState.resumed) {
-      if (widget.autoPlay && mounted) {
+      // Not while the song is paused: the video would run ahead of it.
+      if (mounted && _tickersOn && _shouldPlay) {
         _controller?.play();
       }
     }
@@ -230,6 +314,8 @@ class _AnimatedArtworkWidgetState extends ConsumerState<AnimatedArtworkWidget>
       _disposeCurrentController();
       _controller = live.$1;
       _activeSource = live.$2;
+      _heldSource = live.$2;
+      _syncShowing();
       _controller!.addListener(_videoListener);
       _isInitialized = true;
       _hasFirstFrame = true;
@@ -283,12 +369,17 @@ class _AnimatedArtworkWidgetState extends ConsumerState<AnimatedArtworkWidget>
         headers: youtube == null ? const {} : {'User-Agent': youtube.userAgent},
       );
 
-      if (!mounted || _activeSource != playFrom || controller == null) {
+      if (!mounted ||
+          _activeSource != playFrom ||
+          _heldSource != null ||
+          controller == null) {
         if (controller != null) MotionArtworkHost.release(playFrom);
         return;
       }
 
       _controller = controller;
+      _heldSource = playFrom;
+      _syncShowing();
       controller.addListener(_videoListener);
       if (youtube?.synced ?? false) _startSync();
 
@@ -336,18 +427,23 @@ class _AnimatedArtworkWidgetState extends ConsumerState<AnimatedArtworkWidget>
   }
 
   /// Keeps a synced YouTube video within 400 ms of the song: it starts at
-  /// the song's position and is nudged back after seeks and stalls. Several
-  /// widgets sharing the video all check, but once one has re-seeked the
-  /// rest find it in step.
+  /// the song's position and is nudged back after seeks and stalls, never
+  /// while it is still buffering.
   void _startSync() {
     _syncTimer?.cancel();
     void check() {
       final c = _controller;
-      if (c == null || !mounted || !c.value.isInitialized) return;
+      final source = _activeSource;
+      if (c == null || source == null || !mounted) return;
+      if (!_tickersOn) return;
+      if (!c.value.isInitialized || c.value.isBuffering) return;
       final song = ref.read(playbackProvider).position;
       final drift = (c.value.position - song).abs();
-      if (drift > const Duration(milliseconds: 400) &&
-          song < c.value.duration) {
+      final gate = MotionArtworkHost.resyncGate(source);
+      final now = DateTime.now();
+      if (drift <= const Duration(milliseconds: 400)) {
+        gate?.inStep(now);
+      } else if (song < c.value.duration && (gate?.tryClaim(now) ?? true)) {
         // The seek itself takes a moment; land slightly ahead.
         c.seekTo(song + const Duration(milliseconds: 150));
       }
@@ -363,9 +459,14 @@ class _AnimatedArtworkWidgetState extends ConsumerState<AnimatedArtworkWidget>
     _firstFrameTimer?.cancel();
     _firstFrameTimer = null;
     _controller?.removeListener(_videoListener);
-    if (_activeSource != null) {
-      MotionArtworkHost.release(_activeSource!);
+    if (_heldSource != null) {
+      if (_countedShowing) {
+        MotionArtworkHost.updateShowing(_heldSource!, -1, shouldPlay: false);
+      }
+      _countedShowing = false;
+      MotionArtworkHost.release(_heldSource!);
     }
+    _heldSource = null;
     _controller = null;
     _activeSource = null;
   }
@@ -384,7 +485,7 @@ class _AnimatedArtworkWidgetState extends ConsumerState<AnimatedArtworkWidget>
     ref.listen(playbackProvider.select((s) => s.isPlaying), (prev, isPlaying) {
       if (_controller == null || !_isInitialized) return;
       if (isPlaying) {
-        if (widget.autoPlay && !_controller!.value.isPlaying) {
+        if (widget.autoPlay && _tickersOn && !_controller!.value.isPlaying) {
           _controller?.play();
         }
       } else {

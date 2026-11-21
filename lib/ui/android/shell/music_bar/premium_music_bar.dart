@@ -660,7 +660,9 @@ class PremiumMusicBarState extends ConsumerState<PremiumMusicBar>
     // the start of every collapse, paints on its first frame (no blank
     // frame after a cache eviction) with the same pixels as the real art.
     Widget? morphImage;
-    Widget? morphPlayingIcon;
+    // At rest the bar shows a still cover: a video or the playing bars there
+    // redrew the whole screen, backdrop blur included, on every frame.
+    Widget? morphStill;
     if (song.artPath != null) {
       final double dpr = MediaQuery.maybeDevicePixelRatioOf(context) ?? 2.0;
       final double decodeWidth = isLandscape
@@ -672,6 +674,7 @@ class PremiumMusicBarState extends ConsumerState<PremiumMusicBar>
         fit: BoxFit.cover,
         cacheWidth: (decodeWidth * dpr).toInt(),
       );
+      morphStill = morphImage;
       // The song's motion art, the same texture the real artwork plays, so
       // the handoff swaps like for like instead of cutting still -> video.
       final bool animateCover =
@@ -689,7 +692,6 @@ class PremiumMusicBarState extends ConsumerState<PremiumMusicBar>
           fit: BoxFit.cover,
         );
       }
-      morphPlayingIcon = SongPlaybackIndicator(isPlaying: isPlaying);
     }
 
     // Catch: a finger landing on the moving panel stops it on that frame
@@ -1117,33 +1119,9 @@ class PremiumMusicBarState extends ConsumerState<PremiumMusicBar>
                                                   compact: isCompact,
                                                 ),
                                               ),
-                                              child: Stack(
-                                                fit: StackFit.expand,
-                                                children: [
-                                                  morphImage!,
-                                                  if (morphPlayingIcon !=
-                                                          null &&
-                                                      p < 0.25)
-                                                    Positioned.fill(
-                                                      child: Opacity(
-                                                        opacity: (1.0 - p * 4.0)
-                                                            .clamp(0.0, 1.0),
-                                                        child: ColoredBox(
-                                                          color: Colors.black
-                                                              .withValues(
-                                                                alpha:
-                                                                    SongPlaybackOverlay
-                                                                        .dimAlpha,
-                                                              ),
-                                                          child: Center(
-                                                            child:
-                                                                morphPlayingIcon,
-                                                          ),
-                                                        ),
-                                                      ),
-                                                    ),
-                                                ],
-                                              ),
+                                              child: p > 0.01
+                                                  ? morphImage!
+                                                  : morphStill!,
                                             ),
                                           ),
                                         ),
@@ -1223,37 +1201,9 @@ class PremiumMusicBarState extends ConsumerState<PremiumMusicBar>
                                                     ) /
                                                     scale,
                                               ),
-                                              child: Stack(
-                                                fit: StackFit.expand,
-                                                children: [
-                                                  morphImage!,
-                                                  if (morphPlayingIcon !=
-                                                          null &&
-                                                      p < 0.25)
-                                                    Positioned.fill(
-                                                      child: Opacity(
-                                                        opacity: (1.0 - p * 4.0)
-                                                            .clamp(0.0, 1.0),
-                                                        child: ColoredBox(
-                                                          color: Colors.black
-                                                              .withValues(
-                                                                alpha:
-                                                                    SongPlaybackOverlay
-                                                                        .dimAlpha,
-                                                              ),
-                                                          child: Center(
-                                                            child: Transform.scale(
-                                                              scale:
-                                                                  1.0 / scale,
-                                                              child:
-                                                                  morphPlayingIcon,
-                                                            ),
-                                                          ),
-                                                        ),
-                                                      ),
-                                                    ),
-                                                ],
-                                              ),
+                                              child: p > 0.01
+                                                  ? morphImage!
+                                                  : morphStill!,
                                             ),
                                           ),
                                         ),

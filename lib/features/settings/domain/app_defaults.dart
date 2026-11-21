@@ -167,9 +167,9 @@ abstract final class AppDefaults {
   static const String playerStyle = 'arc';
   static const bool playerStyleAccent = false;
   static const bool cardBlackBackground = false;
-  static const bool cardAccentBackground = true;
+  static const bool cardAccentBackground = false;
   static const bool cardAccentColors = false;
-  static const bool playerStyleBlur = false;
+  static const bool playerStyleBlur = true;
   static const bool showAlbumNextToArtist = true;
   static const bool showAlbumInQuickPicks = true;
   static const bool disableHaptics = false;
@@ -301,7 +301,7 @@ abstract final class AppDefaults {
   // ===========================================================================
   // SECTION 10: ANIMATED ARTWORK DEFAULTS (LocalJsonStore)
   // ===========================================================================
-  static const String animatedArtworkMode = 'never';
+  static const String animatedArtworkMode = 'always';
   static const bool animatedArtworkImmersiveBackground = false;
   static const bool animatedArtworkAnimateAlbumCover = true;
   static const bool animatedArtworkAmbientGlow = false;

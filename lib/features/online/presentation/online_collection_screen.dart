@@ -8,6 +8,7 @@ import 'package:looper_player/core/services/haptics/app_haptics.dart';
 import 'package:looper_player/core/theme/app_fonts.dart';
 import 'package:looper_player/features/library/domain/models/models.dart';
 import 'package:looper_player/features/library/presentation/widgets/songs/song_tile.dart';
+import 'package:looper_player/ui/widgets/common/queue_toggle.dart';
 import 'package:looper_player/ui/widgets/common/home_design_kit.dart';
 import 'package:looper_player/ui/widgets/sheets/song_options_bottom_sheet.dart';
 import 'package:looper_player/ui/widgets/sheets/add_to_playlist_sheet.dart';
@@ -436,9 +437,11 @@ class _TopSongRow extends ConsumerWidget {
         height: _ArtistSongPages._rowHeight,
         child: Row(
           children: [
-            SizedBox(
+            QueueToggle(
+              song: song,
               width: 55,
-              child: Text(
+              height: _ArtistSongPages._rowHeight,
+              number: Text(
                 '${index + 1}',
                 textAlign: TextAlign.center,
                 style: homeCardTitle(),
