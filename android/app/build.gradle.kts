@@ -8,7 +8,7 @@ plugins {
 }
 
 android {
-    namespace = "com.looper.player"
+    namespace = "com.looper.music"
     compileSdk = 37
     ndkVersion = "28.2.13676358"
 
@@ -53,7 +53,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.looper.player"
+        applicationId = "com.looper.music"
         minSdk = 29
         targetSdk = 37
         versionCode = flutter.versionCode

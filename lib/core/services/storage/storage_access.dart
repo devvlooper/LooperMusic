@@ -11,7 +11,7 @@ import 'package:permission_handler/permission_handler.dart';
 /// manifest itself, read natively via getAllFilesAccessInfo - a build whose
 /// manifest doesn't declare the permission can never offer or request it.
 class StorageAccess {
-  static const _channel = MethodChannel('com.looper.player/broadcast');
+  static const _channel = MethodChannel('com.looper.music/broadcast');
 
   static bool get _isGithubFlavor =>
       Platform.isAndroid && appFlavor == 'github';

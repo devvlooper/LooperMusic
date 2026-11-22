@@ -13,7 +13,7 @@ import 'package:flutter/services.dart';
 /// a scan alongside the MediaStore query.
 class SafFolderService {
   static const MethodChannel _channel = MethodChannel(
-    'com.looper.player/broadcast',
+    'com.looper.music/broadcast',
   );
 
   /// Opens the system folder picker (ACTION_OPEN_DOCUMENT_TREE). Returns the

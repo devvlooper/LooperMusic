@@ -1,4 +1,4 @@
-package com.looper.player
+package com.looper.music
 
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
@@ -42,11 +42,11 @@ open class PlayerWidgetProvider : AppWidgetProvider() {
     )
 
     companion object {
-        const val ACTION_PLAY_PAUSE = "com.looper.player.ACTION_PLAY_PAUSE"
-        const val ACTION_NEXT = "com.looper.player.ACTION_NEXT"
-        const val ACTION_PREV = "com.looper.player.ACTION_PREV"
-        const val ACTION_SHUFFLE = "com.looper.player.ACTION_SHUFFLE"
-        const val ACTION_REPEAT = "com.looper.player.ACTION_REPEAT"
+        const val ACTION_PLAY_PAUSE = "com.looper.music.ACTION_PLAY_PAUSE"
+        const val ACTION_NEXT = "com.looper.music.ACTION_NEXT"
+        const val ACTION_PREV = "com.looper.music.ACTION_PREV"
+        const val ACTION_SHUFFLE = "com.looper.music.ACTION_SHUFFLE"
+        const val ACTION_REPEAT = "com.looper.music.ACTION_REPEAT"
 
         private const val CARD_RADIUS_DP = 10f
         private const val MAX_ART_SIDE_PX = 720

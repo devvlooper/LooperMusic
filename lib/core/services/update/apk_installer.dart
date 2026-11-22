@@ -8,7 +8,7 @@ enum ApkInstallStatus { success, aborted, storage, failed }
 /// (android/app/src/github/.../InAppUpdater.kt). The Play build has no such
 /// code, so everything here is gated on [supported].
 class ApkInstaller {
-  static const _channel = MethodChannel('com.looper.player/updates');
+  static const _channel = MethodChannel('com.looper.music/updates');
 
   /// Only the Android `github` flavor can install its own updates.
   static bool get supported => Platform.isAndroid && appFlavor == 'github';

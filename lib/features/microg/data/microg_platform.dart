@@ -14,10 +14,10 @@ class MicrogInfo {
   bool get usable => accountType != null;
 }
 
-/// The `com.looper.player/microg` channel (MicrogAuth.kt). Never logs
+/// The `com.looper.music/microg` channel (MicrogAuth.kt). Never logs
 /// tokens or cookies.
 abstract final class MicrogPlatform {
-  static const _channel = MethodChannel('com.looper.player/microg');
+  static const _channel = MethodChannel('com.looper.music/microg');
 
   /// A one-time link that signs a browser into Google and lands on YouTube
   /// Music. Bearer tokens are refused by music.youtube.com's web API (HTTP

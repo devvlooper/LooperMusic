@@ -2569,7 +2569,7 @@ class Playback extends _$Playback {
     );
   }
 
-  static const _widgetChannel = MethodChannel('com.looper.player/widget');
+  static const _widgetChannel = MethodChannel('com.looper.music/widget');
   String _lastWidgetLyricLine = '';
 
   void _checkAndUpdateLyrics() {
@@ -2799,15 +2799,15 @@ class Playback extends _$Playback {
       switch (call.method) {
         case 'onWidgetAction':
           final action = call.arguments as String?;
-          if (action == 'com.looper.player.ACTION_PLAY_PAUSE') {
+          if (action == 'com.looper.music.ACTION_PLAY_PAUSE') {
             togglePlay();
-          } else if (action == 'com.looper.player.ACTION_NEXT') {
+          } else if (action == 'com.looper.music.ACTION_NEXT') {
             skipNext();
-          } else if (action == 'com.looper.player.ACTION_PREV') {
+          } else if (action == 'com.looper.music.ACTION_PREV') {
             skipPrevious();
-          } else if (action == 'com.looper.player.ACTION_SHUFFLE') {
+          } else if (action == 'com.looper.music.ACTION_SHUFFLE') {
             toggleShuffle();
-          } else if (action == 'com.looper.player.ACTION_REPEAT') {
+          } else if (action == 'com.looper.music.ACTION_REPEAT') {
             nextRepeatMode();
           }
           break;
@@ -2906,7 +2906,7 @@ class Playback extends _$Playback {
       for (final name in _pinnedHomeWidgetProviders) {
         await HomeWidget.updateWidget(
           name: name,
-          qualifiedAndroidName: 'com.looper.player.$name',
+          qualifiedAndroidName: 'com.looper.music.$name',
         );
       }
     } catch (e) {}

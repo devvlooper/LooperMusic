@@ -1,4 +1,4 @@
-package com.looper.player
+package com.looper.music
 
 import android.app.Activity
 import android.app.PendingIntent
@@ -30,7 +30,7 @@ import java.io.File
 class InAppUpdater(private val activity: Activity, onDownloaded: () -> Unit) {
     private companion object {
         const val TAG = "LooperApkInstall"
-        const val ACTION_INSTALL_STATUS = "com.looper.player.APK_INSTALL_STATUS"
+        const val ACTION_INSTALL_STATUS = "com.looper.music.APK_INSTALL_STATUS"
     }
 
     // The in-flight installApk() call, answered once the session ends.

@@ -10,7 +10,7 @@ import 'package:flutter/services.dart';
 /// writeMediaTags for the native side of this.
 class MediaStoreWriteService {
   static const MethodChannel _channel = MethodChannel(
-    'com.looper.player/broadcast',
+    'com.looper.music/broadcast',
   );
 
   /// Deletes a single audio file. Returns false if the user declined the

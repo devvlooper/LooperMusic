@@ -1,4 +1,4 @@
-package com.looper.player
+package com.looper.music
 
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -25,14 +25,14 @@ import androidx.core.view.WindowInsetsControllerCompat
 
 
 class MainActivity : FlutterActivity() {
-    private val CHANNEL = "com.looper.player/broadcast"
-    private val WIDGET_CHANNEL = "com.looper.player/widget"
-    private val WAKELOCK_CHANNEL = "com.looper.player/wakelock"
-    private val UPDATE_CHANNEL = "com.looper.player/updates"
-    private val AUDIO_FOCUS_CHANNEL = "com.looper.player/audio_focus"
-    private val AUDIO_INFO_CHANNEL = "com.looper.player/audio_info"
-    private val SYSTEM_UI_CHANNEL = "com.looper.player/system_ui"
-    private val HAPTICS_CHANNEL = "com.looper.player/haptics"
+    private val CHANNEL = "com.looper.music/broadcast"
+    private val WIDGET_CHANNEL = "com.looper.music/widget"
+    private val WAKELOCK_CHANNEL = "com.looper.music/wakelock"
+    private val UPDATE_CHANNEL = "com.looper.music/updates"
+    private val AUDIO_FOCUS_CHANNEL = "com.looper.music/audio_focus"
+    private val AUDIO_INFO_CHANNEL = "com.looper.music/audio_info"
+    private val SYSTEM_UI_CHANNEL = "com.looper.music/system_ui"
+    private val HAPTICS_CHANNEL = "com.looper.music/haptics"
     private val SAF_PICK_FOLDER_REQUEST_CODE = 9273
     private val MEDIA_WRITE_REQUEST_CODE = 9274
     private val MEDIA_BATCH_DELETE_REQUEST_CODE = 9275
@@ -85,7 +85,7 @@ class MainActivity : FlutterActivity() {
         fun sendWidgetAction(context: Context, action: String) {
             val engine = activeEngine
             if (engine != null) {
-                val channel = MethodChannel(engine.dartExecutor.binaryMessenger, "com.looper.player/widget")
+                val channel = MethodChannel(engine.dartExecutor.binaryMessenger, "com.looper.music/widget")
                 channel.invokeMethod("onWidgetAction", action)
             } else {
                 // If app is not running, click launches the app
@@ -100,7 +100,7 @@ class MainActivity : FlutterActivity() {
         // nothing to show until it is told one now exists.
         fun requestWidgetRefresh() {
             val engine = activeEngine ?: return
-            MethodChannel(engine.dartExecutor.binaryMessenger, "com.looper.player/widget")
+            MethodChannel(engine.dartExecutor.binaryMessenger, "com.looper.music/widget")
                 .invokeMethod("onWidgetRefresh", null)
         }
     }

@@ -58,7 +58,7 @@ class LibraryScanner {
   static const int minSizeBytes = 0; // Skipped filter as requested
 
   static const MethodChannel _broadcastChannel = MethodChannel(
-    'com.looper.player/broadcast',
+    'com.looper.music/broadcast',
   );
   final Map<String, String?> _folderArtCache = {};
 

@@ -33,7 +33,7 @@ class AppHaptics {
 
   static const List<double> _strengthScale = [1.0, 1.6, 2.3];
 
-  static const _channel = MethodChannel('com.looper.player/haptics');
+  static const _channel = MethodChannel('com.looper.music/haptics');
 
   /// Nothing to warm up any more; kept so startup code needs no change.
   static void init() {}

@@ -1,4 +1,4 @@
-package com.looper.player
+package com.looper.music
 
 import android.accounts.Account
 import android.accounts.AccountManager
@@ -30,7 +30,7 @@ import javax.crypto.spec.GCMParameterSpec
  */
 class MicrogAuth(private val activity: Activity) {
     companion object {
-        const val CHANNEL = "com.looper.player/microg"
+        const val CHANNEL = "com.looper.music/microg"
         private const val CHOOSE_REQUEST_CODE = 9277
         private const val KEY_ALIAS = "looper_account_session"
 

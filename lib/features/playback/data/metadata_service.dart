@@ -6,7 +6,7 @@ import 'lyrics_formats/id3_sylt_reader.dart';
 
 class MetadataService {
   static const MethodChannel _broadcastChannel = MethodChannel(
-    'com.looper.player/broadcast',
+    'com.looper.music/broadcast',
   );
 
   static Future<String?> getEmbeddedLyrics(String path) async {

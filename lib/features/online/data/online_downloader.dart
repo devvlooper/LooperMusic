@@ -317,7 +317,7 @@ class DownloadsNotifier extends Notifier<Map<String, DownloadItem>> {
       if (Platform.isAndroid) {
         try {
           await const MethodChannel(
-            'com.looper.player/broadcast',
+            'com.looper.music/broadcast',
           ).invokeMethod('rescanMedia', {'path': finalFile.path});
         } catch (_) {}
       }

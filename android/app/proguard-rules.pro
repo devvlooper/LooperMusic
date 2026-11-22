@@ -28,7 +28,7 @@
 }
 
 # Keep Looper Music application, activity and service classes
--keep class com.looper.player.** { *; }
+-keep class com.looper.music.** { *; }
 
 # Keep all Android media classes
 -keep class android.support.v4.media.** { *; }

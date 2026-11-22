@@ -1,4 +1,4 @@
-package com.looper.player
+package com.looper.music
 
 import io.flutter.app.FlutterApplication
 

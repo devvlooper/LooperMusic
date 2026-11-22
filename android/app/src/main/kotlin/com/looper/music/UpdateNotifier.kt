@@ -1,4 +1,4 @@
-package com.looper.player
+package com.looper.music
 
 import android.app.Notification
 import android.app.NotificationChannel

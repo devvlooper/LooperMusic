@@ -16,7 +16,7 @@ class UpdateService {
   static const repoUrl = AppLinks.githubReleasesApi;
   static const fallbackHtmlUrl = AppLinks.githubReleasesWeb;
 
-  static const _channel = MethodChannel('com.looper.player/updates');
+  static const _channel = MethodChannel('com.looper.music/updates');
   static const _notifiedVersionKey = 'update_notified_version';
 
   static bool _restartPromptShowing = false;

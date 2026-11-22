@@ -14,7 +14,7 @@ import 'package:flutter/services.dart';
 class SystemNavigationBar {
   SystemNavigationBar._();
 
-  static const _channel = MethodChannel('com.looper.player/system_ui');
+  static const _channel = MethodChannel('com.looper.music/system_ui');
 
   static bool _navHidden = false;
   static final Set<Object> _fullscreen = {};

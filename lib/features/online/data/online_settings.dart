@@ -190,7 +190,7 @@ final onlineSettingsProvider =
       OnlineSettingsNotifier.new,
     );
 
-const _networkChannel = MethodChannel('com.looper.player/audio_info');
+const _networkChannel = MethodChannel('com.looper.music/audio_info');
 
 /// Whether the active network is metered (mobile data). Desktop: never.
 Future<bool> isNetworkMetered() async {

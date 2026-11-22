@@ -798,7 +798,7 @@ class Library extends _$Library {
         if (Platform.isAndroid) {
           try {
             const MethodChannel(
-              'com.looper.player/broadcast',
+              'com.looper.music/broadcast',
             ).invokeMethod('rescanMedia', {'path': '/storage/emulated/0'});
           } catch (_) {}
 

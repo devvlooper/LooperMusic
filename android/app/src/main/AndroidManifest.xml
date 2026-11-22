@@ -11,182 +11,182 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <application
         android:label="Looper Music"
-        android:name="com.looper.player.LooperApplication"
+        android:name="com.looper.music.LooperApplication"
         android:icon="@mipmap/ic_launcher"
         android:extractNativeLibs="true"
         android:enableOnBackInvokedCallback="true">
 
         <!-- Player Widget Providers -->
-        <receiver android:name="com.looper.player.PlayerWidgetProvider"
+        <receiver android:name="com.looper.music.PlayerWidgetProvider"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-                <action android:name="com.looper.player.ACTION_PLAY_PAUSE" />
-                <action android:name="com.looper.player.ACTION_NEXT" />
-                <action android:name="com.looper.player.ACTION_PREV" />
-                <action android:name="com.looper.player.ACTION_SHUFFLE" />
-                <action android:name="com.looper.player.ACTION_REPEAT" />
+                <action android:name="com.looper.music.ACTION_PLAY_PAUSE" />
+                <action android:name="com.looper.music.ACTION_NEXT" />
+                <action android:name="com.looper.music.ACTION_PREV" />
+                <action android:name="com.looper.music.ACTION_SHUFFLE" />
+                <action android:name="com.looper.music.ACTION_REPEAT" />
             </intent-filter>
             <meta-data android:name="android.appwidget.provider"
                 android:resource="@xml/player_widget_info" />
         </receiver>
 
-        <receiver android:name="com.looper.player.PlayerWidgetProviderSquareArtwork"
+        <receiver android:name="com.looper.music.PlayerWidgetProviderSquareArtwork"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-                <action android:name="com.looper.player.ACTION_PLAY_PAUSE" />
-                <action android:name="com.looper.player.ACTION_NEXT" />
-                <action android:name="com.looper.player.ACTION_PREV" />
-                <action android:name="com.looper.player.ACTION_SHUFFLE" />
-                <action android:name="com.looper.player.ACTION_REPEAT" />
+                <action android:name="com.looper.music.ACTION_PLAY_PAUSE" />
+                <action android:name="com.looper.music.ACTION_NEXT" />
+                <action android:name="com.looper.music.ACTION_PREV" />
+                <action android:name="com.looper.music.ACTION_SHUFFLE" />
+                <action android:name="com.looper.music.ACTION_REPEAT" />
             </intent-filter>
             <meta-data android:name="android.appwidget.provider"
                 android:resource="@xml/player_widget_info_square_artwork" />
         </receiver>
 
-        <receiver android:name="com.looper.player.PlayerWidgetProviderSquareProgress"
+        <receiver android:name="com.looper.music.PlayerWidgetProviderSquareProgress"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-                <action android:name="com.looper.player.ACTION_PLAY_PAUSE" />
-                <action android:name="com.looper.player.ACTION_NEXT" />
-                <action android:name="com.looper.player.ACTION_PREV" />
-                <action android:name="com.looper.player.ACTION_SHUFFLE" />
-                <action android:name="com.looper.player.ACTION_REPEAT" />
+                <action android:name="com.looper.music.ACTION_PLAY_PAUSE" />
+                <action android:name="com.looper.music.ACTION_NEXT" />
+                <action android:name="com.looper.music.ACTION_PREV" />
+                <action android:name="com.looper.music.ACTION_SHUFFLE" />
+                <action android:name="com.looper.music.ACTION_REPEAT" />
             </intent-filter>
             <meta-data android:name="android.appwidget.provider"
                 android:resource="@xml/player_widget_info_square_progress" />
         </receiver>
 
-        <receiver android:name="com.looper.player.PlayerWidgetProviderLargeLyrics"
+        <receiver android:name="com.looper.music.PlayerWidgetProviderLargeLyrics"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-                <action android:name="com.looper.player.ACTION_PLAY_PAUSE" />
-                <action android:name="com.looper.player.ACTION_NEXT" />
-                <action android:name="com.looper.player.ACTION_PREV" />
-                <action android:name="com.looper.player.ACTION_SHUFFLE" />
-                <action android:name="com.looper.player.ACTION_REPEAT" />
+                <action android:name="com.looper.music.ACTION_PLAY_PAUSE" />
+                <action android:name="com.looper.music.ACTION_NEXT" />
+                <action android:name="com.looper.music.ACTION_PREV" />
+                <action android:name="com.looper.music.ACTION_SHUFFLE" />
+                <action android:name="com.looper.music.ACTION_REPEAT" />
             </intent-filter>
             <meta-data android:name="android.appwidget.provider"
                 android:resource="@xml/player_widget_info_large_lyrics" />
         </receiver>
 
-        <receiver android:name="com.looper.player.PlayerWidgetProviderBar"
+        <receiver android:name="com.looper.music.PlayerWidgetProviderBar"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-                <action android:name="com.looper.player.ACTION_PLAY_PAUSE" />
-                <action android:name="com.looper.player.ACTION_NEXT" />
-                <action android:name="com.looper.player.ACTION_PREV" />
-                <action android:name="com.looper.player.ACTION_SHUFFLE" />
-                <action android:name="com.looper.player.ACTION_REPEAT" />
+                <action android:name="com.looper.music.ACTION_PLAY_PAUSE" />
+                <action android:name="com.looper.music.ACTION_NEXT" />
+                <action android:name="com.looper.music.ACTION_PREV" />
+                <action android:name="com.looper.music.ACTION_SHUFFLE" />
+                <action android:name="com.looper.music.ACTION_REPEAT" />
             </intent-filter>
             <meta-data android:name="android.appwidget.provider"
                 android:resource="@xml/player_widget_info_bar" />
         </receiver>
 
-        <receiver android:name="com.looper.player.PlayerWidgetProviderMedium"
+        <receiver android:name="com.looper.music.PlayerWidgetProviderMedium"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-                <action android:name="com.looper.player.ACTION_PLAY_PAUSE" />
-                <action android:name="com.looper.player.ACTION_NEXT" />
-                <action android:name="com.looper.player.ACTION_PREV" />
-                <action android:name="com.looper.player.ACTION_SHUFFLE" />
-                <action android:name="com.looper.player.ACTION_REPEAT" />
+                <action android:name="com.looper.music.ACTION_PLAY_PAUSE" />
+                <action android:name="com.looper.music.ACTION_NEXT" />
+                <action android:name="com.looper.music.ACTION_PREV" />
+                <action android:name="com.looper.music.ACTION_SHUFFLE" />
+                <action android:name="com.looper.music.ACTION_REPEAT" />
             </intent-filter>
             <meta-data android:name="android.appwidget.provider"
                 android:resource="@xml/player_widget_info_medium" />
         </receiver>
 
-        <receiver android:name="com.looper.player.PlayerWidgetProviderLargeArtwork"
+        <receiver android:name="com.looper.music.PlayerWidgetProviderLargeArtwork"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-                <action android:name="com.looper.player.ACTION_PLAY_PAUSE" />
-                <action android:name="com.looper.player.ACTION_NEXT" />
-                <action android:name="com.looper.player.ACTION_PREV" />
-                <action android:name="com.looper.player.ACTION_SHUFFLE" />
-                <action android:name="com.looper.player.ACTION_REPEAT" />
+                <action android:name="com.looper.music.ACTION_PLAY_PAUSE" />
+                <action android:name="com.looper.music.ACTION_NEXT" />
+                <action android:name="com.looper.music.ACTION_PREV" />
+                <action android:name="com.looper.music.ACTION_SHUFFLE" />
+                <action android:name="com.looper.music.ACTION_REPEAT" />
             </intent-filter>
             <meta-data android:name="android.appwidget.provider"
                 android:resource="@xml/player_widget_info_large_artwork" />
         </receiver>
 
-        <receiver android:name="com.looper.player.PlayerWidgetProviderLargeArtworkInfo"
+        <receiver android:name="com.looper.music.PlayerWidgetProviderLargeArtworkInfo"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-                <action android:name="com.looper.player.ACTION_PLAY_PAUSE" />
-                <action android:name="com.looper.player.ACTION_NEXT" />
-                <action android:name="com.looper.player.ACTION_PREV" />
-                <action android:name="com.looper.player.ACTION_SHUFFLE" />
-                <action android:name="com.looper.player.ACTION_REPEAT" />
+                <action android:name="com.looper.music.ACTION_PLAY_PAUSE" />
+                <action android:name="com.looper.music.ACTION_NEXT" />
+                <action android:name="com.looper.music.ACTION_PREV" />
+                <action android:name="com.looper.music.ACTION_SHUFFLE" />
+                <action android:name="com.looper.music.ACTION_REPEAT" />
             </intent-filter>
             <meta-data android:name="android.appwidget.provider"
                 android:resource="@xml/player_widget_info_large_artwork_info" />
         </receiver>
 
-        <receiver android:name="com.looper.player.PlayerWidgetProviderTallArtwork"
+        <receiver android:name="com.looper.music.PlayerWidgetProviderTallArtwork"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-                <action android:name="com.looper.player.ACTION_PLAY_PAUSE" />
-                <action android:name="com.looper.player.ACTION_NEXT" />
-                <action android:name="com.looper.player.ACTION_PREV" />
-                <action android:name="com.looper.player.ACTION_SHUFFLE" />
-                <action android:name="com.looper.player.ACTION_REPEAT" />
+                <action android:name="com.looper.music.ACTION_PLAY_PAUSE" />
+                <action android:name="com.looper.music.ACTION_NEXT" />
+                <action android:name="com.looper.music.ACTION_PREV" />
+                <action android:name="com.looper.music.ACTION_SHUFFLE" />
+                <action android:name="com.looper.music.ACTION_REPEAT" />
             </intent-filter>
             <meta-data android:name="android.appwidget.provider"
                 android:resource="@xml/player_widget_info_tall_artwork" />
         </receiver>
 
-        <receiver android:name="com.looper.player.PlayerWidgetProviderTallArtworkInfo"
+        <receiver android:name="com.looper.music.PlayerWidgetProviderTallArtworkInfo"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-                <action android:name="com.looper.player.ACTION_PLAY_PAUSE" />
-                <action android:name="com.looper.player.ACTION_NEXT" />
-                <action android:name="com.looper.player.ACTION_PREV" />
-                <action android:name="com.looper.player.ACTION_SHUFFLE" />
-                <action android:name="com.looper.player.ACTION_REPEAT" />
+                <action android:name="com.looper.music.ACTION_PLAY_PAUSE" />
+                <action android:name="com.looper.music.ACTION_NEXT" />
+                <action android:name="com.looper.music.ACTION_PREV" />
+                <action android:name="com.looper.music.ACTION_SHUFFLE" />
+                <action android:name="com.looper.music.ACTION_REPEAT" />
             </intent-filter>
             <meta-data android:name="android.appwidget.provider"
                 android:resource="@xml/player_widget_info_tall_artwork_info" />
         </receiver>
 
-        <receiver android:name="com.looper.player.PlayerWidgetProviderDial"
+        <receiver android:name="com.looper.music.PlayerWidgetProviderDial"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-                <action android:name="com.looper.player.ACTION_PLAY_PAUSE" />
-                <action android:name="com.looper.player.ACTION_NEXT" />
-                <action android:name="com.looper.player.ACTION_PREV" />
-                <action android:name="com.looper.player.ACTION_SHUFFLE" />
-                <action android:name="com.looper.player.ACTION_REPEAT" />
+                <action android:name="com.looper.music.ACTION_PLAY_PAUSE" />
+                <action android:name="com.looper.music.ACTION_NEXT" />
+                <action android:name="com.looper.music.ACTION_PREV" />
+                <action android:name="com.looper.music.ACTION_SHUFFLE" />
+                <action android:name="com.looper.music.ACTION_REPEAT" />
             </intent-filter>
             <meta-data android:name="android.appwidget.provider"
                 android:resource="@xml/player_widget_info_dial" />
         </receiver>
 
-        <receiver android:name="com.looper.player.PlayerWidgetProviderArtworkSide"
+        <receiver android:name="com.looper.music.PlayerWidgetProviderArtworkSide"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-                <action android:name="com.looper.player.ACTION_PLAY_PAUSE" />
-                <action android:name="com.looper.player.ACTION_NEXT" />
-                <action android:name="com.looper.player.ACTION_PREV" />
-                <action android:name="com.looper.player.ACTION_SHUFFLE" />
-                <action android:name="com.looper.player.ACTION_REPEAT" />
+                <action android:name="com.looper.music.ACTION_PLAY_PAUSE" />
+                <action android:name="com.looper.music.ACTION_NEXT" />
+                <action android:name="com.looper.music.ACTION_PREV" />
+                <action android:name="com.looper.music.ACTION_SHUFFLE" />
+                <action android:name="com.looper.music.ACTION_REPEAT" />
             </intent-filter>
             <meta-data android:name="android.appwidget.provider"
                 android:resource="@xml/player_widget_info_artwork_side" />
         </receiver>
 
         <activity
-            android:name="com.looper.player.MainActivity"
+            android:name="com.looper.music.MainActivity"
             android:exported="true"
             android:launchMode="singleTop"
             android:taskAffinity=""
@@ -207,12 +207,12 @@
         <!-- "Open with" for audio files from file managers etc.: a small
              Dial-widget-style player that doesn't start the full app. -->
         <activity
-            android:name="com.looper.player.QuickPlayActivity"
+            android:name="com.looper.music.QuickPlayActivity"
             android:exported="true"
             android:label="Looper Music"
             android:icon="@mipmap/ic_launcher"
             android:launchMode="singleTask"
-            android:taskAffinity="com.looper.player.quickplay"
+            android:taskAffinity="com.looper.music.quickplay"
             android:excludeFromRecents="true"
             android:theme="@style/QuickPlayTheme">
             <intent-filter>
@@ -233,7 +233,7 @@
 
 
         <service
-            android:name="com.looper.player.LooperTaskService"
+            android:name="com.looper.music.LooperTaskService"
             android:enabled="true"
             android:exported="false" />
 

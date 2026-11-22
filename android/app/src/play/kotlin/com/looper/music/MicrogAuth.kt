@@ -1,4 +1,4 @@
-package com.looper.player
+package com.looper.music
 
 import android.app.Activity
 import android.content.Intent
@@ -9,7 +9,7 @@ import io.flutter.plugin.common.MethodChannel
 @Suppress("UNUSED_PARAMETER")
 class MicrogAuth(activity: Activity) {
     companion object {
-        const val CHANNEL = "com.looper.player/microg"
+        const val CHANNEL = "com.looper.music/microg"
     }
 
     fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
