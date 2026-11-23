@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:looper_player/core/utils/refresh_slot.dart';
 import 'package:looper_player/core/services/storage/db_service.dart';
 import 'package:looper_player/core/services/storage/local_json_store.dart';
 import 'package:looper_player/core/utils/logger_helper.dart';
@@ -149,12 +150,13 @@ int _shelfRelevanceRank(OnlineShelf s, bool hasActiveMood) {
 
 /// Online home: "For you" (for Quick picks) and "Discover" from the suggestion
 /// analyser, then YouTube Music's own home shelves. Shown from a disk cache at
-/// once; a revisit within 10 minutes does not refetch (Koda: repeated home reloads
-/// preceded YouTube's bot check).
+/// once; refetched automatically at most once each morning, afternoon and
+/// evening (Koda: repeated home reloads preceded YouTube's bot check).
 class OnlineHomeNotifier extends Notifier<OnlineHomeState> {
   static const _cacheKey = 'online_home_cache';
-  static const _fresh = Duration(minutes: 10);
+  static const _loadedAtKey = 'online_home_loaded_at';
   DateTime? _loadedAt;
+  bool _built = false;
   Future<void>? _running;
 
   /// The taste profile relearned since For you was fetched: the next load
@@ -167,6 +169,9 @@ class OnlineHomeNotifier extends Notifier<OnlineHomeState> {
     // ("Not interested", taste edits). The state below starts loading, so
     // the next load must really run: a kept _loadedAt skipped it and left
     // the loading line on forever.
+    // Only the first build trusts the saved time.
+    final savedAt = _built ? null : LocalJsonStore.readSync(_loadedAtKey);
+    _built = true;
     _loadedAt = null;
     void onTaste() => unawaited(_applyTaste());
     TasteProfileStore.revision.addListener(onTaste);
@@ -182,6 +187,9 @@ class OnlineHomeNotifier extends Notifier<OnlineHomeState> {
       }
     });
     final syncCached = _parseCached(LocalJsonStore.readSync(_cacheKey));
+    if (syncCached != null && savedAt is int) {
+      _loadedAt = DateTime.fromMillisecondsSinceEpoch(savedAt);
+    }
     // After build returns: _boot reads state, which throws while the first
     // build runs, and that silently skipped the first load (endless line).
     unawaited(Future.microtask(_boot));
@@ -248,7 +256,18 @@ class OnlineHomeNotifier extends Notifier<OnlineHomeState> {
         state = cached;
       }
     }
+    // Turned off since the last run: _load clears the saved shelves.
+    if (!ref.read(onlineActiveProvider)) _loadedAt = null;
+    if (_loadedThisSlot) {
+      state = state.copyWith(loading: false);
+      return;
+    }
     await load();
+  }
+
+  bool get _loadedThisSlot {
+    final at = _loadedAt;
+    return at != null && refreshSlot(at) == refreshSlot(DateTime.now());
   }
 
   Future<void> selectMood(OnlineMood? mood) async {
@@ -261,10 +280,7 @@ class OnlineHomeNotifier extends Notifier<OnlineHomeState> {
   }
 
   Future<void> load({bool force = false}) {
-    final at = _loadedAt;
-    if (!force && at != null && DateTime.now().difference(at) < _fresh) {
-      return Future.value();
-    }
+    if (!force && _loadedThisSlot) return Future.value();
     return _running ??= _load(
       force,
       mood: state.activeMood,
@@ -393,6 +409,11 @@ class OnlineHomeNotifier extends Notifier<OnlineHomeState> {
         activeMood: mood,
         loading: false,
         continuation: homeToken,
+      );
+      // Mood shelves are not the home feed: the next launch must reload.
+      await LocalJsonStore.write(
+        _loadedAtKey,
+        mood == null ? _loadedAt!.millisecondsSinceEpoch : 0,
       );
       await LocalJsonStore.write(_cacheKey, {
         'shelves': [for (final s in shelves) s.toJson()],

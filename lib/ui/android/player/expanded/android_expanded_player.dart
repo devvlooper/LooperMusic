@@ -2,6 +2,7 @@ import 'package:looper_player/core/utils/ui_scale_steps.dart';
 import 'package:looper_player/ui/android/player/lyrics/lyrics_route.dart';
 import 'package:looper_player/core/providers/collection_navigation.dart';
 import 'package:looper_player/ui/widgets/common/song_artist_picker.dart';
+
 import 'dart:math' as math;
 
 import 'package:looper_player/core/utils/song_metadata.dart';
@@ -24,20 +25,25 @@ import 'package:looper_player/core/utils/ui_utils.dart';
 import 'package:looper_player/features/playback/presentation/providers/playback/playback_notifier.dart';
 import 'package:looper_player/ui/android/widgets/queue_bottom_sheet.dart';
 import 'package:looper_player/ui/widgets/player/premium_progress_bar.dart';
+
 import '../../widgets/premium_section.dart';
 import '../lyrics/android_lyrics_screen.dart';
 import 'player_lyric_line.dart';
 import 'player_portrait_metrics.dart';
 import 'segmented_utility_row.dart';
 import 'quality_details_sheet.dart';
+
 import 'package:looper_player/features/settings/domain/quality_badge_style.dart';
 import 'package:looper_player/ui/widgets/player/quality_badge.dart';
+
 import '../../shell/music_bar/fluid_player_motion.dart';
+
 import 'package:looper_player/ui/widgets/common/scrolling_text.dart';
 import 'package:looper_player/features/playback/data/audio_analyzer.dart';
 import 'package:looper_player/features/playback/data/device_audio_info.dart';
 import 'package:looper_player/core/providers/player_expand_provider.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+
 import 'position_reporter.dart';
 import 'gesture_artwork.dart';
 import 'player_backgrounds.dart';
@@ -45,11 +51,13 @@ import 'sleep_timer_clock.dart';
 import 'styled_player_layout.dart';
 import 'favorite_button.dart';
 import 'player_style_picker.dart';
+
 import 'package:looper_player/features/artwork/data/animated_artwork_service.dart';
 import 'package:looper_player/features/artwork/domain/animated_artwork_models.dart';
 import 'package:looper_player/core/utils/l10n.dart';
 import 'package:looper_player/core/services/haptics/app_haptics.dart';
 import 'package:looper_player/core/services/screen_awake.dart';
+
 export 'position_reporter.dart';
 export 'player_backgrounds.dart';
 
@@ -62,6 +70,13 @@ Future<AudioAnalysis?> currentSongAnalysis(Ref ref) async {
     playbackProvider.select((s) => s.currentSong?.path),
   );
   if (currentSongPath == null) return null;
+
+  // An online song's source is only known once it has resolved.
+  void onSource() => ref.invalidateSelf();
+  AudioAnalyzer.onlineSourceChanged.addListener(onSource);
+  ref.onDispose(
+    () => AudioAnalyzer.onlineSourceChanged.removeListener(onSource),
+  );
 
   // 300ms debounce to prevent multiple concurrent probes when fast-skipping
   await Future.delayed(const Duration(milliseconds: 300));

@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:math' as math;
-import 'dart:typed_data';
+
+import 'package:flutter/foundation.dart';
 import 'package:metadata_god/metadata_god.dart';
 import 'package:path/path.dart' as p;
 
@@ -45,11 +46,32 @@ class AudioAnalysis {
 class AudioAnalyzer {
   static final Map<String, AudioAnalysis> _cache = {};
 
-  static AudioAnalysis? getCachedAnalysis(String filePath) {
-    return _cache[filePath];
+  /// Online song path -> the local or cached file the player opened.
+  static final Map<String, String> _onlineFiles = {};
+
+  /// Bumped when an online song's source is known, so badges can re-read it.
+  static final ValueNotifier<int> onlineSourceChanged = ValueNotifier(0);
+
+  /// Records what an online song ([songPath], `yt:<id>`) really plays from:
+  /// a [file] to analyze, or the [stream]'s details.
+  static void setOnlineSource(
+    String songPath, {
+    String? file,
+    AudioAnalysis? stream,
+  }) {
+    _onlineFiles.remove(songPath);
+    _cache.remove(songPath);
+    if (file != null) _onlineFiles[songPath] = file;
+    if (stream != null) _cache[songPath] = stream;
+    onlineSourceChanged.value++;
   }
 
-  static Future<AudioAnalysis?> analyze(String filePath) async {
+  static AudioAnalysis? getCachedAnalysis(String path) {
+    return _cache[_onlineFiles[path] ?? path];
+  }
+
+  static Future<AudioAnalysis?> analyze(String path) async {
+    final filePath = _onlineFiles[path] ?? path;
     if (_cache.containsKey(filePath)) {
       return _cache[filePath];
     }
@@ -75,7 +97,10 @@ class AudioAnalyzer {
           : 0;
 
       final analysis = AudioAnalysis(
-        codec: technical.codec ?? (ext.isNotEmpty ? ext : 'AUDIO'),
+        // shortcut: assumes WebM audio is Opus, true of YouTube's current formats.
+        codec:
+            technical.codec ??
+            (ext == 'WEBM' ? 'OPUS' : (ext.isNotEmpty ? ext : 'AUDIO')),
         container: ext.isNotEmpty ? ext : 'FILE',
         sampleRate: technical.sampleRate,
         channels: technical.channels,

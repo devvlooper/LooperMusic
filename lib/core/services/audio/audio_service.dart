@@ -25,6 +25,7 @@ class AudioService {
   bool _monoEnabled = false;
   List<String> _autoEqFilters = const [];
   double _onlineLoudnessGain = 0.0;
+  double get onlineLoudnessGain => _onlineLoudnessGain;
   String? _lastArtPath;
   MediaSessionArtwork _lastArtwork = MediaSessionArtwork.embedded;
   String? _publishedMediaMetadataKey;

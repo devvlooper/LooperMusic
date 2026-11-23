@@ -1,6 +1,9 @@
 import 'package:looper_player/core/motion/looper_scroll_physics.dart';
+
 import 'dart:async';
+
 import 'package:looper_player/core/motion/pause_when_offscreen.dart';
+
 import 'dart:io';
 import 'dart:math' as math;
 
@@ -14,6 +17,7 @@ import 'package:looper_player/core/providers/providers.dart';
 import 'package:looper_player/core/theme/app_fonts.dart';
 import 'package:looper_player/core/utils/l10n.dart';
 import 'package:looper_player/features/library/domain/models/models.dart';
+import 'package:looper_player/features/online/data/online_playback.dart';
 import 'package:looper_player/features/playback/data/audio_analyzer.dart';
 import 'package:looper_player/features/playback/data/device_audio_info.dart';
 import 'package:looper_player/features/playback/data/crossmix/crossmix_settings.dart';
@@ -47,12 +51,13 @@ Future<void> showQualityDetailsSheet(BuildContext context, Song song) async {
   _opening = true;
   try {
     final String path = song.path;
+    final String? file = _playingFile(song);
     final (device, _, fileSize) = await (
       _capped(DeviceAudioInfo.fetch()),
       _capped(AudioAnalyzer.analyze(path)),
-      path.startsWith('content://')
+      file == null || file.startsWith('content://')
           ? Future<int?>.value()
-          : _capped(File(path).length()),
+          : _capped(File(file).length()),
     ).wait;
     if (!context.mounted) return;
     await pushQualityHeroDialog(
@@ -67,6 +72,13 @@ Future<void> showQualityDetailsSheet(BuildContext context, Song song) async {
   } finally {
     _opening = false;
   }
+}
+
+/// The file on disk this song plays from; null while streaming.
+String? _playingFile(Song song) {
+  if (!song.isOnline) return song.path;
+  final source = OnlinePlayback.sourceOf(song.videoId!);
+  return source == null || source.streamed ? null : source.path;
 }
 
 /// Guards against a double tap pushing two dialogs while the data loads.
@@ -359,8 +371,9 @@ class _QualityDetailsSheetState extends ConsumerState<_QualityDetailsSheet>
         if (mounted) setState(() {});
       }, onError: (_) {});
     }
-    if (_fileSize == null && !path.startsWith('content://')) {
-      File(path).length().then((size) {
+    final file = _playingFile(widget.song);
+    if (_fileSize == null && file != null && !file.startsWith('content://')) {
+      File(file).length().then((size) {
         if (mounted) setState(() => _fileSize = size);
       }, onError: (_) {});
     }
@@ -437,12 +450,23 @@ class _QualityDetailsSheetState extends ConsumerState<_QualityDetailsSheet>
         info.tier != QualityTier.dsd &&
         sourceRate != finalRate;
 
+    final double onlineGain = song.isOnline
+        ? ref.read(audioServiceProvider).onlineLoudnessGain
+        : 0.0;
+    final source = song.isOnline
+        ? OnlinePlayback.sourceOf(song.videoId!)
+        : null;
+    final int? shownSize = source?.pick?.contentLength ?? _fileSize;
+    final bool mpvResamples =
+        dec.sampleRate != null && outRate != null && dec.sampleRate != outRate;
+    final int? mixerRate = device?.nativeSampleRate;
+
     final activeBlockers = BitPerfectManager.getActiveBlockers(
       eqState: eqState,
       playbackRate: ps.rate,
       playbackPitch: ps.pitch,
       crossfadeActive: crossfadeActive,
-      onlineLoudnessGain: 0.0,
+      onlineLoudnessGain: onlineGain,
     );
     final bool isBitPerfect = BitPerfectManager.isBitPerfect(
       exclusiveMode: exclusiveMode,
@@ -578,22 +602,19 @@ class _QualityDetailsSheetState extends ConsumerState<_QualityDetailsSheet>
               block++,
               _Section(
                 icon: LucideIcons.fileAudio,
-                title: l10n.qualitySectionSource,
+                title: l10n.qualitySectionFormat,
                 rows: [
                   (l10n.codec, info.codec ?? l10n.qualityAudio),
                   if (analysis != null)
                     (l10n.container, analysis.container.toUpperCase()),
                   if (info.bitsPerSample > 0)
                     (l10n.bitDepth, '${info.bitsPerSample}-bit'),
-                  if (info.sampleRate > 0)
-                    (l10n.sampleRate, _khz(info.sampleRate)),
+                  if (sourceRate != null) (l10n.sampleRate, _khz(sourceRate)),
                   if (info.bitrate > 0)
                     (l10n.bitrate, '${(info.bitrate / 1000).round()} kbps'),
                   if (info.channels > 0)
                     (l10n.channels, _channelLabel(l10n, info.channels)),
-                  if ((song.duration ?? 0) > 0)
-                    (l10n.duration, _duration(song.duration!)),
-                  if (_fileSize != null) (l10n.fileSize, _bytes(_fileSize!)),
+                  if (shownSize != null) (l10n.fileSize, _bytes(shownSize)),
                 ],
               ),
             ),
@@ -601,30 +622,59 @@ class _QualityDetailsSheetState extends ConsumerState<_QualityDetailsSheet>
               block++,
               _Section(
                 icon: LucideIcons.cpu,
-                title: l10n.qualitySectionEngine,
+                title: l10n.qualityStageDecoder,
                 rows: [
                   if (dec.codecName != null || dec.codec != null)
-                    (l10n.qualityStageDecoder, dec.codecName ?? dec.codec!),
+                    (l10n.codec, dec.codecName ?? dec.codec!),
                   if (_formatLabel(dec.format) != null)
                     (l10n.decodedFormat, _formatLabel(dec.format)!),
-                  if (_formatLabel(out.format) != null)
-                    (l10n.qualityOutputFormat, _formatLabel(out.format)!),
-                  if (outRate != null) (l10n.qualityOutputRate, _khz(outRate)),
-                  if (out.hrChannels != null || out.channelCount != null)
+                  if (dec.sampleRate != null)
+                    (l10n.sampleRate, _khz(dec.sampleRate!)),
+                  if (dec.hrChannels != null || dec.channelCount != null)
                     (
-                      l10n.qualityOutputChannels,
-                      out.hrChannels ??
-                          _channelLabel(l10n, out.channelCount ?? 0),
+                      l10n.channels,
+                      dec.hrChannels ??
+                          _channelLabel(l10n, dec.channelCount ?? 0),
                     ),
                   if (ps.audioBitrate != null)
                     (
                       l10n.qualityLiveBitrate,
                       '${(ps.audioBitrate! / 1000).round()} kbps',
                     ),
+                ],
+              ),
+            ),
+            _stagger(
+              block++,
+              _Section(
+                icon: LucideIcons.waves,
+                title: l10n.qualitySectionResampler,
+                rows: [
+                  (l10n.qualityResamplerEngine, 'FFmpeg swresample'),
                   (
-                    l10n.qualityGapless,
-                    ps.gapless == Gapless.no ? l10n.off : l10n.on,
+                    l10n.qualityResamplerStatus,
+                    mpvResamples
+                        ? '${l10n.qualityResamplerConverting} · '
+                              '${_khz(dec.sampleRate!)} → ${_khz(outRate)}'
+                        : l10n.qualityResamplerNotNeeded,
                   ),
+                  if (outRate != null && mixerRate != null)
+                    (
+                      l10n.qualityAndroidMixer,
+                      outRate != mixerRate
+                          ? '${_khz(outRate)} → ${_khz(mixerRate)}'
+                          : l10n.qualityResamplerNotNeeded,
+                    ),
+                ],
+              ),
+            ),
+            _stagger(
+              block++,
+              _Section(
+                icon: LucideIcons.slidersHorizontal,
+                title: l10n.qualitySectionDsp,
+                rows: [
+                  (l10n.equalizer, eqOn ? l10n.on : l10n.off),
                   (
                     l10n.qualityReplayGain,
                     switch (ps.replayGain.mode) {
@@ -633,9 +683,18 @@ class _QualityDetailsSheetState extends ConsumerState<_QualityDetailsSheet>
                       ReplayGain.album => l10n.qualityReplayGainAlbum,
                     },
                   ),
-                  (l10n.equalizer, eqOn ? l10n.on : l10n.off),
-                  if (ps.rate != 1.0)
-                    (l10n.qualitySpeed, '${ps.rate.toStringAsFixed(2)}×'),
+                  if (onlineGain.abs() > 0.01)
+                    (
+                      l10n.qualityOnlineLoudness,
+                      '${onlineGain.toStringAsFixed(1)} dB',
+                    ),
+                  (l10n.qualitySpeed, '${ps.rate.toStringAsFixed(2)}×'),
+                  (l10n.qualityPitch, '${ps.pitch.toStringAsFixed(2)}×'),
+                  (l10n.qualityCrossfade, crossfadeActive ? l10n.on : l10n.off),
+                  (
+                    l10n.qualityGapless,
+                    ps.gapless == Gapless.no ? l10n.off : l10n.on,
+                  ),
                   (
                     l10n.qualityBlockersTitle,
                     activeBlockers.isEmpty
@@ -738,6 +797,57 @@ class _QualityDetailsSheetState extends ConsumerState<_QualityDetailsSheet>
                   ),
                 ),
               ),
+            _stagger(
+              block++,
+              _Section(
+                icon: LucideIcons.audioLines,
+                title: l10n.qualityStageOutput,
+                rows: [
+                  if (_formatLabel(out.format) != null)
+                    (l10n.qualityOutputFormat, _formatLabel(out.format)!),
+                  if (outRate != null) (l10n.qualityOutputRate, _khz(outRate)),
+                  if (out.hrChannels != null || out.channelCount != null)
+                    (
+                      l10n.qualityOutputChannels,
+                      out.hrChannels ??
+                          _channelLabel(l10n, out.channelCount ?? 0),
+                    ),
+                  if (device?.device != null)
+                    (
+                      l10n.qualityDeviceType,
+                      _deviceKindLabel(l10n, device!.device!.kind),
+                    ),
+                ],
+              ),
+            ),
+            _stagger(
+              block++,
+              _Section(
+                icon: LucideIcons.info,
+                title: l10n.about,
+                rows: [
+                  (l10n.trackTitle, song.title),
+                  if (song.artist?.isNotEmpty ?? false)
+                    (l10n.artist, song.artist!),
+                  if (song.album?.isNotEmpty ?? false)
+                    (l10n.album, song.album!),
+                  if ((song.duration ?? 0) > 0)
+                    (l10n.duration, _duration(song.duration!)),
+                  (
+                    l10n.qualitySourceType,
+                    source == null || !song.isOnline
+                        ? l10n.qualitySourceLocal
+                        : source.streamed
+                        ? l10n.qualitySourceStream
+                        : source.path.contains('online_audio')
+                        ? l10n.qualitySourceCached
+                        : l10n.qualitySourceLocal,
+                  ),
+                  if (source?.pick != null)
+                    (l10n.qualityStreamClient, source!.pick!.source),
+                ],
+              ),
+            ),
             if (device?.device != null)
               _stagger(
                 block++,

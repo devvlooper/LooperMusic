@@ -1,3 +1,4 @@
+import 'package:looper_player/core/utils/refresh_slot.dart';
 import 'package:looper_player/features/online/data/online_downloader.dart';
 import 'package:looper_player/features/online/data/online_playback.dart';
 import 'package:looper_player/features/online/data/taste_profile_store.dart';
@@ -43,13 +44,6 @@ class Library extends _$Library {
   bool _isScanRunning = false;
   DateTime? _lastScanAt;
   static const _lastScanAtKey = 'last_library_scan_at';
-
-  // A resume-triggered refresh (see refreshIfStale) is skipped inside this
-  // window of the last scan - without it, switching apps and back a few
-  // times in a row (or a cold app relaunch shortly after the last one, now
-  // that _lastScanAt survives restarts - see _init) would turn every switch
-  // into a full rescan of every saved folder.
-  static const _resumeRescanThreshold = Duration(minutes: 10);
 
   @override
   LibraryState build() {
@@ -254,15 +248,12 @@ class Library extends _$Library {
     }
   }
 
-  /// Rescans only if it's been a while since the last one - meant for an app
-  /// resume, so a song added/removed outside the app (file manager, USB
-  /// transfer, another app freeing space) shows up without the user having
-  /// to know to pull-to-refresh, without turning every quick app switch
-  /// into a full rescan.
+  /// The automatic rescan: at most once each morning, afternoon and evening
+  /// (see [refreshSlot]). Pull-to-refresh is the manual way at any time.
   Future<void> refreshIfStale() async {
     final lastScan = _lastScanAt;
     if (lastScan != null &&
-        DateTime.now().difference(lastScan) < _resumeRescanThreshold) {
+        refreshSlot(lastScan) == refreshSlot(DateTime.now())) {
       return;
     }
     await scanSavedFolders(showVisualIndicator: false);

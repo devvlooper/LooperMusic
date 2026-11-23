@@ -23,6 +23,8 @@ class StreamPick {
     this.itag,
     this.contentLength,
     this.loudnessDb,
+    this.sampleRate = 0,
+    this.channels = 0,
   });
 
   final String url;
@@ -34,6 +36,8 @@ class StreamPick {
 
   /// Track loudness above YouTube's -14 LKFS target; null = unknown.
   final double? loudnessDb;
+  final int sampleRate;
+  final int channels;
   final DateTime expires;
 
   /// Which path produced it (visionOS, ANDROID_VR, IOS).
@@ -490,6 +494,8 @@ class StreamResolver {
         '${chosen['contentLength'] ?? params['clen'] ?? ''}',
       ),
       loudnessDb: (chosen['loudnessDb'] as num?)?.toDouble(),
+      sampleRate: int.tryParse('${chosen['audioSampleRate'] ?? ''}') ?? 0,
+      channels: chosen['audioChannels'] as int? ?? 0,
       expires: expires,
       source: c.name,
     );

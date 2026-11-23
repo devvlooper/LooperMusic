@@ -5,6 +5,7 @@ import 'package:looper_player/core/services/storage/db_service.dart';
 import 'package:looper_player/features/online/data/online_cache.dart';
 import 'package:looper_player/features/online/data/online_settings.dart';
 import 'package:looper_player/features/online/data/stream_resolver.dart';
+import 'package:looper_player/features/playback/data/audio_analyzer.dart';
 import 'package:looper_player/features/search/domain/artist_credits.dart';
 
 /// What mpv should open for a song.
@@ -14,6 +15,7 @@ class PlayableSource {
     this.userAgent,
     this.streamed = false,
     this.loudnessDb,
+    this.pick,
   });
   final String path;
 
@@ -25,10 +27,53 @@ class PlayableSource {
 
   /// Track loudness in dB above YouTube's -14 LKFS target; null = unknown.
   final double? loudnessDb;
+
+  /// The stream's details; null for files.
+  final StreamPick? pick;
 }
 
 /// Glue between the player and the online layer.
 abstract final class OnlinePlayback {
+  static const _maxSources = 32;
+  static final _sources = <String, PlayableSource>{};
+
+  /// What [videoId] last resolved to, for the quality details.
+  static PlayableSource? sourceOf(String videoId) => _sources[videoId];
+
+  static PlayableSource _remember(Song song, PlayableSource source) {
+    final id = song.videoId!;
+    _sources.remove(id);
+    _sources[id] = source;
+    if (_sources.length > _maxSources) _sources.remove(_sources.keys.first);
+    final pick = source.pick;
+    AudioAnalyzer.setOnlineSource(
+      song.path,
+      file: pick == null ? source.path : null,
+      stream: pick == null ? null : streamAnalysis(pick, song.duration),
+    );
+    return source;
+  }
+
+  /// A stream's format as an analysis, so badges treat it like a file.
+  static AudioAnalysis streamAnalysis(StreamPick pick, int? durationMs) {
+    final mime = pick.mime.toLowerCase();
+    return AudioAnalysis(
+      codec: mime.contains('opus')
+          ? 'OPUS'
+          : mime.contains('mp4a')
+          ? 'AAC'
+          : mime.contains('vorbis')
+          ? 'OGG'
+          : 'AUDIO',
+      container: mime.contains('webm') ? 'WEBM' : 'M4A',
+      sampleRate: pick.sampleRate,
+      channels: pick.channels,
+      bitrate: pick.bitrate,
+      bitsPerSample: 0,
+      duration: (durationMs ?? 0) / 1000,
+    );
+  }
+
   /// The source for an online song: a matching local file (when allowed),
   /// the cached file, or a fresh stream URL. Streaming also starts caching
   /// the song so a replay or offline listen comes from disk.
@@ -40,10 +85,10 @@ abstract final class OnlinePlayback {
     final settings = OnlineSettingsNotifier.current;
     if (settings.preferLocal) {
       final twin = await localTwin(song);
-      if (twin != null) return PlayableSource(twin.path);
+      if (twin != null) return _remember(song, PlayableSource(twin.path));
     }
     final cached = await OnlineCache.instance.cachedPath(id);
-    if (cached != null) return PlayableSource(cached);
+    if (cached != null) return _remember(song, PlayableSource(cached));
     if (!settings.enabled || !allowNetwork) {
       throw StreamUnavailableException('online music is turned off');
     }
@@ -60,11 +105,15 @@ abstract final class OnlinePlayback {
         ),
       );
     }
-    return PlayableSource(
-      pick.url,
-      userAgent: pick.userAgent,
-      streamed: true,
-      loudnessDb: pick.loudnessDb,
+    return _remember(
+      song,
+      PlayableSource(
+        pick.url,
+        userAgent: pick.userAgent,
+        streamed: true,
+        loudnessDb: pick.loudnessDb,
+        pick: pick,
+      ),
     );
   }
 
