@@ -26,6 +26,9 @@ class PremiumSection extends ConsumerWidget {
   final bool forceNoBlur;
   final bool forceBlur;
   final bool keepSurfaceOnDisableBlur;
+
+  /// False when the caller already applied its own blur setting.
+  final bool honorDisableBlur;
   final bool animate;
 
   final bool useCenter;
@@ -60,6 +63,7 @@ class PremiumSection extends ConsumerWidget {
     this.forceNoBlur = false,
     this.forceBlur = false,
     this.keepSurfaceOnDisableBlur = false,
+    this.honorDisableBlur = true,
     this.animate = false,
     this.useCenter = true,
     this.forceTransparent = false,
@@ -68,9 +72,9 @@ class PremiumSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final bool disableBlur = ref.watch(
-      settingsProvider.select((s) => s.disableBlur),
-    );
+    final bool disableBlur =
+        ref.watch(settingsProvider.select((s) => s.disableBlur)) &&
+        honorDisableBlur;
 
     // Detect if we are transitioning (route or tab transitions)
     final ModalRoute<dynamic>? parentRoute = ModalRoute.of(context);

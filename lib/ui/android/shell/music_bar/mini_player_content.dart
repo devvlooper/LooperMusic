@@ -46,6 +46,7 @@ extension _MiniPlayerContent on PremiumMusicBarState {
 
     return PremiumSection(
       useBlur: useBlur,
+      honorDisableBlur: false,
       forceTransparent: fluid,
       keepSurfaceOnDisableBlur: true,
       backgroundColor: cardBgColor ?? PremiumMusicBarState.barColor,

@@ -8,11 +8,13 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:looper_player/core/utils/motion.dart';
 import 'package:looper_player/features/artwork/data/animated_artwork_service.dart';
 import 'package:looper_player/features/artwork/domain/animated_artwork_models.dart';
 import 'package:looper_player/features/artwork/presentation/widgets/animated_artwork_widget.dart';
 import 'package:looper_player/features/library/domain/models/models.dart';
 import 'package:looper_player/ui/android/shell/smooth_blur.dart';
+import 'package:looper_player/ui/widgets/player/player_background_switcher.dart';
 
 /// The song's art, blurred, filling its box. The blur is drawn once per song
 /// and box size into a small image that every copy (main screen, music bar,
@@ -47,6 +49,9 @@ class BlurredBackgroundArt extends ConsumerWidget {
 
   /// Shows the theme gradient until the image is ready (else nothing).
   final bool placeholder;
+
+  /// Fades to each new image instead of cutting (the now playing screen).
+  final bool crossfade;
   const BlurredBackgroundArt({
     required this.song,
     this.zoom = 1.0,
@@ -58,6 +63,7 @@ class BlurredBackgroundArt extends ConsumerWidget {
     this.artZoom = 1.0,
     this.artAlignment = Alignment.center,
     this.placeholder = true,
+    this.crossfade = false,
     super.key,
   });
 
@@ -85,6 +91,7 @@ class BlurredBackgroundArt extends ConsumerWidget {
                     artAlignment,
                   ),
                   placeholder: placeholder,
+                  crossfade: crossfade,
                 );
                 return zoom == 1.0
                     ? art
@@ -128,20 +135,38 @@ class _BlurredArtImage extends StatefulWidget {
   final Size size;
   final _BlurStyle style;
   final bool placeholder;
+  final bool crossfade;
   const _BlurredArtImage({
     required this.path,
     required this.size,
     required this.style,
     required this.placeholder,
+    required this.crossfade,
   });
 
   @override
   State<_BlurredArtImage> createState() => _BlurredArtImageState();
 }
 
-class _BlurredArtImageState extends State<_BlurredArtImage> {
+class _BlurredArtImageState extends State<_BlurredArtImage>
+    with SingleTickerProviderStateMixin {
   ui.Image? _image;
   Object? _request;
+
+  // Crossfade: _image fades in over _previous (or the placeholder). An image
+  // arriving mid-fade waits in _pending, so a fast skip never jumps.
+  ui.Image? _previous;
+  ui.Image? _pending;
+  bool _fading = false;
+  late final AnimationController _fade = AnimationController(
+    vsync: this,
+    duration: kPlayerBackgroundFade,
+  )..addStatusListener(_onFadeStatus);
+  late final Animation<double> _fadeCurve = CurvedAnimation(
+    parent: _fade,
+    curve: kPlayerBackgroundCurve,
+  );
+  bool _fadeCreated = false;
 
   @override
   void initState() {
@@ -169,36 +194,89 @@ class _BlurredArtImageState extends State<_BlurredArtImage> {
     _request = request;
     request.then((image) {
       if (mounted && identical(_request, request)) {
-        setState(() => _image = image);
+        _show(image);
       }
     });
   }
 
+  void _show(ui.Image? image) {
+    if (!widget.crossfade || image == null || Motion.reduced) {
+      if (_fadeCreated) _fade.stop();
+      setState(() {
+        _image = image;
+        _previous = _pending = null;
+        _fading = false;
+      });
+      return;
+    }
+    if (_fading) {
+      _pending = image;
+      return;
+    }
+    if (identical(image, _image)) return;
+    setState(() {
+      _previous = _image;
+      _image = image;
+      _fading = true;
+    });
+    _fadeCreated = true;
+    _fade.forward(from: 0);
+  }
+
+  void _onFadeStatus(AnimationStatus status) {
+    if (status != AnimationStatus.completed || !mounted) return;
+    final ui.Image? next = _pending;
+    setState(() {
+      _previous = _pending = null;
+      _fading = false;
+    });
+    if (next != null) _show(next);
+  }
+
+  @override
+  void dispose() {
+    if (_fadeCreated) _fade.dispose();
+    super.dispose();
+  }
+
+  Widget _raw(ui.Image image, [Animation<double>? opacity]) => RawImage(
+    image: image,
+    opacity: opacity,
+    fit: BoxFit.fill,
+    width: double.infinity,
+    height: double.infinity,
+    filterQuality: FilterQuality.low,
+  );
+
   @override
   Widget build(BuildContext context) {
     final image = _image;
-    if (image == null) {
-      if (!widget.placeholder) return const SizedBox.shrink();
-      final theme = Theme.of(context);
-      return DecoratedBox(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              theme.colorScheme.primary.withValues(alpha: 0.3),
-              theme.colorScheme.surface,
-            ],
-          ),
+    if (image == null) return _placeholder(context);
+    if (!_fading) return _raw(image);
+    final previous = _previous;
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        previous != null ? _raw(previous) : _placeholder(context),
+        _raw(image, _fadeCurve),
+      ],
+    );
+  }
+
+  Widget _placeholder(BuildContext context) {
+    if (!widget.placeholder) return const SizedBox.shrink();
+    final theme = Theme.of(context);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            theme.colorScheme.primary.withValues(alpha: 0.3),
+            theme.colorScheme.surface,
+          ],
         ),
-      );
-    }
-    return RawImage(
-      image: image,
-      fit: BoxFit.fill,
-      width: double.infinity,
-      height: double.infinity,
-      filterQuality: FilterQuality.low,
+      ),
     );
   }
 }

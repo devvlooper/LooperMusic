@@ -1,3 +1,4 @@
+import 'package:looper_player/ui/android/player/expanded/now_playing_song_sheet.dart';
 import 'package:looper_player/core/utils/ui_scale_steps.dart';
 import 'package:looper_player/ui/android/player/lyrics/lyrics_route.dart';
 import 'package:looper_player/core/providers/collection_navigation.dart';
@@ -19,6 +20,7 @@ import 'package:looper_player/l10n/app_localizations.dart';
 import 'package:looper_player/ui/widgets/sheets/song_options_bottom_sheet.dart';
 import 'package:looper_player/features/settings/presentation/providers/settings_notifier.dart';
 import 'package:looper_player/core/theme/app_icons.dart';
+import 'package:looper_player/ui/widgets/player/player_background_switcher.dart';
 import 'package:looper_player/ui/widgets/player/animated_play_pause_icon.dart';
 import 'package:looper_player/core/utils/responsive.dart';
 import 'package:looper_player/core/utils/ui_utils.dart';
@@ -1343,14 +1345,11 @@ class _AndroidExpandedPlayerState extends ConsumerState<AndroidExpandedPlayer>
             // One switcher for art and gradient, so a song without a cover
             // fades in and out instead of cutting.
             Positioned.fill(
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 800),
-                transitionBuilder: (child, animation) {
-                  return FadeTransition(opacity: animation, child: child);
-                },
+              child: PlayerBackgroundSwitcher(
                 child: showArtBackground
                     ? SizedBox.expand(
-                        key: ValueKey(('art', song.id)),
+                        // Same key across songs: the art crossfades itself.
+                        key: const ValueKey('art'),
                         child: Stack(
                           fit: StackFit.expand,
                           children: [
@@ -1358,6 +1357,7 @@ class _AndroidExpandedPlayerState extends ConsumerState<AndroidExpandedPlayer>
                               song: song,
                               zoom: 1.08,
                               motion: false,
+                              crossfade: true,
                             ),
                             ColoredBox(
                               color: Colors.black.withValues(
@@ -1392,6 +1392,12 @@ class _AndroidExpandedPlayerState extends ConsumerState<AndroidExpandedPlayer>
                 fadeWithSlide: fadeWithSlide,
                 onShowLyrics: () => _showLyrics(context),
                 onShowOptions: () => _showMoreOptionsBottomSheet(context, ref),
+                onShowSongInfo: () => showNowPlayingSongSheet(
+                  context: context,
+                  ref: ref,
+                  song: song,
+                  enableSlide: enableSlide,
+                ),
                 onShowQueue: () => showModalBottomSheet(
                   context: context,
                   useRootNavigator: true,
@@ -1411,6 +1417,12 @@ class _AndroidExpandedPlayerState extends ConsumerState<AndroidExpandedPlayer>
                 fadeWithSlide: fadeWithSlide,
                 onShowLyrics: () => _showLyrics(context),
                 onShowOptions: () => _showMoreOptionsBottomSheet(context, ref),
+                onShowSongInfo: () => showNowPlayingSongSheet(
+                  context: context,
+                  ref: ref,
+                  song: song,
+                  enableSlide: enableSlide,
+                ),
                 onShowQueue: () => showModalBottomSheet(
                   context: context,
                   useRootNavigator: true,

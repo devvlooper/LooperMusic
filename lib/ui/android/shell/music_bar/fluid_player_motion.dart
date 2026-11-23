@@ -203,34 +203,40 @@ class FluidSectionMotion {
   double offsetY(double p) => slide ? (1.0 - _t(p)) * distance : 0.0;
 }
 
-/// Underdamped spring for every open: the whole sheet (background, artwork
-/// and controls together) carries a little past the top and settles back
-/// once. A plain tap overshoots ~8 % of the travel, which the rubber band
-/// shows as ~22 dp; a hard flick goes further but never past the stretch max.
-final SpringDescription fluidPlayerOpenBounceSpring =
-    SpringDescription.withDampingRatio(
-      mass: 1.0,
-      stiffness: 380.0,
-      ratio: 0.65,
-    );
+/// Blur Music Bar during the open/close: a full-screen backdrop blur halves
+/// the frame rate, so it hands over to the opaque player background within
+/// the first [end] of the motion and the rest runs without it.
+abstract final class FluidBarBlur {
+  static const double end = 0.15;
 
-/// Tap on the mini bar to open: barely underdamped, so the sheet lands with
-/// only a hint of carry past the top (~0.6 % of the travel) instead of the
-/// full drag/flick bounce.
+  static double _t(double p) =>
+      Curves.easeInOut.transform((p / end).clamp(0.0, 1.0).toDouble());
+
+  static double amount(double p) => 1.0 - _t(p);
+
+  static double backgroundOpacity(double p) => _t(p);
+}
+
+/// Soft spring for every open: the sheet glides up and lands with no visible
+/// carry past the top on a tap. A hard flick can still lift it a little,
+/// which the rubber band caps.
+final SpringDescription fluidPlayerOpenBounceSpring =
+    SpringDescription.withDampingRatio(mass: 1.0, stiffness: 200.0, ratio: 0.9);
+
+/// Tap on the mini bar to open: the same glide, a touch more damped.
 final SpringDescription fluidPlayerTapOpenSpring =
     SpringDescription.withDampingRatio(
       mass: 1.0,
-      stiffness: 380.0,
-      ratio: 0.85,
+      stiffness: 200.0,
+      ratio: 0.94,
     );
 
-/// Firmer bounce for minimizing: the mini bar dips ~14 dp under its resting
-/// spot and comes back, so it lands like the sheet it was.
+/// Minimizing: glides back down into the mini bar's resting spot.
 final SpringDescription fluidPlayerCloseBounceSpring =
     SpringDescription.withDampingRatio(
       mass: 1.0,
-      stiffness: 380.0,
-      ratio: 0.73,
+      stiffness: 220.0,
+      ratio: 0.92,
     );
 
 /// Critically damped settle (no bounce): releases from inside a stretch,

@@ -208,6 +208,8 @@ class AppSettings {
   // sheets their blur without needing all of that. Independent of disableBlur,
   // which only gates the Dynamic Theming blur path (see app_bottom_sheet.dart).
   bool alwaysBlurSheets = AppDefaults.alwaysBlurSheets;
+  // The Dynamic Theming music bar blur, with that theme off.
+  bool blurMusicBar = AppDefaults.blurMusicBar;
   // The fading blur under Home's pinned status-bar header; on its own toggle,
   // independent of the sheet blur settings.
   bool statusBarBlur = AppDefaults.statusBarBlur;

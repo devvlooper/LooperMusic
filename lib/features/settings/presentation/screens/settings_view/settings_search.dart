@@ -122,6 +122,14 @@ extension _SettingsSearch on _SettingsViewState {
         category: '${l10n.account} · ${l10n.accountProfile}',
         widget: const SelectAvatarsTile(),
       ),
+      if (!settings.enableDynamicTheming)
+        SettingsSearchItem(
+          title: l10n.blurMusicBar,
+          subtitle: l10n.blurMusicBarDesc,
+          category:
+              '${l10n.catPlayerInterface} · ${l10n.themeGroupBlurBackgrounds}',
+          widget: const BlurMusicBarTile(),
+        ),
       if (settings.enableDynamicTheming)
         SettingsSearchItem(
           title: l10n.disableBlurEffects,

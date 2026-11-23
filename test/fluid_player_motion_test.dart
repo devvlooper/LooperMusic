@@ -246,7 +246,7 @@ void main() {
     });
   });
 
-  test('open/close bounce is visible on a tap; settle spring is dead', () {
+  test('open and close glide in with almost no bounce', () {
     double peak(SpringDescription s, double from, double to, double v) {
       final sim = SpringSimulation(s, from, to, v);
       double m = to > from ? -1e9 : 1e9;
@@ -256,21 +256,23 @@ void main() {
       return m;
     }
 
-    // Tap to open (no finger velocity) still overshoots noticeably.
-    final double open = peak(fluidPlayerOpenBounceSpring, 0.0, 1.0, 0.0);
-    expect(open - 1.0, greaterThan(0.05));
-    expect(geometry.stretchOf(open), greaterThan(15.0));
-    // A hard flick is still capped by the rubber band.
+    double settleTime(SpringDescription s, double from, double to) {
+      final sim = SpringSimulation(s, from, to, 0);
+      for (double t = 0; t < 3; t += 0.005) {
+        if ((sim.x(t) - to).abs() < 0.01) return t;
+      }
+      return 3;
+    }
+
+    for (final spring in [fluidPlayerOpenBounceSpring, fluidPlayerTapOpenSpring]) {
+      expect(peak(spring, 0.0, 1.0, 0.0) - 1.0, lessThan(0.005));
+      expect(settleTime(spring, 0.0, 1.0), inInclusiveRange(0.3, 0.7));
+    }
+    expect(peak(fluidPlayerCloseBounceSpring, 1.0, 0.0, 0.0), greaterThan(-0.005));
+    expect(settleTime(fluidPlayerCloseBounceSpring, 1.0, 0.0), inInclusiveRange(0.3, 0.7));
     final double flick = peak(fluidPlayerOpenBounceSpring, 0.6, 1.0, 8.0);
     expect(geometry.stretchOf(flick), lessThan(geometry.stretchOpenMax));
-    // Minimizing dips the mini bar under rest, less than opening lifts.
-    final double close = peak(fluidPlayerCloseBounceSpring, 1.0, 0.0, 0.0);
-    expect(close, lessThan(-0.02));
-    expect(-close, lessThan(open - 1.0));
-    expect(
-      peak(fluidPlayerSpring, 0.6, 1.0, 6.0),
-      lessThanOrEqualTo(1.0 + 1e-9),
-    );
+    expect(peak(fluidPlayerSpring, 0.6, 1.0, 6.0), lessThanOrEqualTo(1.0 + 1e-9));
   });
 
   group('FluidHorizontalSwipe', () {

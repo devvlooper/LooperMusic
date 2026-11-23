@@ -1,3 +1,4 @@
+import 'package:looper_player/ui/widgets/player/player_background_switcher.dart';
 import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/material.dart' hide RepeatMode;
@@ -49,8 +50,8 @@ class PlayerGradientBackground extends StatelessWidget {
       fit: StackFit.expand,
       children: [
         AnimatedContainer(
-          duration: const Duration(milliseconds: 600),
-          curve: Curves.easeInOut,
+          duration: kPlayerBackgroundFade,
+          curve: kPlayerBackgroundCurve,
           decoration: BoxDecoration(
             gradient: RadialGradient(
               center: Alignment.topCenter,

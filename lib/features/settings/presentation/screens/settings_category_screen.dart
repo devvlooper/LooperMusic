@@ -87,6 +87,7 @@ class SettingsCategoryScreen extends ConsumerWidget {
             else
               const AlwaysBlurSheetsTile(),
             const StatusBarBlurTile(),
+            if (!dynamicTheming) const BlurMusicBarTile(),
             // Dynamic theming paints its own background.
             if (!dynamicTheming) ...[
               demo(

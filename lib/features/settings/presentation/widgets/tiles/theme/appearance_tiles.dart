@@ -86,6 +86,26 @@ class AlwaysBlurSheetsTile extends ConsumerWidget {
   }
 }
 
+/// The Dynamic Theming navbar and music bar blur, with that theme off.
+class BlurMusicBarTile extends ConsumerWidget {
+  const BlurMusicBarTile({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final settings = ref.watch(settingsProvider);
+    final l10n = AppLocalizations.of(context)!;
+    return SwitchListTile(
+      secondary: const Icon(LucideIcons.panelBottom),
+      title: Text(l10n.blurMusicBar, style: _tileTitleStyle()),
+      subtitle: Text(l10n.blurMusicBarDesc, style: _tileSubtitleStyle()),
+      value: settings.blurMusicBar,
+      onChanged: (value) {
+        ref.read(settingsProvider.notifier).updateBlurMusicBar(value);
+      },
+    );
+  }
+}
+
 /// The fading blur under Home's pinned header at the status bar. Off: a
 /// black fade instead.
 class StatusBarBlurTile extends ConsumerWidget {

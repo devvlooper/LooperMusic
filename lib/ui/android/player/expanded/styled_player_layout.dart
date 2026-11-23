@@ -1,3 +1,4 @@
+import 'package:looper_player/ui/widgets/player/player_background_switcher.dart';
 import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui' show ImageFilter;
@@ -133,6 +134,9 @@ class StyledPlayerLayout extends ConsumerStatefulWidget {
   final VoidCallback onShowQueue;
   final VoidCallback onShowOptions;
 
+  /// Tap on the title or artist: the small song sheet.
+  final VoidCallback onShowSongInfo;
+
   const StyledPlayerLayout({
     super.key,
     required this.style,
@@ -143,6 +147,7 @@ class StyledPlayerLayout extends ConsumerStatefulWidget {
     required this.onShowLyrics,
     required this.onShowQueue,
     required this.onShowOptions,
+    required this.onShowSongInfo,
   });
 
   @override
@@ -261,7 +266,7 @@ class _StyledPlayerLayoutState extends ConsumerState<StyledPlayerLayout>
                           key: ValueKey(('big', song.id)),
                           song: song,
                           scale: s,
-                          onTap: widget.onShowOptions,
+                          onTap: widget.onShowSongInfo,
                         ),
                 ),
                 FluidSectionMotion.songInfo,
@@ -280,7 +285,7 @@ class _StyledPlayerLayoutState extends ConsumerState<StyledPlayerLayout>
                   _SmallTitle(
                     song: song,
                     scale: s,
-                    onTap: widget.onShowOptions,
+                    onTap: widget.onShowSongInfo,
                   ),
                   FluidSectionMotion.songInfo,
                 ),
@@ -714,13 +719,23 @@ Widget _buildStyledBackground(
   WidgetRef ref,
   Song song,
   PlayerLayoutStyle style,
+) => PlayerBackgroundSwitcher(
+  child: _styledBackgroundFor(context, ref, song, style),
+);
+
+/// Each kind of background has its own key, so switching kinds crossfades.
+Widget _styledBackgroundFor(
+  BuildContext context,
+  WidgetRef ref,
+  Song song,
+  PlayerLayoutStyle style,
 ) {
   if (style != PlayerLayoutStyle.classic) {
     final black = ref.watch(
       settingsProvider.select((s) => s.cardBlackBackground),
     );
     if (black) {
-      return const ColoredBox(color: Colors.black);
+      return const ColoredBox(key: ValueKey('black'), color: Colors.black);
     }
     final accentBackground = ref.watch(
       settingsProvider.select((s) => s.cardAccentBackground),
@@ -737,16 +752,24 @@ Widget _buildStyledBackground(
           settingsProvider.select((s) => s.musicDarkness),
         );
         return PlayerGradientBackground(
+          key: const ValueKey('gradient'),
           darkness: musicDarkness,
           animated: animated,
         );
       }
       final accent = ref.watch(settingsProvider.select((s) => s.accent));
-      return ColoredBox(color: cardAccentBackgroundColor(accent));
+      final Color accentColor = cardAccentBackgroundColor(accent);
+      return TweenAnimationBuilder<Color?>(
+        key: const ValueKey('accent'),
+        tween: ColorTween(end: accentColor),
+        duration: kPlayerBackgroundFade,
+        curve: kPlayerBackgroundCurve,
+        builder: (context, color, _) => ColoredBox(color: color ?? accentColor),
+      );
     }
   }
   final blur = ref.watch(settingsProvider.select((s) => s.playerStyleBlur));
-  return _FigmaBackground(song: song, blur: blur);
+  return _FigmaBackground(key: const ValueKey('figma'), song: song, blur: blur);
 }
 
 /// The card player's accent background: the accent pulled toward black, as
@@ -758,7 +781,7 @@ Color cardAccentBackgroundColor(Color accent) =>
 class _FigmaBackground extends StatelessWidget {
   final Song song;
   final bool blur;
-  const _FigmaBackground({required this.song, this.blur = true});
+  const _FigmaBackground({super.key, required this.song, this.blur = true});
 
   @override
   Widget build(BuildContext context) {
@@ -773,21 +796,32 @@ class _FigmaBackground extends StatelessWidget {
         // the same picture the live ImageFiltered drew: that re-blurred the
         // whole screen on every open/close frame (Impeller has no raster
         // cache).
-        if (blur && art != null)
-          BlurredBackgroundArt(
-            song: song,
-            motion: false,
-            sigma: 80,
-            saturation: 0.45,
-            tileMode: TileMode.mirror,
-            resolution: MediaQuery.devicePixelRatioOf(context),
-            artZoom: 1.6,
-            artAlignment: const Alignment(0, 0.4),
-            placeholder: false,
-          ),
+        PlayerBackgroundSwitcher(
+          child: blur && art != null
+              ? ColoredBox(
+                  key: const ValueKey('art'),
+                  color: Colors.black,
+                  child: BlurredBackgroundArt(
+                    song: song,
+                    motion: false,
+                    sigma: 80,
+                    saturation: 0.45,
+                    tileMode: TileMode.mirror,
+                    resolution: MediaQuery.devicePixelRatioOf(context),
+                    artZoom: 1.6,
+                    artAlignment: const Alignment(0, 0.4),
+                    placeholder: false,
+                    crossfade: true,
+                  ),
+                )
+              : const ColoredBox(key: ValueKey('none'), color: Colors.black),
+        ),
         ColoredBox(color: Colors.black.withValues(alpha: 0.35)),
-        if (blur)
-          const DecoratedBox(
+        AnimatedOpacity(
+          opacity: blur ? 1 : 0,
+          duration: kPlayerBackgroundFade,
+          curve: kPlayerBackgroundCurve,
+          child: const DecoratedBox(
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment(0.42, -1),
@@ -796,6 +830,7 @@ class _FigmaBackground extends StatelessWidget {
               ),
             ),
           ),
+        ),
       ],
     );
   }
@@ -2048,6 +2083,9 @@ class StyledLandscapeLayout extends ConsumerStatefulWidget {
   final VoidCallback onShowQueue;
   final VoidCallback onShowOptions;
 
+  /// Tap on the title or artist: the small song sheet.
+  final VoidCallback onShowSongInfo;
+
   const StyledLandscapeLayout({
     super.key,
     required this.style,
@@ -2057,6 +2095,7 @@ class StyledLandscapeLayout extends ConsumerStatefulWidget {
     required this.onShowLyrics,
     required this.onShowQueue,
     required this.onShowOptions,
+    required this.onShowSongInfo,
   });
 
   @override
@@ -2226,7 +2265,7 @@ class _StyledLandscapeLayoutState extends ConsumerState<StyledLandscapeLayout>
                           child: _LandscapeBigTitle(
                             song: song,
                             scale: s,
-                            onTap: widget.onShowOptions,
+                            onTap: widget.onShowSongInfo,
                           ),
                         ),
                 ),
@@ -2244,7 +2283,7 @@ class _StyledLandscapeLayoutState extends ConsumerState<StyledLandscapeLayout>
                     song: song,
                     scale: s,
                     titleAlpha: 0.9,
-                    onTap: widget.onShowOptions,
+                    onTap: widget.onShowSongInfo,
                   ),
                   FluidSectionMotion.songInfo,
                 ),

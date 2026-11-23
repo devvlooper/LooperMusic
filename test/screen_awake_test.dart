@@ -205,6 +205,7 @@ void main() {
             onShowLyrics: () {},
             onShowQueue: () {},
             onShowOptions: () {},
+            onShowSongInfo: () {},
           ),
           settings: AppSettings()
             ..playerStyle = style.name

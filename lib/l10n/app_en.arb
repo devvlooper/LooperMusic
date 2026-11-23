@@ -583,6 +583,16 @@
   "tapFieldToEdit": "Tap a field to edit",
   "alwaysBlurSheets": "Always Blur Sheets",
   "alwaysBlurSheetsDesc": "Blur popup sheets and scrolled page headers even when Dynamic Theming is off",
+  "blurMusicBar": "Blur Music Bar",
+  "blurMusicBarDesc": "Blur the page behind the music bar",
+  "viewItem": "View {name}",
+  "@viewItem": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "aboutSong": "About song",
+  "streamInfo": "Stream info",
   "statusBarBlur": "Status Bar Blur",
   "statusBarBlurDesc": "Blur the page under the status bar on Home as you scroll",
   "playerDynamicBackground": "Dynamic Player Background",

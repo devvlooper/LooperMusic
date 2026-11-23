@@ -57,6 +57,10 @@ extension AppAccent on AppSettings {
 extension SheetBlur on AppSettings {
   bool get sheetShouldBlur =>
       enableDynamicTheming ? !disableBlur : alwaysBlurSheets;
+
+  /// Whether the music bar blurs what's behind it.
+  bool get musicBarShouldBlur =>
+      enableDynamicTheming ? !disableBlur : blurMusicBar;
 }
 
 // One-entry memo: the same accent is asked for by every tile in a build.
@@ -396,6 +400,7 @@ class Settings extends _$Settings {
       ..artworkVisualizerSyncMs = s.artworkVisualizerSyncMs
       ..disableBlur = s.disableBlur
       ..alwaysBlurSheets = s.alwaysBlurSheets
+      ..blurMusicBar = s.blurMusicBar
       ..statusBarBlur = s.statusBarBlur
       ..playerDynamicBackground = s.playerDynamicBackground
       ..enableInternet = s.enableInternet
@@ -775,6 +780,9 @@ class Settings extends _$Settings {
 
   Future<void> updateDisableBlur(bool disabled) =>
       _update((s) => s..disableBlur = disabled);
+
+  Future<void> updateBlurMusicBar(bool value) =>
+      _update((s) => s..blurMusicBar = value);
 
   Future<void> updateKeepSongProgress(bool value) =>
       _update((s) => s..keepSongProgress = value);

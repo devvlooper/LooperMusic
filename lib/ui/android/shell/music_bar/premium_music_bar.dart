@@ -24,6 +24,7 @@ import 'package:looper_player/core/providers/player_expand_focus.dart';
 import 'package:looper_player/core/providers/player_expand_provider.dart';
 import 'package:looper_player/features/library/domain/models/models.dart';
 
+import 'package:looper_player/ui/widgets/player/player_background_switcher.dart';
 import 'fluid_player_motion.dart';
 import '../../widgets/premium_section.dart';
 
@@ -53,6 +54,9 @@ class PremiumMusicBarState extends ConsumerState<PremiumMusicBar>
     with TickerProviderStateMixin {
   /// The mini bar's dark glass (#262626 at 50%, over a backdrop blur).
   static const Color barColor = Color(0x80262626);
+
+  /// Lighter tint for the Blur Music Bar setting (Dynamic Theming off).
+  static const Color translucentBarColor = Color(0x40262626);
 
   late AnimationController _dragController;
   late final ValueNotifier<double> _expandProgress;
@@ -332,10 +336,16 @@ class PremiumMusicBarState extends ConsumerState<PremiumMusicBar>
         PageRouteBuilder(
           pageBuilder: (context, animation, secondaryAnimation) =>
               const AndroidExpandedPlayer(),
-          transitionDuration: const Duration(milliseconds: 400),
-          reverseTransitionDuration: const Duration(milliseconds: 400),
+          transitionDuration: const Duration(milliseconds: 420),
+          reverseTransitionDuration: const Duration(milliseconds: 360),
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            return FadeTransition(opacity: animation, child: child);
+            return FadeTransition(
+              opacity: CurvedAnimation(
+                parent: animation,
+                curve: Curves.easeInOutCubic,
+              ),
+              child: child,
+            );
           },
         ),
       );
@@ -474,8 +484,10 @@ class PremiumMusicBarState extends ConsumerState<PremiumMusicBar>
                 child: _buildMiniPlayerContent(
                   song,
                   isPlaying,
-                  useBlur,
-                  null,
+                  settings.musicBarShouldBlur,
+                  settings.blurMusicBar && !settings.enableDynamicTheming
+                      ? PremiumMusicBarState.translucentBarColor
+                      : null,
                   16.0,
                   settings,
                   compact: isCompact,
@@ -513,12 +525,14 @@ class PremiumMusicBarState extends ConsumerState<PremiumMusicBar>
     // the panel's top edge ~500dp up the screen. The clip also limits hit
     // testing to the panel, so the transparent rest of the layer never
     // swallows touches meant for the screen behind it.
-    // Same rule as the navbar: blur only with Dynamic Theming on and blur
-    // effects allowed. An animated cover only matters once the player is
-    // open; the mini bar sits over Home, not over it.
-    final bool isBlurActive = useBlur && !settings.disableBlur;
+    // An animated cover only matters once the player
+    // is open; the mini bar sits over Home, not over it.
+    final bool isBlurActive = settings.musicBarShouldBlur;
+    final bool barGlass = isBlurActive && !settings.enableDynamicTheming;
     final Color minimizedBgColor = isBlurActive
-        ? PremiumMusicBarState.barColor
+        ? (settings.enableDynamicTheming
+              ? PremiumMusicBarState.barColor
+              : PremiumMusicBarState.translucentBarColor)
         : Theme.of(context).colorScheme.surfaceContainer;
     final Size windowSize = MediaQuery.sizeOf(context);
     final double musicDarkness = settings.musicDarkness.isNaN
@@ -531,18 +545,19 @@ class PremiumMusicBarState extends ConsumerState<PremiumMusicBar>
     // constraints, so a frame of motion is just new paint offsets/opacities.
     final Widget expandedBackground = RepaintBoundary(
       // Fades between songs and between art and gradient instead of cutting.
-      child: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 800),
-        transitionBuilder: (child, animation) {
-          return FadeTransition(opacity: animation, child: child);
-        },
+      child: PlayerBackgroundSwitcher(
         child: () {
           if (showArtBackground) {
             return Stack(
-              key: ValueKey(('art', song.id)),
+              // Same key across songs: the art crossfades inside itself.
+              key: const ValueKey('art'),
               fit: StackFit.expand,
               children: [
-                BlurredBackgroundArt(song: song, motion: false),
+                BlurredBackgroundArt(
+                  song: song,
+                  motion: false,
+                  crossfade: true,
+                ),
                 ColoredBox(
                   color: Colors.black.withValues(alpha: musicDarkness),
                 ),
@@ -579,7 +594,7 @@ class PremiumMusicBarState extends ConsumerState<PremiumMusicBar>
         child: _buildMiniPlayerContent(
           song,
           isPlaying,
-          useBlur,
+          settings.musicBarShouldBlur,
           Colors.transparent,
           0.0,
           settings,
@@ -988,16 +1003,21 @@ class PremiumMusicBarState extends ConsumerState<PremiumMusicBar>
                                   Positioned.fill(
                                     key: const ValueKey('fluid_bg_minimized'),
                                     child: () {
+                                      final double rest = barGlass
+                                          ? FluidBarBlur.amount(p)
+                                          : 1.0 - p;
                                       final Widget fill = ColoredBox(
                                         color: minimizedBgColor.withValues(
-                                          alpha: minimizedBgColor.a * (1.0 - p),
+                                          alpha: minimizedBgColor.a * rest,
                                         ),
                                       );
-                                      if (!isBlurActive) return fill;
+                                      if (!isBlurActive || rest <= 0) {
+                                        return fill;
+                                      }
                                       return BackdropFilter(
                                         filter: ImageFilter.blur(
-                                          sigmaX: 16.0 * (1.0 - p),
-                                          sigmaY: 16.0 * (1.0 - p),
+                                          sigmaX: 16.0 * rest,
+                                          sigmaY: 16.0 * rest,
                                         ),
                                         child: fill,
                                       );
@@ -1019,7 +1039,9 @@ class PremiumMusicBarState extends ConsumerState<PremiumMusicBar>
                                       visible: p > 0.01,
                                       tickers: p > 0.01,
                                       child: Opacity(
-                                        opacity: p,
+                                        opacity: barGlass
+                                            ? FluidBarBlur.backgroundOpacity(p)
+                                            : p,
                                         child: expandedBackground,
                                       ),
                                     ),
