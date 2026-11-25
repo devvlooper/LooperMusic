@@ -10,6 +10,9 @@ import 'package:looper_player/features/online/data/online_api.dart';
 import 'package:looper_player/features/online/data/taste_profile_store.dart';
 import 'package:looper_player/features/online/data/taste_store.dart';
 import 'package:looper_player/features/online/presentation/online_providers.dart';
+import 'package:looper_player/features/settings/presentation/providers/settings_notifier.dart';
+import 'package:looper_player/features/settings/presentation/screens/account_view.dart'
+    show saveProfilePhotoFromUrl;
 
 /// Mirrors [AccountAuth] for the UI and runs the sign-in flows.
 class AuthNotifier extends Notifier<AuthState> {
@@ -29,6 +32,7 @@ class AuthNotifier extends Notifier<AuthState> {
       AccountAuth.instance.restore().then((_) {
         if (AccountAuth.instance.signedIn) {
           unawaited(_syncAccountData());
+          unawaited(_adoptAccountPhoto());
         }
       }),
     );
@@ -72,18 +76,34 @@ class AuthNotifier extends Notifier<AuthState> {
     final auth = AccountAuth.instance;
     auth.trial(session);
     try {
-      final name = await OnlineApi.accountName();
+      final account = await OnlineApi.account();
+      final name = account.name;
       if (name == null) {
         await auth.abort('YouTube did not accept this sign-in');
         return;
       }
       await auth.commit(session.withName(name.isEmpty ? null : name));
       await _syncAccountData(force: true);
+      unawaited(_adoptAccountPhoto(account.photo));
     } catch (e) {
       await auth.abort('$e');
       return;
     }
     unawaited(ref.read(onlineHomeProvider.notifier).refresh());
+  }
+
+  /// With no profile photo of the user's own, saves the signed-in
+  /// account's photo as it ([url] when the caller already has it).
+  Future<void> _adoptAccountPhoto([String? url]) async {
+    try {
+      // Settings start as defaults until loaded: an unloaded empty path
+      // would overwrite the user's own photo.
+      await ref.read(settingsProvider.notifier).initialization;
+      if (ref.read(settingsProvider).userPhotoPath.isNotEmpty) return;
+      url ??= (await OnlineApi.account()).photo;
+      if (url == null) return;
+      await saveProfilePhotoFromUrl(ref.read(settingsProvider.notifier), url);
+    } catch (_) {}
   }
 
   Future<void> signOut() async {

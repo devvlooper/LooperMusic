@@ -1,4 +1,6 @@
 {
+  "headerProfilePhoto": "Foto nas barras superiores",
+  "headerProfilePhotoDesc": "Mostrar sua foto de perfil em Início, Músicas e Biblioteca no lugar do ícone de pessoa",
   "lyricsMenuSync": "Sincronização",
   "lyricsMenuSource": "Fonte",
   "lyricsMenuLook": "Aparência",

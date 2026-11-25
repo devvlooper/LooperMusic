@@ -1,4 +1,6 @@
 {
+  "headerProfilePhoto": "上部バーに写真",
+  "headerProfilePhotoDesc": "ホーム、曲、ライブラリで人物アイコンの代わりにプロフィール写真を表示します",
   "lyricsMenuSync": "同期",
   "lyricsMenuSource": "ソース",
   "lyricsMenuLook": "見た目",

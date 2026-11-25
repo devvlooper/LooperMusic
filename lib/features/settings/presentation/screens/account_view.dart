@@ -46,19 +46,40 @@ Future<void> pickProfilePhoto(WidgetRef ref) async {
   try {
     final picked = (await FilePicker.pickFile(type: FileType.image))?.path;
     if (picked == null) return;
-    final dir = Directory(
-      p.join((await getApplicationSupportDirectory()).path, 'profile'),
-    );
-    if (dir.existsSync()) dir.deleteSync(recursive: true);
-    dir.createSync(recursive: true);
-    // New name per pick so Image.file doesn't serve the old cached photo.
-    final dest = p.join(
-      dir.path,
-      'photo_${DateTime.now().millisecondsSinceEpoch}${p.extension(picked)}',
-    );
+    final dest = await _newProfilePhotoPath(p.extension(picked));
     await File(picked).copy(dest);
     await ref.read(settingsProvider.notifier).updateUserPhotoPath(dest);
   } catch (_) {}
+}
+
+/// A fresh file path for the profile photo, the old one cleared away.
+Future<String> _newProfilePhotoPath(String extension) async {
+  final dir = Directory(
+    p.join((await getApplicationSupportDirectory()).path, 'profile'),
+  );
+  if (dir.existsSync()) dir.deleteSync(recursive: true);
+  dir.createSync(recursive: true);
+  // New name per pick so Image.file doesn't serve the old cached photo.
+  return p.join(
+    dir.path,
+    'photo_${DateTime.now().millisecondsSinceEpoch}$extension',
+  );
+}
+
+/// Downloads [url] (the signed-in account's photo) and makes it the
+/// profile photo, as if the user had picked it.
+Future<void> saveProfilePhotoFromUrl(Settings settings, String url) async {
+  final client = HttpClient();
+  try {
+    final response = await (await client.getUrl(Uri.parse(url))).close();
+    final type = response.headers.contentType?.primaryType;
+    if (response.statusCode != 200 || type != 'image') return;
+    final dest = await _newProfilePhotoPath('.jpg');
+    await response.pipe(File(dest).openWrite());
+    await settings.updateUserPhotoPath(dest);
+  } finally {
+    client.close();
+  }
 }
 
 Future<void> removeProfilePhoto(WidgetRef ref) async {
@@ -175,6 +196,41 @@ Future<void> showEditNameDialog(BuildContext context, WidgetRef ref) async {
 }
 
 /// Settings > Account > "Your name" row.
+/// Settings > Account: the profile photo in place of the person icon in
+/// the Home, Songs and Library top bars.
+class HeaderProfilePhotoTile extends ConsumerWidget {
+  const HeaderProfilePhotoTile({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context)!;
+    final show = ref.watch(
+      settingsProvider.select((s) => s.showHeaderProfilePhoto),
+    );
+    return SwitchListTile(
+      secondary: const Icon(LucideIcons.circleUser),
+      title: Text(l10n.headerProfilePhoto),
+      subtitle: Text(l10n.headerProfilePhotoDesc),
+      value: show,
+      onChanged: (value) {
+        AppHaptics.light();
+        ref.read(settingsProvider.notifier).updateHeaderProfilePhoto(value);
+      },
+    );
+  }
+}
+
+/// The round profile photo for a [size] top-bar button, or null when there
+/// is none or the user turned it off (the button keeps its person icon).
+Widget? headerProfilePhoto(WidgetRef ref, double size) {
+  final show = ref.watch(
+    settingsProvider.select(
+      (s) => s.showHeaderProfilePhoto && s.userPhotoPath.isNotEmpty,
+    ),
+  );
+  return show ? ProfilePhoto(size: size, radius: size / 2) : null;
+}
+
 class AccountNameTile extends ConsumerWidget {
   const AccountNameTile({super.key});
 

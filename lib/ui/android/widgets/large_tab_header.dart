@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:looper_player/core/providers/navigation_provider.dart';
 import 'package:looper_player/core/services/haptics/app_haptics.dart';
 import 'package:looper_player/core/theme/app_fonts.dart';
+import 'package:looper_player/features/settings/presentation/screens/account_view.dart'
+    show headerProfilePhoto;
 
 /// Two-line tab title ("All / Songs", "Your / Library") with a round
 /// account button on the right.
@@ -54,6 +56,7 @@ class LargeTabHeader extends ConsumerWidget {
           RoundIconButton(
             icon: Icons.person_rounded,
             onTap: () => go(NavItem.account),
+            child: headerProfilePhoto(ref, 42),
           ),
         ],
       ),
@@ -67,11 +70,15 @@ class RoundIconButton extends StatelessWidget {
   final VoidCallback onTap;
   final String? tooltip;
 
+  /// Drawn instead of [icon] (the profile photo), filling the circle.
+  final Widget? child;
+
   const RoundIconButton({
     super.key,
     required this.icon,
     required this.onTap,
     this.tooltip,
+    this.child,
   });
 
   @override
@@ -84,7 +91,7 @@ class RoundIconButton extends StatelessWidget {
         onTap: onTap,
         child: SizedBox.square(
           dimension: 42,
-          child: Icon(icon, color: Colors.white, size: 22),
+          child: child ?? Icon(icon, color: Colors.white, size: 22),
         ),
       ),
     );

@@ -284,10 +284,12 @@ abstract final class OnlineApi {
     );
   }
 
-  /// Who YouTube thinks is signed in: a name, or null when the call went
-  /// through as signed out.
-  static Future<String?> accountName() async =>
-      parseAccountName(await _it.music('account/account_menu', {}));
+  /// Who YouTube thinks is signed in: a name (null when the call went
+  /// through as signed out) and the account's photo URL.
+  static Future<({String? name, String? photo})> account() async {
+    final json = await _it.music('account/account_menu', {});
+    return (name: parseAccountName(json), photo: parseAccountPhoto(json));
+  }
 
   /// The plain lyrics YouTube Music shows for [videoId], or null.
   static Future<String?> lyrics(String videoId) async {

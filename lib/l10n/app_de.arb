@@ -1,4 +1,6 @@
 {
+  "headerProfilePhoto": "Foto in den oberen Leisten",
+  "headerProfilePhotoDesc": "Dein Profilfoto auf Start, Songs und Bibliothek statt des Personensymbols zeigen",
   "lyricsMenuSync": "Synchronisierung",
   "lyricsMenuSource": "Quelle",
   "lyricsMenuLook": "Aussehen",

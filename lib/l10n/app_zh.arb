@@ -1,4 +1,6 @@
 {
+  "headerProfilePhoto": "顶部栏显示照片",
+  "headerProfilePhotoDesc": "在主页、歌曲和媒体库中以你的头像代替人物图标",
   "lyricsMenuSync": "同步",
   "lyricsMenuSource": "来源",
   "lyricsMenuLook": "外观",

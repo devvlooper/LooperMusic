@@ -351,6 +351,7 @@ class SettingsCategoryScreen extends ConsumerWidget {
           title: l10n.accountProfile,
           tiles: const [
             ProfilePhotoTile(),
+            HeaderProfilePhotoTile(),
             AccountNameTile(),
             SelectAvatarsTile(),
           ],

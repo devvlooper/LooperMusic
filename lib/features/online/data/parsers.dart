@@ -1280,6 +1280,12 @@ String? parseAccountName(Map<String, dynamic> json) {
   return header == null ? null : runText(header['accountName']) ?? '';
 }
 
+/// The signed-in account's photo URL from `account/account_menu`, or null.
+String? parseAccountPhoto(Map<String, dynamic> json) {
+  final header = findAll(json, 'activeAccountHeaderRenderer').firstOrNull;
+  return header == null ? null : bestThumbnail(header['accountPhoto']);
+}
+
 /// The lyrics tab's browse id from a `next` answer (`MPLY...`), or null
 /// when YouTube has no lyrics for the song (the tab has no endpoint then).
 String? parseLyricsBrowseId(Map<String, dynamic> json) {
