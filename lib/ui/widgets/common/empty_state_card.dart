@@ -10,6 +10,7 @@ class EmptyStateCard extends StatelessWidget {
   final IconData icon;
   final String title;
   final String? subtitle;
+
   /// Ignored: empty states are neutral (no accent) in the current design.
   final Color? accentColor;
   final Widget? action;
@@ -45,11 +46,7 @@ class EmptyStateCard extends StatelessWidget {
                   shape: BoxShape.circle,
                   color: Colors.white.withValues(alpha: 0.06),
                 ),
-                child: Icon(
-                  icon,
-                  size: 48,
-                  color: Colors.white70,
-                ),
+                child: Icon(icon, size: 48, color: Colors.white70),
               ),
               const SizedBox(height: 24),
               Text(

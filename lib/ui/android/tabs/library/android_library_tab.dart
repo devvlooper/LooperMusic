@@ -21,6 +21,11 @@ import 'package:looper_player/features/online/presentation/online_providers.dart
 import 'package:looper_player/features/library/presentation/screens/smart_views.dart'
     show hasDownloadsProvider;
 import 'package:looper_player/core/services/haptics/app_haptics.dart';
+import 'package:looper_player/features/playlists/presentation/screens/playlist_view.dart'
+    show openPlaylist;
+import 'package:looper_player/features/settings/presentation/providers/settings_notifier.dart';
+
+part 'library_pins.dart';
 
 // Panel = the dark rounded group; tile = the lighter card inside it.
 final _panelColor = Colors.white.withValues(alpha: 0.06);
@@ -38,7 +43,11 @@ class AndroidLibraryTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context)!;
-    final showDownloads = ref.watch(hasDownloadsProvider);
+    final showDownloads =
+        ref.watch(hasDownloadsProvider) &&
+        !ref.watch(
+          settingsProvider.select((s) => s.libraryPins.contains('downloads')),
+        );
 
     final favoriteArt = _arts(
       ref.watch(favoritesProvider).value?.map((s) => s.artPath),
@@ -77,6 +86,7 @@ class AndroidLibraryTab extends ConsumerWidget {
                   ),
                   padding: const EdgeInsets.fromLTRB(17, 8, 17, 200),
                   children: [
+                    const _PinnedPanel(),
                     _Panel(
                       padding: const EdgeInsets.only(bottom: 10),
                       child: _RecentlyPlayed(
@@ -169,18 +179,27 @@ class AndroidLibraryTab extends ConsumerWidget {
                         ],
                       ),
                     ),
-                    if (showDownloads) ...[
-                      const SizedBox(height: 22),
-                      // Not in the hub cards but still reachable from here.
-                      _Panel(
-                        padding: EdgeInsets.zero,
-                        child: _LinkRow(
-                          icon: LucideIcons.download,
-                          title: l10n.downloads,
-                          onTap: () => _go(ref, NavItem.downloads),
-                        ),
+                    const SizedBox(height: 22),
+                    _Panel(
+                      padding: EdgeInsets.zero,
+                      child: Column(
+                        children: [
+                          // Not in the hub cards but still reachable from
+                          // here, unless it is pinned at the top.
+                          if (showDownloads)
+                            _LinkRow(
+                              icon: LucideIcons.download,
+                              title: l10n.downloads,
+                              onTap: () => _go(ref, NavItem.downloads),
+                            ),
+                          _LinkRow(
+                            icon: LucideIcons.pin,
+                            title: l10n.customizeLibrary,
+                            onTap: () => _showCustomizeLibrary(context),
+                          ),
+                        ],
                       ),
-                    ],
+                    ),
                   ],
                 ),
               ),

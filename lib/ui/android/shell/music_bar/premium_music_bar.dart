@@ -58,6 +58,10 @@ class PremiumMusicBarState extends ConsumerState<PremiumMusicBar>
   /// Lighter tint for the Blur Music Bar setting (Dynamic Theming off).
   static const Color translucentBarColor = Color(0x40262626);
 
+  /// Frosted Music Bar: 2.7's light white frost over a soft blur.
+  static const Color frostBarColor = Color(0x0DFFFFFF);
+  static const double frostBlurSigma = 3.0;
+
   late AnimationController _dragController;
   late final ValueNotifier<double> _expandProgress;
   // Animates restingBottom changes (navbar shown/hidden) - same 300ms
@@ -484,11 +488,15 @@ class PremiumMusicBarState extends ConsumerState<PremiumMusicBar>
                 child: _buildMiniPlayerContent(
                   song,
                   isPlaying,
-                  settings.musicBarShouldBlur,
-                  settings.blurMusicBar && !settings.enableDynamicTheming
+                  settings.frostedMusicBar || settings.musicBarShouldBlur,
+                  settings.frostedMusicBar
+                      ? PremiumMusicBarState.frostBarColor
+                      : settings.blurMusicBar && !settings.enableDynamicTheming
                       ? PremiumMusicBarState.translucentBarColor
                       : null,
-                  16.0,
+                  settings.frostedMusicBar
+                      ? PremiumMusicBarState.frostBlurSigma
+                      : 16.0,
                   settings,
                   compact: isCompact,
                 ),
@@ -527,13 +535,19 @@ class PremiumMusicBarState extends ConsumerState<PremiumMusicBar>
     // swallows touches meant for the screen behind it.
     // An animated cover only matters once the player
     // is open; the mini bar sits over Home, not over it.
-    final bool isBlurActive = settings.musicBarShouldBlur;
+    final bool frosted = settings.frostedMusicBar;
+    final bool isBlurActive = frosted || settings.musicBarShouldBlur;
     final bool barGlass = isBlurActive && !settings.enableDynamicTheming;
-    final Color minimizedBgColor = isBlurActive
+    final Color minimizedBgColor = frosted
+        ? PremiumMusicBarState.frostBarColor
+        : isBlurActive
         ? (settings.enableDynamicTheming
               ? PremiumMusicBarState.barColor
               : PremiumMusicBarState.translucentBarColor)
         : Theme.of(context).colorScheme.surfaceContainer;
+    final double barBlurSigma = frosted
+        ? PremiumMusicBarState.frostBlurSigma
+        : 16.0;
     final Size windowSize = MediaQuery.sizeOf(context);
     final double musicDarkness = settings.musicDarkness.isNaN
         ? 0.62
@@ -938,7 +952,10 @@ class PremiumMusicBarState extends ConsumerState<PremiumMusicBar>
                 stretch: stretch,
                 horizontalOffset: hOffset,
               );
-              final double cornerRadius = FluidPlayerGeometry.panelRadiusAt(p);
+              final double cornerRadius = FluidPlayerGeometry.panelRadiusAt(
+                p,
+                pill: settings.pillMusicBar,
+              );
               final RRect panelRRect = RRect.fromRectAndRadius(
                 panel,
                 Radius.circular(cornerRadius),
@@ -1016,8 +1033,8 @@ class PremiumMusicBarState extends ConsumerState<PremiumMusicBar>
                                       }
                                       return BackdropFilter(
                                         filter: ImageFilter.blur(
-                                          sigmaX: 16.0 * rest,
-                                          sigmaY: 16.0 * rest,
+                                          sigmaX: barBlurSigma * rest,
+                                          sigmaY: barBlurSigma * rest,
                                         ),
                                         child: fill,
                                       );
@@ -1139,6 +1156,7 @@ class PremiumMusicBarState extends ConsumerState<PremiumMusicBar>
                                               borderRadius: BorderRadius.circular(
                                                 FluidPlayerGeometry.miniArtRadius(
                                                   compact: isCompact,
+                                                  round: settings.pillMusicBar,
                                                 ),
                                               ),
                                               child: p > 0.01
@@ -1191,6 +1209,8 @@ class PremiumMusicBarState extends ConsumerState<PremiumMusicBar>
                                                 FluidPlayerGeometry.morphArtRadius(
                                                       p,
                                                       compact: isCompact,
+                                                      round:
+                                                          settings.pillMusicBar,
                                                     ) /
                                                     scale,
                                               ),
@@ -1220,6 +1240,8 @@ class PremiumMusicBarState extends ConsumerState<PremiumMusicBar>
                                                 FluidPlayerGeometry.morphArtRadius(
                                                       p,
                                                       compact: isCompact,
+                                                      round:
+                                                          settings.pillMusicBar,
                                                     ) /
                                                     scale,
                                               ),

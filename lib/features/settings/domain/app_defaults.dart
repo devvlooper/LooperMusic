@@ -156,6 +156,9 @@ abstract final class AppDefaults {
   static const bool disableBlur = true;
   static const bool alwaysBlurSheets = false;
   static const bool blurMusicBar = false;
+  static const bool pillMusicBar = true;
+  static const bool frostedMusicBar = true;
+  static const bool showCachedSongs = false;
   static const bool statusBarBlur = false;
   static const bool playerDynamicBackground = false;
   static const bool keepBackgroundGradient = false;

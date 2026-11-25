@@ -401,6 +401,8 @@ class Settings extends _$Settings {
       ..disableBlur = s.disableBlur
       ..alwaysBlurSheets = s.alwaysBlurSheets
       ..blurMusicBar = s.blurMusicBar
+      ..pillMusicBarPref = s.pillMusicBarPref
+      ..frostedMusicBarPref = s.frostedMusicBarPref
       ..statusBarBlur = s.statusBarBlur
       ..playerDynamicBackground = s.playerDynamicBackground
       ..enableInternet = s.enableInternet
@@ -444,6 +446,8 @@ class Settings extends _$Settings {
       ..showHomeGenres = s.showHomeGenres
       ..showHomeRecent = s.showHomeRecent
       ..showHomePlaylists = s.showHomePlaylists
+      ..libraryPins = List<String>.from(s.libraryPins)
+      ..showCachedSongs = s.showCachedSongs
       ..homeSectionOrder = List.from(
         s.homeSectionOrder.isEmpty
             ? AppSettings.defaultHomeSectionOrder
@@ -543,6 +547,19 @@ class Settings extends _$Settings {
 
   Future<void> updateHomeSectionOrder(List<String> newOrder) =>
       _update((s) => s..homeSectionOrder = newOrder);
+
+  Future<void> updateShowCachedSongs(bool value) =>
+      _update((s) => s..showCachedSongs = value);
+
+  Future<void> updateLibraryPins(List<String> pins) =>
+      _update((s) => s..libraryPins = List<String>.from(pins));
+
+  /// Pins [key] to the end of Library's pinned shortcuts, or unpins it.
+  Future<void> toggleLibraryPin(String key) => _update((s) {
+    final pins = List<String>.from(s.libraryPins);
+    if (!pins.remove(key)) pins.add(key);
+    return s..libraryPins = pins;
+  });
 
   Future<void> updateIncludeSystemAndMessagingAudio(bool value) =>
       _update((s) => s..includeSystemAndMessagingAudio = value);
@@ -783,6 +800,12 @@ class Settings extends _$Settings {
 
   Future<void> updateBlurMusicBar(bool value) =>
       _update((s) => s..blurMusicBar = value);
+
+  Future<void> updatePillMusicBar(bool value) =>
+      _update((s) => s..pillMusicBarPref = value);
+
+  Future<void> updateFrostedMusicBar(bool value) =>
+      _update((s) => s..frostedMusicBarPref = value);
 
   Future<void> updateKeepSongProgress(bool value) =>
       _update((s) => s..keepSongProgress = value);

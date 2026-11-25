@@ -27,7 +27,7 @@ dependencies:
   riverpod_annotation: ^4.0.2
 
   # Audio Playback
-  mpv_audio_kit: ^0.4.5
+  mpv_audio_kit: ^0.8.0
 
   # Database
   isar_community: ^3.3.2
@@ -67,6 +67,7 @@ dependencies:
   crypto: ^3.0.7
   webview_flutter: ^4.14.1
   video_player: ^2.9.2
+  cryptography: ^2.7.0
 
 
 dev_dependencies:
@@ -81,10 +82,10 @@ dev_dependencies:
   coverage: ^1.15.1
 
 dependency_overrides:
-  # Patched copy: the limiter and resampler run last in the filter chain
-  # (see third_party/mpv_audio_kit/LOOPER_PATCH.md).
-  mpv_audio_kit:
-    path: third_party/mpv_audio_kit
+  # Patched copy: AGP 9 reports compileSdk as "android-37.0", which crashed
+  # cargokit's integer parse (see third_party/metadata_god/LOOPER_PATCH.md).
+  metadata_god:
+    path: third_party/metadata_god
   # metadata_god 1.1.0 ships Rust and Dart glue generated with exactly
   # flutter_rust_bridge 2.11.1 and refuses to initialise on any other
   # runtime version. Left to float (its constraint is ^2.11.1) pub picks a

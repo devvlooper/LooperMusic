@@ -88,6 +88,8 @@ class SettingsCategoryScreen extends ConsumerWidget {
               const AlwaysBlurSheetsTile(),
             const StatusBarBlurTile(),
             if (!dynamicTheming) const BlurMusicBarTile(),
+            const PillMusicBarTile(),
+            const FrostedMusicBarTile(),
             // Dynamic theming paints its own background.
             if (!dynamicTheming) ...[
               demo(
@@ -149,8 +151,7 @@ class SettingsCategoryScreen extends ConsumerWidget {
       collapsed = {l10n.themeGroupFonts, l10n.sectionHomeRows};
     } else if (categoryId == 'now_playing') {
       final classic =
-          settings.playerStyle.isEmpty ||
-          settings.playerStyle == 'classic';
+          settings.playerStyle.isEmpty || settings.playerStyle == 'classic';
       // Arc / linear / card draw their own blurred background and show lyrics from
       // the player menu, so the classic background and line options don't
       // apply there. Dynamic background and the gradient are alternatives:
@@ -251,6 +252,7 @@ class SettingsCategoryScreen extends ConsumerWidget {
             AddFolderTile(),
             ExcludedFoldersTile(),
             IncludeSystemAndMessagingAudioTile(),
+            ShowCachedSongsTile(),
             RescanLibraryTile(),
             ResetLibraryTile(),
           ],

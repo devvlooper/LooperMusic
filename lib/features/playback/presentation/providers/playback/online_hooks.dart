@@ -57,14 +57,14 @@ extension _OnlineHooks on Playback {
     final pos = _pendingSeek ?? playbackState.position;
     final dur = song.duration != null
         ? Duration(milliseconds: song.duration!)
-        : player.state.duration;
+        : player.state.playback.duration;
     if (dur <= Duration.zero || dur - pos < const Duration(seconds: 5)) {
       return false;
     }
     if (_onlineRecoveries >= 2) return false;
     _onlineRecoveries++;
     LoggerHelper.write(
-      'Online stream ended early at $pos (mpv: ${player.state.position}, state: ${playbackState.position}, pending: $_pendingSeek) of $dur, recovering ${song.path}',
+      'Online stream ended early at $pos (mpv: ${player.state.playback.position}, state: ${playbackState.position}, pending: $_pendingSeek) of $dur, recovering ${song.path}',
     );
     StreamResolver.instance.invalidate(song.videoId!);
     unawaited(play(song, initialPosition: pos));

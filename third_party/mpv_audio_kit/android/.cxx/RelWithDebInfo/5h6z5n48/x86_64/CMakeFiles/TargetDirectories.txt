@@ -1,3 +1,0 @@
-/home/hiteshsuthar/projects/looper_music/third_party/mpv_audio_kit/android/.cxx/RelWithDebInfo/5h6z5n48/x86_64/CMakeFiles/mpv_audio_kit_jni.dir
-/home/hiteshsuthar/projects/looper_music/third_party/mpv_audio_kit/android/.cxx/RelWithDebInfo/5h6z5n48/x86_64/CMakeFiles/edit_cache.dir
-/home/hiteshsuthar/projects/looper_music/third_party/mpv_audio_kit/android/.cxx/RelWithDebInfo/5h6z5n48/x86_64/CMakeFiles/rebuild_cache.dir

@@ -471,6 +471,25 @@ class _AnimatedArtworkWidgetState extends ConsumerState<AnimatedArtworkWidget>
     _activeSource = null;
   }
 
+  /// YouTube music videos often carry 2.39:1 cinema bars inside their
+  /// 16:9 frame. Zoom in from the centre just enough that the bars fall
+  /// outside [box]; 1 when they already do, or for any other video.
+  double _letterboxZoom(BoxConstraints box, double videoAspect) {
+    final source = widget.mediaSource;
+    if (source == null || YoutubeVideoArtwork.infoFor(source) == null) {
+      return 1.0;
+    }
+    if (!box.hasBoundedWidth || !box.hasBoundedHeight || box.maxHeight == 0) {
+      return 1.0;
+    }
+    const content = 2.39;
+    if (videoAspect >= content) return 1.0;
+    final frameAspect = box.maxWidth / box.maxHeight;
+    // Share of the video's height in view under cover, vs. the picture's.
+    final visible = (videoAspect / frameAspect).clamp(0.0, 1.0);
+    return (visible / (videoAspect / content)).clamp(1.0, 1.6);
+  }
+
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
@@ -507,20 +526,28 @@ class _AnimatedArtworkWidgetState extends ConsumerState<AnimatedArtworkWidget>
             opacity: _hasFirstFrame ? 1.0 : 0.0,
             duration: const Duration(milliseconds: 350),
             curve: Curves.easeInOut,
-            child: SizedBox.expand(
-              child: FittedBox(
-                fit: widget.fit,
-                clipBehavior: Clip.hardEdge,
-                child: SizedBox(
-                  width: _controller!.value.size.width > 0
-                      ? _controller!.value.size.width
-                      : 100,
-                  height: _controller!.value.size.height > 0
-                      ? _controller!.value.size.height
-                      : 100,
-                  child: VideoPlayer(_controller!),
-                ),
-              ),
+            child: LayoutBuilder(
+              builder: (context, box) {
+                final size = _controller!.value.size;
+                final w = size.width > 0 ? size.width : 100.0;
+                final h = size.height > 0 ? size.height : 100.0;
+                return ClipRect(
+                  child: Transform.scale(
+                    scale: _letterboxZoom(box, w / h),
+                    child: SizedBox.expand(
+                      child: FittedBox(
+                        fit: widget.fit,
+                        clipBehavior: Clip.hardEdge,
+                        child: SizedBox(
+                          width: w,
+                          height: h,
+                          child: VideoPlayer(_controller!),
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
             ),
           ),
       ],

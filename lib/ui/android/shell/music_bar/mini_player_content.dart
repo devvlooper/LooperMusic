@@ -20,8 +20,10 @@ extension _MiniPlayerContent on PremiumMusicBarState {
     }
 
     final double artSize = FluidPlayerGeometry.miniArtSize(compact: compact);
+    final bool pill = settings.pillMusicBar as bool;
     final double artRadius = FluidPlayerGeometry.miniArtRadius(
       compact: compact,
+      round: pill,
     );
     final double iconSize = (compact ? 15.0 : 17.0).s;
 
@@ -55,7 +57,9 @@ extension _MiniPlayerContent on PremiumMusicBarState {
       useExpanded: false,
       useCenter: false,
       onTap: null, // Handled by parent GestureDetector
-      borderRadius: BorderRadius.circular(FluidPlayerGeometry.panelRadius),
+      borderRadius: BorderRadius.circular(
+        FluidPlayerGeometry.restRadius(pill: pill),
+      ),
       child: Row(
         children: [
           SizedBox(width: FluidPlayerGeometry.miniArtLeft),

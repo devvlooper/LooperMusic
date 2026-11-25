@@ -210,6 +210,16 @@ class AppSettings {
   bool alwaysBlurSheets = AppDefaults.alwaysBlurSheets;
   // The Dynamic Theming music bar blur, with that theme off.
   bool blurMusicBar = AppDefaults.blurMusicBar;
+  // Music bar with pill-shaped corners and circular artwork (2.7 shape).
+  // Null (never set, including settings saved before it existed): default.
+  bool? pillMusicBarPref;
+  @ignore
+  bool get pillMusicBar => pillMusicBarPref ?? AppDefaults.pillMusicBar;
+  // Music bar with the light white frost of 2.7 instead of the dark tint.
+  bool? frostedMusicBarPref;
+  @ignore
+  bool get frostedMusicBar =>
+      frostedMusicBarPref ?? AppDefaults.frostedMusicBar;
   // The fading blur under Home's pinned status-bar header; on its own toggle,
   // independent of the sheet blur settings.
   bool statusBarBlur = AppDefaults.statusBarBlur;
@@ -293,6 +303,11 @@ class AppSettings {
   bool? showHomePlaylists;
   static const defaultHomeSectionOrder = AppDefaults.defaultHomeSectionOrder;
   List<String> homeSectionOrder = [...defaultHomeSectionOrder];
+  // Shortcuts pinned to the top of Library, in order: 'downloads',
+  // 'favorites' or 'playlist:<id>'.
+  List<String> libraryPins = [];
+  // Online songs whose audio is fully cached also list in Songs.
+  bool showCachedSongs = AppDefaults.showCachedSongs;
   bool enableSlideGesture = AppDefaults.enableSlideGesture;
   bool stopOnTaskRemoved = AppDefaults.stopOnTaskRemoved;
   bool persistQueue = AppDefaults.persistQueue;

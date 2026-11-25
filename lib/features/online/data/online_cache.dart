@@ -67,6 +67,13 @@ class OnlineCache {
     return dir;
   }
 
+  /// The video ids with a complete cached file, once the cache folder has
+  /// been read.
+  Future<Set<String>> cachedIds() async {
+    await _directory();
+    return Set.of(_cachedIds);
+  }
+
   /// Whether [videoId] is known to be cached locally.
   bool isCached(String videoId) => _cachedIds.contains(videoId);
 

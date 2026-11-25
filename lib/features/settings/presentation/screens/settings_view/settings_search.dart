@@ -122,6 +122,20 @@ extension _SettingsSearch on _SettingsViewState {
         category: '${l10n.account} · ${l10n.accountProfile}',
         widget: const SelectAvatarsTile(),
       ),
+      SettingsSearchItem(
+        title: l10n.pillMusicBar,
+        subtitle: l10n.pillMusicBarDesc,
+        category:
+            '${l10n.catPlayerInterface} · ${l10n.themeGroupBlurBackgrounds}',
+        widget: const PillMusicBarTile(),
+      ),
+      SettingsSearchItem(
+        title: l10n.frostedMusicBar,
+        subtitle: l10n.frostedMusicBarDesc,
+        category:
+            '${l10n.catPlayerInterface} · ${l10n.themeGroupBlurBackgrounds}',
+        widget: const FrostedMusicBarTile(),
+      ),
       if (!settings.enableDynamicTheming)
         SettingsSearchItem(
           title: l10n.blurMusicBar,

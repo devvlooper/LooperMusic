@@ -10,9 +10,7 @@ extension _CollectionHeader on CollectionDetailView {
       ..clearSnackBars()
       ..showSnackBar(
         SnackBar(
-          content: Text(
-            l10n.addSongsToPlaylistHint,
-          ),
+          content: Text(l10n.addSongsToPlaylistHint),
           behavior: SnackBarBehavior.floating,
           duration: const Duration(seconds: 5),
         ),

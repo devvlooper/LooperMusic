@@ -15,18 +15,27 @@ import 'package:looper_player/core/utils/l10n.dart';
 import 'package:looper_player/core/services/haptics/app_haptics.dart';
 import 'package:looper_player/core/services/haptics/haptic_snack_bar.dart';
 import 'package:looper_player/features/playlists/data/m3u_parser.dart';
+import 'package:looper_player/features/playlists/data/playlist_formats.dart';
+import 'package:looper_player/features/microg/data/account_auth.dart';
+import 'package:looper_player/features/microg/domain/auth_session.dart';
+import 'package:looper_player/features/microg/presentation/providers/auth_provider.dart';
+import 'backup_crypto.dart';
+import 'package:looper_player/features/settings/presentation/providers/settings_notifier.dart';
 
 class ImportExportService {
   // Bumped from 1 -> 2 to add play stats, custom EQ presets and excluded
   // folders. importLibraryData() still accepts a version-1 file - every new
   // section is optional there, defaulting to empty rather than failing.
-  static const _backupVersion = 2;
+  static const _backupVersion = 3;
 
   static Future<void> exportLibraryData(BuildContext context) async {
     LoggerHelper.write(
       'ImportExportService: Starting library backup export...',
     );
     final messenger = ScaffoldMessenger.of(context);
+    // Empty: a plain backup. A password encrypts it and adds the account.
+    final password = await _askPassword(context, export: true);
+    if (password == null) return;
     try {
       // 1. Get all liked songs
       final likedSongs = await DbService.isar.songs
@@ -95,7 +104,12 @@ class ImportExportService {
       final excludedFolders =
           await LocalJsonStore.read('excluded_folders') ?? [];
 
-      // 5. Construct JSON structure
+      // 5. App settings (theme, player, EQ, pins...), as Isar exports them.
+      final settingsJson = await DbService.isar.appSettings
+          .where()
+          .exportJson();
+
+      // 6. Construct JSON structure
       final backup = {
         'version': _backupVersion,
         'favorites': favoritesJson,
@@ -103,9 +117,25 @@ class ImportExportService {
         'playStats': statsJson,
         'customEqPresets': customEqPresets,
         'excludedFolders': excludedFolders,
+        if (settingsJson.isNotEmpty) 'settings': _jsonSafe(settingsJson.first),
       };
 
-      final jsonStr = const JsonEncoder.withIndent('  ').convert(backup);
+      String jsonStr = const JsonEncoder.withIndent('  ').convert(backup);
+      if (password.isNotEmpty) {
+        final auth = AccountAuth.instance;
+        final session = auth.signedIn ? auth.state.value.session : null;
+        if (session != null) backup['account'] = session.toJson();
+        final envelope = await _withProgress(
+          context,
+          currentL10n().backupEncrypting,
+          BackupCrypto.encrypt(jsonEncode(backup), password),
+        );
+        jsonStr = const JsonEncoder.withIndent('  ').convert(envelope);
+        LoggerHelper.write(
+          'ImportExportService: Backup encrypted '
+          '(account ${session != null ? 'included' : 'not signed in'}).',
+        );
+      }
 
       // 6. Write to temp directory
       final tempDir = await getTemporaryDirectory();
@@ -149,10 +179,9 @@ class ImportExportService {
     final messenger = ScaffoldMessenger.of(context);
     try {
       // 1. Pick file
-      final result = await FilePicker.pickFile(
-        type: FileType.custom,
-        allowedExtensions: ['json'],
-      );
+      // Any type: shared or saved copies often lose the JSON MIME type, and
+      // the picker then hides them. The content is checked below.
+      final result = await FilePicker.pickFile();
 
       if (result == null || result.path == null) {
         LoggerHelper.write(
@@ -166,9 +195,13 @@ class ImportExportService {
 
       final file = File(filePath);
       final content = await file.readAsString();
-      final Map<String, dynamic> backup = jsonDecode(content);
+      Map<String, dynamic> backup = jsonDecode(content);
+      if (BackupCrypto.isEncrypted(backup)) {
+        backup = await _decryptBackup(context, backup) ?? const {};
+        if (backup.isEmpty) return;
+      }
 
-      if (backup['version'] != 1 && backup['version'] != 2) {
+      if (!const {1, 2, 3}.contains(backup['version'])) {
         throw 'Unsupported backup version: ${backup['version']}';
       }
 
@@ -177,6 +210,32 @@ class ImportExportService {
       final statsMerged = await _importPlayStats(backup);
       await _importCustomEqPresets(ref, backup);
       await _importExcludedFolders(ref, backup);
+      final settings = backup['settings'];
+      if (settings is Map<String, dynamic> &&
+          context.mounted &&
+          await _confirmRestoreSettings(context)) {
+        await DbService.isar.writeTxn(
+          () => DbService.isar.appSettings.importJson([
+            {...settings, 'id': 0},
+          ]),
+        );
+        ref.invalidate(settingsProvider);
+        LoggerHelper.write('ImportExportService: Settings restored.');
+      }
+      final account = AuthSession.fromJson(backup['account']);
+      bool? accountRestored;
+      if (account != null) {
+        // Checked with YouTube like a fresh sign-in, then sealed on this
+        // device; a backup of an expired session leaves the account as is.
+        await ref.read(authProvider.notifier).saveWebSession(account);
+        final auth = AccountAuth.instance;
+        accountRestored =
+            auth.signedIn && auth.state.value.session?.cookie == account.cookie;
+        LoggerHelper.write(
+          'ImportExportService: Account restore '
+          '${accountRestored ? 'succeeded' : 'failed'}.',
+        );
+      }
 
       // Trigger Library ref scan / updates to sync UI
       ref
@@ -186,11 +245,16 @@ class ImportExportService {
         AppHaptics.success,
         SnackBar(
           content: Text(
-            currentL10n().backupImportedSummary(
-              favoritesMerged,
-              statsMerged,
-              playlistsCreated,
-            ),
+            [
+              currentL10n().backupImportedSummary(
+                favoritesMerged,
+                statsMerged,
+                playlistsCreated,
+              ),
+              if (accountRestored == true) currentL10n().backupAccountRestored,
+              if (accountRestored == false)
+                currentL10n().backupAccountNotRestored,
+            ].join('\n'),
           ),
           backgroundColor: Colors.green.shade800,
           behavior: SnackBarBehavior.floating,
@@ -213,8 +277,9 @@ class ImportExportService {
     }
   }
 
-  /// Settings > Backups & Logs > Import Playlist (M3U): each picked
-  /// `.m3u` / `.m3u8` file becomes a new playlist named after the file
+  /// Settings > Backups & Logs > Import Playlist, and the Playlists screen:
+  /// each picked playlist file (any [PlaylistFormats] format) becomes a new
+  /// playlist named after the file
   /// ("Road trip (2)" when that name is taken), holding the tracks that
   /// are in the library, in the file's order.
   static Future<void> importM3uPlaylists(BuildContext context) async {
@@ -224,17 +289,15 @@ class ImportExportService {
       // FileType.any, not a custom extension filter: Android has no MIME
       // type for .m3u8 on every version, which makes the filter throw.
       final picked = await FilePicker.pickFiles();
-      final files = picked.where((f) {
-        final name = f.name.toLowerCase();
-        return f.path != null &&
-            (name.endsWith('.m3u') || name.endsWith('.m3u8'));
-      }).toList();
+      final files = picked
+          .where((f) => f.path != null && PlaylistFormats.isSupported(f.name))
+          .toList();
 
       if (picked.isEmpty) {
         LoggerHelper.write('ImportExportService: M3U import cancelled.');
         return;
       }
-      if (files.isEmpty) throw 'No .m3u / .m3u8 file selected';
+      if (files.isEmpty) throw 'No playlist file selected';
 
       final songs = await DbService.isar.songs.where().findAll();
       final matcher = M3uSongMatcher(songs);
@@ -247,16 +310,10 @@ class ImportExportService {
       int total = 0;
       for (final m3u in files) {
         final file = File(m3u.path!);
-        final bytes = await file.readAsBytes();
-        // Older playlists are often Latin-1 rather than UTF-8.
-        String content;
-        try {
-          content = utf8.decode(bytes);
-        } on FormatException {
-          content = latin1.decode(bytes);
-        }
-
-        final entries = M3uParser.parse(content);
+        final entries = PlaylistFormats.parse(
+          m3u.name,
+          await file.readAsBytes(),
+        );
         final paths = <String>[];
         for (final entry in entries) {
           final song = matcher.match(entry, playlistDir: file.parent.path);
@@ -334,6 +391,232 @@ class ImportExportService {
       );
     }
   }
+
+  /// Asks for the backup password, until it is right or the user cancels.
+  /// Null when cancelled.
+  static Future<Map<String, dynamic>?> _decryptBackup(
+    BuildContext context,
+    Map<String, dynamic> envelope,
+  ) async {
+    String? error;
+    while (context.mounted) {
+      final password = await _askPassword(context, error: error);
+      if (password == null || password.isEmpty) return null;
+      try {
+        return jsonDecode(
+          await _withProgress(
+            context,
+            currentL10n().backupDecrypting,
+            BackupCrypto.decrypt(envelope, password),
+          ),
+        );
+      } on BackupPasswordException {
+        error = currentL10n().backupWrongPassword;
+      }
+    }
+    return null;
+  }
+
+  /// The password dialog. [export]: optional, with a confirm field, and an
+  /// empty answer means a plain backup. Otherwise it unlocks a backup.
+  /// Null when cancelled.
+  static Future<String?> _askPassword(
+    BuildContext context, {
+    bool export = false,
+    String? error,
+  }) {
+    final l10n = currentL10n();
+    final first = TextEditingController();
+    final second = TextEditingController();
+    String? mismatch;
+    bool hidden = true;
+    return showDialog<String>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) {
+          final empty = first.text.isEmpty && second.text.isEmpty;
+          void submit() {
+            if (export && first.text != second.text) {
+              setState(() => mismatch = l10n.backupPasswordMismatch);
+              return;
+            }
+            if (!export && first.text.isEmpty) return;
+            Navigator.pop(context, first.text);
+          }
+
+          InputDecoration field(String hint, {String? errorText}) =>
+              InputDecoration(
+                hintText: hint,
+                errorText: errorText,
+                filled: true,
+                fillColor: Colors.white.withValues(alpha: 0.06),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    hidden
+                        ? Icons.visibility_rounded
+                        : Icons.visibility_off_rounded,
+                    size: 20,
+                  ),
+                  onPressed: () => setState(() => hidden = !hidden),
+                ),
+              );
+
+          return AlertDialog(
+            backgroundColor: const Color(0xFF161616),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(24),
+            ),
+            title: Row(
+              children: [
+                const Icon(Icons.lock_rounded, size: 22),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    export
+                        ? l10n.backupPasswordTitle
+                        : l10n.enterBackupPassword,
+                    style: const TextStyle(fontSize: 19),
+                  ),
+                ),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (export) ...[
+                  Text(
+                    l10n.backupPasswordDesc,
+                    style: const TextStyle(color: Colors.white60, fontSize: 13),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+                TextField(
+                  controller: first,
+                  obscureText: hidden,
+                  autofocus: true,
+                  onChanged: (_) => setState(() => mismatch = null),
+                  onSubmitted: (_) => export ? null : submit(),
+                  decoration: field(
+                    l10n.backupPasswordHint,
+                    errorText: export ? null : error,
+                  ),
+                ),
+                if (export) ...[
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: second,
+                    obscureText: hidden,
+                    onChanged: (_) => setState(() => mismatch = null),
+                    onSubmitted: (_) => submit(),
+                    decoration: field(
+                      l10n.backupPasswordConfirm,
+                      errorText: mismatch,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(l10n.cancel),
+              ),
+              FilledButton(
+                onPressed: !export && first.text.isEmpty ? null : submit,
+                child: Text(
+                  export
+                      ? (empty
+                            ? l10n.backupWithoutPassword
+                            : l10n.backupLockAndExport)
+                      : l10n.unlock,
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  /// Runs [work] behind a small blocking "[label]..." dialog: the key
+  /// derivation takes a couple of seconds.
+  static Future<T> _withProgress<T>(
+    BuildContext context,
+    String label,
+    Future<T> work,
+  ) async {
+    if (!context.mounted) return work;
+    final navigator = Navigator.of(context, rootNavigator: true);
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      useRootNavigator: true,
+      builder: (_) => PopScope(
+        canPop: false,
+        child: AlertDialog(
+          backgroundColor: const Color(0xFF161616),
+          content: Row(
+            children: [
+              const SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(strokeWidth: 2.4),
+              ),
+              const SizedBox(width: 18),
+              Expanded(child: Text(label)),
+            ],
+          ),
+        ),
+      ),
+    );
+    try {
+      return await work;
+    } finally {
+      navigator.pop();
+    }
+  }
+
+  static Future<bool> _confirmRestoreSettings(BuildContext context) async {
+    final l10n = currentL10n();
+    return await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            backgroundColor: const Color(0xFF161616),
+            title: Text(l10n.restoreSettingsTitle),
+            content: Text(l10n.restoreSettingsDesc),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: Text(l10n.keepMySettings),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: Text(l10n.restoreSettings),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+  }
+
+  /// [json] without non-finite doubles, which JSON cannot hold (unset
+  /// settings are NaN; Isar reads a missing key back as unset).
+  static Object? _jsonSafe(Object? json) => switch (json) {
+    final Map m => {
+      for (final e in m.entries)
+        if (!(e.value is double && !(e.value as double).isFinite))
+          e.key: _jsonSafe(e.value),
+    },
+    final List l => [
+      for (final v in l) v is double && !v.isFinite ? 0.0 : _jsonSafe(v),
+    ],
+    _ => json,
+  };
 
   /// Finds the local song a backup entry refers to: by path first, falling
   /// back to title+artist since a restored/moved library can have drifted

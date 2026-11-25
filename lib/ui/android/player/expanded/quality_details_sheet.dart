@@ -433,8 +433,8 @@ class _QualityDetailsSheetState extends ConsumerState<_QualityDetailsSheet>
     );
 
     final PlayerState ps = _player.state;
-    final AudioParams dec = ps.audioParams;
-    final AudioParams out = ps.audioOutParams;
+    final AudioParams dec = ps.file.audioParams;
+    final AudioParams out = ps.output.audioOutParams;
     final DeviceAudioInfo? device = _device;
 
     // Where the rate changes on the way out: mpv's output, then Android's
@@ -463,8 +463,8 @@ class _QualityDetailsSheetState extends ConsumerState<_QualityDetailsSheet>
 
     final activeBlockers = BitPerfectManager.getActiveBlockers(
       eqState: eqState,
-      playbackRate: ps.rate,
-      playbackPitch: ps.pitch,
+      playbackRate: ps.settings.rate,
+      playbackPitch: ps.settings.pitch,
       crossfadeActive: crossfadeActive,
       onlineLoudnessGain: onlineGain,
     );
@@ -636,10 +636,10 @@ class _QualityDetailsSheetState extends ConsumerState<_QualityDetailsSheet>
                       dec.hrChannels ??
                           _channelLabel(l10n, dec.channelCount ?? 0),
                     ),
-                  if (ps.audioBitrate != null)
+                  if (ps.file.audioBitrate != null)
                     (
                       l10n.qualityLiveBitrate,
-                      '${(ps.audioBitrate! / 1000).round()} kbps',
+                      '${(ps.file.audioBitrate! / 1000).round()} kbps',
                     ),
                 ],
               ),
@@ -677,7 +677,7 @@ class _QualityDetailsSheetState extends ConsumerState<_QualityDetailsSheet>
                   (l10n.equalizer, eqOn ? l10n.on : l10n.off),
                   (
                     l10n.qualityReplayGain,
-                    switch (ps.replayGain.mode) {
+                    switch (ps.settings.replayGain.mode) {
                       ReplayGain.no => l10n.off,
                       ReplayGain.track => l10n.qualityReplayGainTrack,
                       ReplayGain.album => l10n.qualityReplayGainAlbum,
@@ -688,12 +688,18 @@ class _QualityDetailsSheetState extends ConsumerState<_QualityDetailsSheet>
                       l10n.qualityOnlineLoudness,
                       '${onlineGain.toStringAsFixed(1)} dB',
                     ),
-                  (l10n.qualitySpeed, '${ps.rate.toStringAsFixed(2)}×'),
-                  (l10n.qualityPitch, '${ps.pitch.toStringAsFixed(2)}×'),
+                  (
+                    l10n.qualitySpeed,
+                    '${ps.settings.rate.toStringAsFixed(2)}×',
+                  ),
+                  (
+                    l10n.qualityPitch,
+                    '${ps.settings.pitch.toStringAsFixed(2)}×',
+                  ),
                   (l10n.qualityCrossfade, crossfadeActive ? l10n.on : l10n.off),
                   (
                     l10n.qualityGapless,
-                    ps.gapless == Gapless.no ? l10n.off : l10n.on,
+                    ps.settings.gapless == Gapless.no ? l10n.off : l10n.on,
                   ),
                   (
                     l10n.qualityBlockersTitle,

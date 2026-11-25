@@ -106,6 +106,46 @@ class BlurMusicBarTile extends ConsumerWidget {
   }
 }
 
+/// Pill-shaped music bar with circular artwork.
+class PillMusicBarTile extends ConsumerWidget {
+  const PillMusicBarTile({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final settings = ref.watch(settingsProvider);
+    final l10n = AppLocalizations.of(context)!;
+    return SwitchListTile(
+      secondary: const Icon(LucideIcons.pill),
+      title: Text(l10n.pillMusicBar, style: _tileTitleStyle()),
+      subtitle: Text(l10n.pillMusicBarDesc, style: _tileSubtitleStyle()),
+      value: settings.pillMusicBar,
+      onChanged: (value) {
+        ref.read(settingsProvider.notifier).updatePillMusicBar(value);
+      },
+    );
+  }
+}
+
+/// Light frosted music bar background, as in 2.7.
+class FrostedMusicBarTile extends ConsumerWidget {
+  const FrostedMusicBarTile({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final settings = ref.watch(settingsProvider);
+    final l10n = AppLocalizations.of(context)!;
+    return SwitchListTile(
+      secondary: const Icon(LucideIcons.snowflake),
+      title: Text(l10n.frostedMusicBar, style: _tileTitleStyle()),
+      subtitle: Text(l10n.frostedMusicBarDesc, style: _tileSubtitleStyle()),
+      value: settings.frostedMusicBar,
+      onChanged: (value) {
+        ref.read(settingsProvider.notifier).updateFrostedMusicBar(value);
+      },
+    );
+  }
+}
+
 /// The fading blur under Home's pinned header at the status bar. Off: a
 /// black fade instead.
 class StatusBarBlurTile extends ConsumerWidget {

@@ -45,7 +45,13 @@ class FluidPlayerGeometry {
   static const double miniArtLeft = 11.0;
   static double miniArtSize({bool compact = false}) => compact ? 40.0 : 47.0;
   static double miniArtTop({bool compact = false}) => compact ? 8.0 : 9.5;
-  static double miniArtRadius({bool compact = false}) => compact ? 7.0 : 8.0;
+  static double miniArtRadius({bool compact = false, bool round = false}) =>
+      round ? miniArtSize(compact: compact) / 2 : (compact ? 7.0 : 8.0);
+
+  /// Collapsed panel radius: [panelRadius], or half the bar's height for
+  /// the pill shape.
+  static double restRadius({bool pill = false}) =>
+      pill ? miniHeight / 2 : panelRadius;
 
   /// Progress threshold where the panel corners begin smoothing from [panelRadius]
   /// down to 0 at full expansion. During flight (p <= 0.94), corners remain constant
@@ -57,7 +63,8 @@ class FluidPlayerGeometry {
   /// smoothly via an easeInOut curve to 0 at full expansion (p = 1.0) so square-corner
   /// devices have seamless edge-to-edge coverage while any small drag restores
   /// the rounded floating card appearance.
-  static double panelRadiusAt(double p) {
+  static double panelRadiusAt(double p, {bool pill = false}) {
+    final double panelRadius = restRadius(pill: pill);
     if (p <= panelCornerProgressThreshold) return panelRadius;
     if (p >= 1.0) return 0.0;
     final double t =
@@ -153,8 +160,11 @@ class FluidPlayerGeometry {
 
   /// Corner radius of the morphing art: the mini thumbnail's 32 (or 26 compact)
   /// to the expanded artwork's 12.
-  static double morphArtRadius(double p, {bool compact = false}) =>
-      lerpDouble(miniArtRadius(compact: compact), 12.0, p)!;
+  static double morphArtRadius(
+    double p, {
+    bool compact = false,
+    bool round = false,
+  }) => lerpDouble(miniArtRadius(compact: compact, round: round), 12.0, p)!;
 
   Offset miniOrigin(
     double p, {

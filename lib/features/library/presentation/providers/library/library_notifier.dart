@@ -1,3 +1,4 @@
+import 'package:looper_player/features/online/data/online_cache.dart';
 import 'package:looper_player/core/utils/refresh_slot.dart';
 import 'package:looper_player/features/online/data/online_downloader.dart';
 import 'package:looper_player/features/online/data/online_playback.dart';
@@ -94,6 +95,7 @@ class Library extends _$Library {
       _lastScanAt = DateTime.fromMillisecondsSinceEpoch(rawLastScan);
     }
 
+    await _refreshCachedSongPaths();
     _loadLibrary();
 
     // Both jobs below read and write the database, so they wait until the
@@ -974,10 +976,35 @@ class Library extends _$Library {
     unawaited(_enrichPendingSongs());
   }
 
-  /// Device songs only: online rows (`yt:`) live in favorites, playlists
-  /// and history, not in the library lists.
-  QueryBuilder<Song, Song, QAfterFilterCondition> _localSongs() =>
-      DbService.isar.songs.filter().not().pathStartsWith('yt:');
+  /// Device songs: online rows (`yt:`) live in favorites, playlists and
+  /// history, not in the library lists - except fully cached ones when
+  /// Show cached songs is on, since those play from disk like a file.
+  QueryBuilder<Song, Song, QAfterFilterCondition> _localSongs() {
+    final cached = _cachedSongPaths;
+    return DbService.isar.songs.filter().group((q) {
+      final local = q.not().pathStartsWith('yt:');
+      return cached.isEmpty
+          ? local
+          : local.or().anyOf(cached, (q, path) => q.pathEqualTo(path));
+    });
+  }
+
+  /// `yt:<id>` paths of the cached online songs Songs lists; empty when
+  /// Show cached songs is off.
+  List<String> _cachedSongPaths = const [];
+
+  Future<void> _refreshCachedSongPaths() async {
+    _cachedSongPaths = ref.read(settingsProvider).showCachedSongs
+        ? [for (final id in await OnlineCache.instance.cachedIds()) 'yt:$id']
+        : const [];
+  }
+
+  /// Re-reads the cache and the song list, e.g. after Show cached songs
+  /// is switched.
+  Future<void> reloadCachedSongs() async {
+    await _refreshCachedSongPaths();
+    _loadLibrary();
+  }
 
   QueryBuilder<Song, Song, QAfterSortBy> _buildSongsQuery() {
     final isAsc = state.isAscending;

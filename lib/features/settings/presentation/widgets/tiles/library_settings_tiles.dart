@@ -264,6 +264,27 @@ class RescanLibraryTile extends ConsumerWidget {
   }
 }
 
+/// Fully cached online songs listed in Songs next to device files.
+class ShowCachedSongsTile extends ConsumerWidget {
+  const ShowCachedSongsTile({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context)!;
+    return SwitchListTile(
+      secondary: const Icon(LucideIcons.hardDriveDownload),
+      title: Text(l10n.showCachedSongs, style: _tileTitleStyle()),
+      subtitle: Text(l10n.showCachedSongsDesc, style: _tileSubtitleStyle()),
+      value: ref.watch(settingsProvider.select((s) => s.showCachedSongs)),
+      onChanged: (value) async {
+        AppHaptics.light();
+        await ref.read(settingsProvider.notifier).updateShowCachedSongs(value);
+        await ref.read(libraryProvider.notifier).reloadCachedSongs();
+      },
+    );
+  }
+}
+
 class IncludeSystemAndMessagingAudioTile extends ConsumerWidget {
   const IncludeSystemAndMessagingAudioTile({super.key});
 
