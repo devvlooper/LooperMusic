@@ -56,7 +56,7 @@ class LargeTabHeader extends ConsumerWidget {
           RoundIconButton(
             icon: Icons.person_rounded,
             onTap: () => go(NavItem.account),
-            child: headerProfilePhoto(ref, 42),
+            child: headerProfilePhoto(ref, 36),
           ),
         ],
       ),
@@ -70,7 +70,7 @@ class RoundIconButton extends StatelessWidget {
   final VoidCallback onTap;
   final String? tooltip;
 
-  /// Drawn instead of [icon] (the profile photo), filling the circle.
+  /// Drawn instead of [icon] (the profile photo), centred in the circle.
   final Widget? child;
 
   const RoundIconButton({
@@ -91,7 +91,10 @@ class RoundIconButton extends StatelessWidget {
         onTap: onTap,
         child: SizedBox.square(
           dimension: 42,
-          child: child ?? Icon(icon, color: Colors.white, size: 22),
+          // The photo sits inside the grey ring, like the icon.
+          child: child == null
+              ? Icon(icon, color: Colors.white, size: 22)
+              : Center(child: child),
         ),
       ),
     );
