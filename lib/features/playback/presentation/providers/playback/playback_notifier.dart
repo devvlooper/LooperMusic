@@ -1715,6 +1715,9 @@ class Playback extends _$Playback {
     // call's Bluetooth route switch read as an unplug that stopped us, so
     // Resume on Bluetooth Connect played the paused song after the call.
     if (state.isPlaying) _lastRemotePauseAt = DateTime.now();
+    // The plugin paused only the player that holds the media session; mid
+    // crossfade the other song would play on through a call.
+    ref.read(audioServiceProvider).transitionDirector.pauseTransition();
     _silenceTimer?.cancel();
     _songCompletionTimer?.cancel();
     if (state.isPlaying) {
@@ -2756,7 +2759,10 @@ class Playback extends _$Playback {
   void onBecomingNoisy() {
     final pausedJustNow =
         DateTime.now().difference(_lastRemotePauseAt) <
-        const Duration(seconds: 2);
+        // The plugin's own unplug pause lands within milliseconds; a longer
+        // window also caught a headset-button pause just before switching
+        // the headphones off, which then resumed on the next connect.
+        const Duration(seconds: 1);
     if (!state.isPlaying && !pausedJustNow) return;
     if (state.isPlaying) {
       unawaited(ref.read(audioServiceProvider).pause());
@@ -2776,6 +2782,8 @@ class Playback extends _$Playback {
 
   Future<void> resumeOnBluetoothConnect() async {
     if (state.isPlaying || !_pausedForRouteChange) return;
+    // Headsets reconnect during calls too; the call's end decides then.
+    if (await ref.read(audioServiceProvider).isOnCall()) return;
     // A reconnect long after the disconnect shouldn't start music by surprise.
     if (DateTime.now().difference(_routeChangePausedAt) >
         const Duration(minutes: 30)) {
