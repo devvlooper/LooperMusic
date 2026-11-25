@@ -1710,7 +1710,11 @@ class Playback extends _$Playback {
   }
 
   void _onRemotePause() {
-    _lastRemotePauseAt = DateTime.now();
+    // Only a pause that stopped playback: the plugin also sends one at the
+    // start of a call while already paused, and stamping that made the
+    // call's Bluetooth route switch read as an unplug that stopped us, so
+    // Resume on Bluetooth Connect played the paused song after the call.
+    if (state.isPlaying) _lastRemotePauseAt = DateTime.now();
     _silenceTimer?.cancel();
     _songCompletionTimer?.cancel();
     if (state.isPlaying) {
@@ -2760,6 +2764,14 @@ class Playback extends _$Playback {
     }
     _pausedForRouteChange = true;
     _routeChangePausedAt = DateTime.now();
+    // A call moves Bluetooth audio to the headset profile, which Android
+    // also reports as "becoming noisy". That is no unplug: the call's own
+    // pause and Resume after call own what happens next.
+    unawaited(() async {
+      if (await ref.read(audioServiceProvider).isOnCall()) {
+        _pausedForRouteChange = false;
+      }
+    }());
   }
 
   Future<void> resumeOnBluetoothConnect() async {
