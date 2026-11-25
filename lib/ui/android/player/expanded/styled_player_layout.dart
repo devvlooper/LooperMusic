@@ -767,6 +767,55 @@ Widget _buildStyledBackground(
   child: _styledBackgroundFor(context, ref, song, style),
 );
 
+/// The Now Playing screen's background for [style], for screens that mirror
+/// it (lyrics with Follow Now Playing Background on). Classic matches the
+/// expanded player: blurred art, else the player gradient, else surface.
+Widget nowPlayingBackground(
+  BuildContext context,
+  WidgetRef ref,
+  Song song,
+  PlayerLayoutStyle style,
+) {
+  if (style != PlayerLayoutStyle.classic) {
+    return _buildStyledBackground(context, ref, song, style);
+  }
+  final settings = ref.watch(settingsProvider);
+  final double darkness = settings.musicDarkness.isNaN
+      ? 0.62
+      : settings.musicDarkness;
+  final bool art =
+      (settings.enableDynamicTheming || settings.playerDynamicBackground) &&
+      song.artPath != null;
+  return PlayerBackgroundSwitcher(
+    child: art
+        ? Stack(
+            key: const ValueKey('art'),
+            fit: StackFit.expand,
+            children: [
+              BlurredBackgroundArt(
+                song: song,
+                zoom: 1.08,
+                motion: false,
+                crossfade: true,
+              ),
+              ColoredBox(color: Colors.black.withValues(alpha: darkness)),
+            ],
+          )
+        : settings.enablePlayerGradient
+        ? SizedBox.expand(
+            key: const ValueKey('gradient'),
+            child: PlayerGradientBackground(
+              darkness: darkness,
+              animated: settings.animatePlayerGradient,
+            ),
+          )
+        : ColoredBox(
+            key: const ValueKey('surface'),
+            color: Theme.of(context).colorScheme.surface,
+          ),
+  );
+}
+
 /// Each kind of background has its own key, so switching kinds crossfades.
 Widget _styledBackgroundFor(
   BuildContext context,
