@@ -1169,10 +1169,9 @@ class _LyricsSourceChip extends ConsumerWidget {
         : state.isSynced
         ? l10n.lyricsLineSynced
         : l10n.lyricsNotSynced;
+    // Sized to its text: an aligned Container would stretch across the bar.
     return Container(
-      height: 32,
-      padding: const EdgeInsets.symmetric(horizontal: 14),
-      alignment: Alignment.center,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(16),
