@@ -192,6 +192,14 @@ class _BlurredArtImageState extends State<_BlurredArtImage>
       widget.style,
     );
     _request = request;
+    // Already baked: show it on the first frame instead of fading in from
+    // the placeholder (a screen opening over the player otherwise flashed
+    // dark). Called from initState/didUpdateWidget, so no setState needed.
+    final ui.Image? ready = _baked[request];
+    if (ready != null && _image == null) {
+      _image = ready;
+      return;
+    }
     request.then((image) {
       if (mounted && identical(_request, request)) {
         _show(image);
@@ -303,7 +311,7 @@ Future<ui.Image?> _blurredArt(String path, Size size, _BlurStyle style) {
     if (old != null) _cache.remove(old);
     _screenSizedKey = key;
   }
-  return _cache[key] = _render(
+  final Future<ui.Image?> render = _render(
     path,
     w,
     h,
@@ -314,7 +322,14 @@ Future<ui.Image?> _blurredArt(String path, Size size, _BlurStyle style) {
     artAlignment,
     keepAspect: resolution != null,
   );
+  render.then((image) {
+    if (image != null) _baked[render] = image;
+  });
+  return _cache[key] = render;
 }
+
+/// Finished bakes by request, so a cache hit can be shown synchronously.
+final Expando<ui.Image> _baked = Expando();
 
 String? _screenSizedKey;
 
