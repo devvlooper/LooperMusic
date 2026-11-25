@@ -1,4 +1,8 @@
 {
+  "lyricsMenuSync": "Sync",
+  "lyricsMenuSource": "Source",
+  "lyricsMenuLook": "Look",
+  "lyricsMenuYourLyrics": "Your lyrics",
   "eqScopeAllSongs": "All songs",
   "eqScopeThisSong": "This song",
   "eqScopeAllNote": "Edits apply to every song without its own EQ.",
