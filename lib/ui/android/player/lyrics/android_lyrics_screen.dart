@@ -363,7 +363,7 @@ class _AndroidLyricsScreenState extends ConsumerState<AndroidLyricsScreen>
       label: label,
       child: Material(
         color: Colors.white.withValues(alpha: 0.08),
-        shape: const CircleBorder(),
+        shape: const StadiumBorder(),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: () {
@@ -371,7 +371,7 @@ class _AndroidLyricsScreenState extends ConsumerState<AndroidLyricsScreen>
             onTap();
           },
           child: SizedBox(
-            width: 44.s,
+            width: 56.s,
             height: 44.s,
             child: Icon(icon, color: Colors.white, size: 20),
           ),
@@ -389,7 +389,10 @@ class _AndroidLyricsScreenState extends ConsumerState<AndroidLyricsScreen>
             label: MaterialLocalizations.of(context).closeButtonTooltip,
             onTap: _close,
           ),
+          // Gaps keep the three pills from touching.
+          const SizedBox(width: 10),
           const Expanded(child: Center(child: _LyricsSourceChip())),
+          const SizedBox(width: 10),
           circle(
             icon: LucideIcons.ellipsisVertical,
             label: l10n.lyrics,
@@ -404,10 +407,7 @@ class _AndroidLyricsScreenState extends ConsumerState<AndroidLyricsScreen>
 
     // The cover's corners echo the Now Playing style's artwork.
     final BorderRadius artRadius = switch (style) {
-      PlayerLayoutStyle.arc => BorderRadius.vertical(
-        top: Radius.circular(14.s),
-        bottom: Radius.circular(28.s),
-      ),
+      PlayerLayoutStyle.arc => BorderRadius.circular(10.s),
       PlayerLayoutStyle.linear => BorderRadius.circular(7.s),
       PlayerLayoutStyle.card => BorderRadius.circular(5.s),
       PlayerLayoutStyle.classic => BorderRadius.circular(14.s),
@@ -1171,20 +1171,28 @@ class _LyricsSourceChip extends ConsumerWidget {
         : l10n.lyricsNotSynced;
     // Sized to its text: an aligned Container would stretch across the bar.
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+      height: 44.s,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(22.s),
       ),
-      child: Text(
-        '$name · $timing',
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: AppFonts.jostStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.w500,
-          color: Colors.white.withValues(alpha: 0.85),
-        ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Flexible(
+            child: Text(
+              '$name · $timing',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppFonts.jostStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: Colors.white.withValues(alpha: 0.85),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
