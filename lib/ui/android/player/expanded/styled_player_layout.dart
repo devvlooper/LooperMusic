@@ -675,10 +675,54 @@ mixin _StyledArt<T extends ConsumerStatefulWidget> on ConsumerState<T> {
   Widget _artImage() => _StyledArtwork(song: _song, style: _style);
 }
 
-class _StyledArtwork extends ConsumerWidget {
+class _StyledArtwork extends StatelessWidget {
   final Song song;
   final PlayerLayoutStyle style;
   const _StyledArtwork({required this.song, required this.style});
+
+  // A swipe changes the song at once; the cover cross-fades through a soft
+  // blur (as the Home header blurs what passes under it) instead of
+  // cutting, which read as a flash.
+  @override
+  Widget build(BuildContext context) => AnimatedSwitcher(
+    duration: const Duration(milliseconds: 380),
+    switchInCurve: Curves.easeOutCubic,
+    switchOutCurve: Curves.easeInCubic,
+    layoutBuilder: (current, previous) =>
+        Stack(fit: StackFit.expand, children: [...previous, ?current]),
+    transitionBuilder: (child, animation) => AnimatedBuilder(
+      animation: animation,
+      child: child,
+      builder: (context, child) {
+        final double t = animation.value;
+        final double sigma = (1 - t) * 14;
+        return Opacity(
+          opacity: t,
+          child: sigma < 0.3
+              ? child
+              : ImageFiltered(
+                  imageFilter: ImageFilter.blur(sigmaX: sigma, sigmaY: sigma),
+                  child: child,
+                ),
+        );
+      },
+    ),
+    child: _StyledArtworkImage(
+      key: ValueKey(song.id),
+      song: song,
+      style: style,
+    ),
+  );
+}
+
+class _StyledArtworkImage extends ConsumerWidget {
+  final Song song;
+  final PlayerLayoutStyle style;
+  const _StyledArtworkImage({
+    super.key,
+    required this.song,
+    required this.style,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
