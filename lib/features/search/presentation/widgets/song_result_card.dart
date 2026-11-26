@@ -138,7 +138,9 @@ class _SongResultCard extends ConsumerWidget {
     return InkWell(
       onTap: () {
         ref.read(lyricsSearchQueryProvider.notifier).clear();
-        if (song.isOnline) {
+        if (ref.read(settingsProvider).searchPlaysOnlySong) {
+          ref.read(playbackProvider.notifier).playOnly(song);
+        } else if (song.isOnline) {
           ref.read(playbackProvider.notifier).playOnlineWithRadio(song);
         } else {
           ref.read(playbackProvider.notifier).play(song);

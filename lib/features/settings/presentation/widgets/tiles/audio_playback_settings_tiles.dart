@@ -217,6 +217,27 @@ class PersistQueueTile extends ConsumerWidget {
   }
 }
 
+class SearchPlaysOnlySongTile extends ConsumerWidget {
+  const SearchPlaysOnlySongTile({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context)!;
+    final value = ref.watch(
+      settingsProvider.select((s) => s.searchPlaysOnlySong),
+    );
+    return SwitchListTile(
+      secondary: const Icon(LucideIcons.search),
+      title: Text(l10n.searchPlaysOnlySongTitle, style: _tileTitleStyle()),
+      subtitle: Text(l10n.searchPlaysOnlySongDesc, style: _tileSubtitleStyle()),
+      value: value,
+      onChanged: (value) {
+        ref.read(settingsProvider.notifier).updateSearchPlaysOnlySong(value);
+      },
+    );
+  }
+}
+
 class KeepSongProgressTile extends ConsumerWidget {
   const KeepSongProgressTile({super.key});
 

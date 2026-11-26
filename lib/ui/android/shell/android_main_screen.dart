@@ -34,6 +34,7 @@ import 'package:looper_player/features/playback/presentation/providers/playback/
 import 'package:looper_player/core/providers/player_expand_provider.dart';
 import 'package:looper_player/core/services/storage/storage_access.dart';
 
+import 'classic_navbar.dart';
 import 'premium_navbar.dart';
 import '../widgets/premium_section.dart';
 
@@ -63,7 +64,7 @@ GlobalKey<NavigatorState> androidNavigatorKey(Ref ref) =>
 /// (a collection, settings, ...) is on top. Used via `.select()` so
 /// screens only rebuild when this actually changes value, not on every
 /// NavigationState field (isPlayerExpanded, collectionSongs, ...).
-/// The root tabs, in navbar order.
+/// The root tabs, in navbar (and tab stack) order.
 const _rootTabs = [
   NavItem.home,
   NavItem.search,
@@ -71,10 +72,14 @@ const _rootTabs = [
   NavItem.library,
 ];
 
-NavItem _rootNavItem(NavigationState nav) {
-  if (_rootTabs.contains(nav.activeItem)) return nav.activeItem;
+/// The Classic Navbar's tabs: there, Search is a screen pushed from the
+/// top bars, as in Looper Player.
+const _classicTabs = [NavItem.home, NavItem.songs, NavItem.library];
+
+NavItem _rootNavItem(NavigationState nav, List<NavItem> tabs) {
+  if (tabs.contains(nav.activeItem)) return nav.activeItem;
   for (final histState in nav.history.reversed) {
-    if (_rootTabs.contains(histState.activeItem)) return histState.activeItem;
+    if (tabs.contains(histState.activeItem)) return histState.activeItem;
   }
   return NavItem.home;
 }
@@ -103,9 +108,11 @@ class _AndroidMainScreenState extends ConsumerState<AndroidMainScreen>
     setState(() => _navAtRoot = atRoot);
   }
 
-  final List<Widget> _tabs = [
+  // In _rootTabs order. With the Classic Navbar, Search is pushed instead,
+  // so it isn't kept mounted here too (one search field, one focus node).
+  List<Widget> _tabsFor(bool classic) => [
     const AndroidHomeTab(),
-    const AndroidSearchTab(),
+    classic ? const SizedBox.shrink() : const AndroidSearchTab(),
     const AndroidSongsTab(),
     const AndroidLibraryTab(),
   ];
@@ -235,13 +242,24 @@ class _AndroidMainScreenState extends ConsumerState<AndroidMainScreen>
     super.dispose();
   }
 
-  Widget _buildTabStack() {
+  /// The navbar for [tabs]: the Classic Navbar's three, or all four.
+  Widget _navbar(NavItem rootItem, List<NavItem> tabs) {
+    final index = tabs.indexOf(rootItem).clamp(0, tabs.length - 1);
+    void onTap(int i) =>
+        ref.read(appNavigationProvider.notifier).setItem(tabs[i]);
+    return tabs == _classicTabs
+        ? ClassicNavbar(currentIndex: index, onTap: onTap)
+        : PremiumNavbar(currentIndex: index, onTap: onTap);
+  }
+
+  Widget _buildTabStack(bool classic) {
+    final tabs = _tabsFor(classic);
     return AnimatedBuilder(
       animation: _tabFadeController,
       builder: (context, _) {
         final double t = _tabFadeController.value;
         return Stack(
-          children: List.generate(_tabs.length, (i) {
+          children: List.generate(tabs.length, (i) {
             final bool isCurrent = i == _currentTabIndex;
             final bool isPrevious = i == _previousTabIndex;
             final bool participates = isCurrent || isPrevious;
@@ -270,7 +288,7 @@ class _AndroidMainScreenState extends ConsumerState<AndroidMainScreen>
                       child: TransitionStatusProvider(
                         isTransitioning:
                             _tabFadeController.isAnimating && participates,
-                        child: _tabs[i],
+                        child: tabs[i],
                       ),
                     ),
                   ),
@@ -322,13 +340,18 @@ class _AndroidMainScreenState extends ConsumerState<AndroidMainScreen>
     final l10n = AppLocalizations.of(context)!;
     final song = ref.watch(playbackProvider.select((s) => s.currentSong));
     final navigatorKey = ref.read(androidNavigatorKeyProvider);
-    final rootItem = ref.watch(appNavigationProvider.select(_rootNavItem));
+    final classicNavbar = ref.watch(
+      settingsProvider.select((s) => s.classicNavbar),
+    );
+    final navTabs = classicNavbar ? _classicTabs : _rootTabs;
+    NavItem rootOf(NavigationState nav) => _rootNavItem(nav, navTabs);
+    final rootItem = ref.watch(appNavigationProvider.select(rootOf));
 
     // Drives the tab crossfade (see _buildTabStack) whenever the active root
     // tab actually changes - kept separate from the sub-view Navigator
     // listener below since this is only about Home/Songs/Library, not the
     // full navigation stack.
-    ref.listen(appNavigationProvider.select(_rootNavItem), (previous, next) {
+    ref.listen(appNavigationProvider.select(rootOf), (previous, next) {
       final int newIndex = _navItemTabIndex(next);
       if (newIndex == _currentTabIndex) return;
       _previousTabIndex = _currentTabIndex;
@@ -340,8 +363,13 @@ class _AndroidMainScreenState extends ConsumerState<AndroidMainScreen>
     ref.listen(appNavigationProvider, (previous, next) {
       final isForward = next.history.length >= (previous?.history.length ?? 0);
 
-      if (_rootTabs.contains(next.activeItem)) {
+      if (navTabs.contains(next.activeItem)) {
         navigatorKey.currentState?.popUntil((route) => route.isFirst);
+      } else if (isForward && next.activeItem == NavItem.search) {
+        // Only with the Classic Navbar: otherwise Search is a root tab.
+        navigatorKey.currentState?.push(
+          _createPremiumRoute(const AndroidSearchTab()),
+        );
       } else if (isForward && next.activeItem == NavItem.playlists) {
         navigatorKey.currentState?.push(
           _createPremiumRoute(
@@ -471,7 +499,9 @@ class _AndroidMainScreenState extends ConsumerState<AndroidMainScreen>
     // the navbar's off-screen slide distance both match it exactly.
     final bool isShortWindow = Responsive.isShort(MediaQuery.sizeOf(context));
     final double navbarHeight =
-        PremiumNavbar.heightFor(compact: isShortWindow) +
+        (classicNavbar
+            ? ClassicNavbar.heightFor(compact: isShortWindow)
+            : PremiumNavbar.heightFor(compact: isShortWindow)) +
         MediaQuery.of(context).padding.bottom;
 
     final baseTheme = Theme.of(context);
@@ -695,7 +725,7 @@ class _AndroidMainScreenState extends ConsumerState<AndroidMainScreen>
                           return PageRouteBuilder(
                             pageBuilder:
                                 (context, animation, secondaryAnimation) =>
-                                    _buildTabStack(),
+                                    _buildTabStack(classicNavbar),
                             // The tab stack gets the same covered/uncovered parallax
                             // as pushed pages, so popping back to it eases it in
                             // instead of snapping it on in the last frame.
@@ -727,17 +757,29 @@ class _AndroidMainScreenState extends ConsumerState<AndroidMainScreen>
                         curve: Curves.easeInOut,
                         // Starts behind the mini player's middle and is
                         // near-solid under the tabs, which have no surface.
+                        // The Classic Navbar keeps its old, taller fade.
                         child: Container(
-                          height: navbarHeight + 4.0 + musicBarHeight / 2 + 8,
+                          height: classicNavbar
+                              ? 180
+                              : navbarHeight + 4.0 + musicBarHeight / 2 + 8,
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
                               begin: Alignment.topCenter,
                               end: Alignment.bottomCenter,
-                              colors: [
-                                Colors.transparent,
-                                Colors.black.withValues(alpha: 0.95),
-                              ],
-                              stops: const [0.0, 0.61],
+                              colors: classicNavbar
+                                  ? [
+                                      Colors.transparent,
+                                      Colors.black.withValues(alpha: 0.45),
+                                      Colors.black.withValues(alpha: 0.8),
+                                      Colors.black,
+                                    ]
+                                  : [
+                                      Colors.transparent,
+                                      Colors.black.withValues(alpha: 0.95),
+                                    ],
+                              stops: classicNavbar
+                                  ? const [0.0, 0.35, 0.7, 1.0]
+                                  : const [0.0, 0.61],
                             ),
                           ),
                         ),
@@ -806,12 +848,7 @@ class _AndroidMainScreenState extends ConsumerState<AndroidMainScreen>
                                         ),
                                       );
                                     },
-                                    child: PremiumNavbar(
-                                      currentIndex: _navItemTabIndex(rootItem),
-                                      onTap: (index) => ref
-                                          .read(appNavigationProvider.notifier)
-                                          .setItem(_rootTabs[index]),
-                                    ),
+                                    child: _navbar(rootItem, navTabs),
                                   ),
                                 ),
                               ),
@@ -908,12 +945,7 @@ class _AndroidMainScreenState extends ConsumerState<AndroidMainScreen>
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               const SizedBox(height: 4),
-                              PremiumNavbar(
-                                currentIndex: _navItemTabIndex(rootItem),
-                                onTap: (index) => ref
-                                    .read(appNavigationProvider.notifier)
-                                    .setItem(_rootTabs[index]),
-                              ),
+                              _navbar(rootItem, navTabs),
                             ],
                           ),
                         ),

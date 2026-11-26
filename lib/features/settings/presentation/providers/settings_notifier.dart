@@ -402,6 +402,7 @@ class Settings extends _$Settings {
       ..alwaysBlurSheets = s.alwaysBlurSheets
       ..blurMusicBar = s.blurMusicBar
       ..pillMusicBarPref = s.pillMusicBarPref
+      ..classicNavbar = s.classicNavbar
       ..frostedMusicBarPref = s.frostedMusicBarPref
       ..statusBarBlur = s.statusBarBlur
       ..playerDynamicBackground = s.playerDynamicBackground
@@ -456,6 +457,7 @@ class Settings extends _$Settings {
       ..enableSlideGesture = s.enableSlideGesture
       ..stopOnTaskRemoved = s.stopOnTaskRemoved
       ..persistQueue = s.persistQueue
+      ..searchPlaysOnlySong = s.searchPlaysOnlySong
       ..keepSongProgress = s.keepSongProgress
       ..fadePlayPauseStop = s.fadePlayPauseStop
       ..playPauseStopFadeLength = s.playPauseStopFadeLength
@@ -687,6 +689,9 @@ class Settings extends _$Settings {
   Future<void> updateResumeOnStart(bool value) =>
       _update((s) => s..resumeOnStart = value);
 
+  Future<void> updateSearchPlaysOnlySong(bool value) =>
+      _update((s) => s..searchPlaysOnlySong = value);
+
   Future<void> updatePersistQueue(bool value) => _update((s) {
     s.persistQueue = value;
     if (!value) {
@@ -801,6 +806,9 @@ class Settings extends _$Settings {
 
   Future<void> updateBlurMusicBar(bool value) =>
       _update((s) => s..blurMusicBar = value);
+
+  Future<void> updateClassicNavbar(bool value) =>
+      _update((s) => s..classicNavbar = value);
 
   Future<void> updatePillMusicBar(bool value) =>
       _update((s) => s..pillMusicBarPref = value);

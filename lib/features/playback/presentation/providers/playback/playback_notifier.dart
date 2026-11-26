@@ -85,6 +85,8 @@ class Playback extends _$Playback {
   int _lastProgressSaveCheckpoint = 0;
   static const int _progressSaveIntervalMs = 60000;
   int _manualQueueCount = 0;
+  // A song played alone from search: the queue isn't auto-filled after it.
+  bool _soloQueue = false;
   DateTime _lastSeekTime = DateTime.fromMillisecondsSinceEpoch(0);
   // A track end that arrived while play() was still loading a song. mpv
   // flips `completed` back to false on START_FILE, so a `true` seen after
@@ -643,6 +645,7 @@ class Playback extends _$Playback {
   /// Plays an online song from search, initializing the playlist with just
   /// this song and immediately populating it with personalized related songs.
   Future<void> playOnlineWithRadio(Song song, {int? sourcePlaylistId}) async {
+    _soloQueue = false;
     _playlist = [song];
     _originalPlaylist = [song];
     _currentIndex = 0;
@@ -653,6 +656,21 @@ class Playback extends _$Playback {
     );
     await play(song, sourcePlaylistId: sourcePlaylistId);
     _extendOnlineQueue(song);
+  }
+
+  /// Plays [song] as the whole queue, with nothing auto-added after it
+  /// (Settings > Queue > Search Plays Only That Song).
+  Future<void> playOnly(Song song) async {
+    _playlist = [song];
+    _originalPlaylist = [song];
+    _currentIndex = 0;
+    _manualQueueCount = 0;
+    _soloQueue = true;
+    state = state.copyWith(
+      queue: [song],
+      queueSourceKey: collectionKey([song]),
+    );
+    await play(song);
   }
 
   List<Song> get _manualQueueSongs {
@@ -670,6 +688,7 @@ class Playback extends _$Playback {
     bool continueCurrent = false,
     int? sourcePlaylistId,
   }) {
+    _soloQueue = false;
     _originalPlaylist = List.from(songs);
 
     if (state.isShuffle) {
@@ -1267,6 +1286,8 @@ class Playback extends _$Playback {
       _manualQueueCount = (idx < endOfManual) ? endOfManual - idx : 0;
       _currentIndex = idx;
     } else {
+      // A song from outside the queue: it's no longer a solo search play.
+      _soloQueue = false;
       if (_currentIndex == -1) {
         _playlist = [song];
         _originalPlaylist = [song];
@@ -2152,6 +2173,7 @@ class Playback extends _$Playback {
   }
 
   Future<void> clearQueue() async {
+    _soloQueue = false;
     _playlist = [];
     _originalPlaylist = [];
     _currentIndex = -1;
@@ -2969,6 +2991,7 @@ class Playback extends _$Playback {
   }
 
   Future<void> _ensureDynamicQueue() async {
+    if (_soloQueue) return;
     const int bufferSize = 5;
     // Loading the whole library on every skip was the main skip-spam cost.
     if (_playlist.isNotEmpty &&

@@ -21,6 +21,7 @@ import 'package:looper_player/core/utils/motion.dart';
 import 'package:looper_player/features/library/presentation/widgets/songs/song_tile.dart';
 import 'package:looper_player/features/playback/presentation/providers/lyrics/lyrics_search_provider.dart';
 import 'package:looper_player/features/playback/presentation/providers/playback/playback_notifier.dart';
+import 'package:looper_player/features/settings/presentation/providers/settings_notifier.dart';
 import 'package:looper_player/features/playlists/data/services/playlist_service.dart';
 import 'package:looper_player/features/playlists/presentation/screens/playlist_view.dart'
     show playlistProvider;
@@ -69,6 +70,12 @@ class _AndroidSearchTabState extends ConsumerState<AndroidSearchTab> {
   void initState() {
     super.initState();
     _controller = TextEditingController(text: ref.read(searchQueryProvider));
+    // Pushed already open (Classic Navbar): the listener below won't fire.
+    if (ref.read(appNavigationProvider).activeItem == NavItem.search) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) ref.read(searchFocusNodeProvider).requestFocus();
+      });
+    }
   }
 
   @override

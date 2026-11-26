@@ -213,6 +213,9 @@ class AppSettings {
   // Music bar with pill-shaped corners and circular artwork (2.7 shape).
   // Null (never set, including settings saved before it existed): default.
   bool? pillMusicBarPref;
+  // The old (2.x) three-pill navbar, Search opening from the top bars.
+  // Off by default.
+  bool classicNavbar = false;
   @ignore
   bool get pillMusicBar => pillMusicBarPref ?? AppDefaults.pillMusicBar;
   // Music bar with the light white frost of 2.7 instead of the dark tint.
@@ -311,6 +314,9 @@ class AppSettings {
   bool enableSlideGesture = AppDefaults.enableSlideGesture;
   bool stopOnTaskRemoved = AppDefaults.stopOnTaskRemoved;
   bool persistQueue = AppDefaults.persistQueue;
+  // A song tapped in search plays alone, with no queue around it. Off by
+  // default.
+  bool searchPlaysOnlySong = false;
 
   /// Remembers each song's own playback position (Song.lastPositionMs) so
   /// resuming it later -- even after playing other songs in between --

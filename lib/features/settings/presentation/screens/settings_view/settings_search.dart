@@ -130,6 +130,13 @@ extension _SettingsSearch on _SettingsViewState {
         widget: const PillMusicBarTile(),
       ),
       SettingsSearchItem(
+        title: l10n.classicNavbar,
+        subtitle: l10n.classicNavbarDesc,
+        category:
+            '${l10n.catPlayerInterface} · ${l10n.themeGroupBlurBackgrounds}',
+        widget: const ClassicNavbarTile(),
+      ),
+      SettingsSearchItem(
         title: l10n.frostedMusicBar,
         subtitle: l10n.frostedMusicBarDesc,
         category:
@@ -599,6 +606,12 @@ extension _SettingsSearch on _SettingsViewState {
         subtitle: l10n.persistQueueDesc,
         category: '${l10n.playbackAndAudio} · ${l10n.queue}',
         widget: const PersistQueueTile(),
+      ),
+      SettingsSearchItem(
+        title: l10n.searchPlaysOnlySongTitle,
+        subtitle: l10n.searchPlaysOnlySongDesc,
+        category: '${l10n.playbackAndAudio} · ${l10n.queue}',
+        widget: const SearchPlaysOnlySongTile(),
       ),
       SettingsSearchItem(
         title: l10n.keepSongProgressTitle,

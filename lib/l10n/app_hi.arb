@@ -1,4 +1,6 @@
 {
+  "searchPlaysOnlySongTitle": "सर्च से सिर्फ़ वही गाना चले",
+  "searchPlaysOnlySongDesc": "सर्च से चलाया गाना अकेला चलता है, उसके साथ कोई कतार नहीं बनती",
   "headerProfilePhoto": "टॉप बार में फ़ोटो",
   "headerProfilePhotoDesc": "होम, गाने और लाइब्रेरी पर व्यक्ति आइकन की जगह अपनी प्रोफ़ाइल फ़ोटो दिखाएँ",
   "lyricsMenuSync": "सिंक",
@@ -52,6 +54,8 @@
   "pinned": "पिन किया गया",
   "customizeLibrary": "लाइब्रेरी कस्टमाइज़ करें",
   "customizeLibraryDesc": "प्लेलिस्ट, पसंदीदा या डाउनलोड को लाइब्रेरी में सबसे ऊपर पिन करें और खींचकर क्रम बदलें।",
+  "classicNavbar": "क्लासिक नेवबार",
+  "classicNavbarDesc": "पुराना तीन-पिल नेवबार (होम, गाने, लाइब्रेरी), सर्च टॉप बार में",
   "pillMusicBar": "पिल म्यूज़िक बार",
   "pillMusicBarDesc": "म्यूज़िक बार को गोल आर्टवर्क के साथ पिल आकार में करें",
   "qualitySectionFormat": "फ़ॉर्मैट",

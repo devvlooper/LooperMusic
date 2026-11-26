@@ -126,6 +126,26 @@ class PillMusicBarTile extends ConsumerWidget {
   }
 }
 
+/// The old three-pill navbar (Home, Songs, Library).
+class ClassicNavbarTile extends ConsumerWidget {
+  const ClassicNavbarTile({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context)!;
+    final value = ref.watch(settingsProvider.select((s) => s.classicNavbar));
+    return SwitchListTile(
+      secondary: const Icon(LucideIcons.panelBottom),
+      title: Text(l10n.classicNavbar, style: _tileTitleStyle()),
+      subtitle: Text(l10n.classicNavbarDesc, style: _tileSubtitleStyle()),
+      value: value,
+      onChanged: (value) {
+        ref.read(settingsProvider.notifier).updateClassicNavbar(value);
+      },
+    );
+  }
+}
+
 /// Light frosted music bar background, as in 2.7.
 class FrostedMusicBarTile extends ConsumerWidget {
   const FrostedMusicBarTile({super.key});

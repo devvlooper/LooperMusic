@@ -14,6 +14,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:looper_player/features/online/data/online_cache.dart';
 import 'package:looper_player/features/online/presentation/online_providers.dart';
 import 'package:looper_player/features/playback/presentation/providers/playback/playback_notifier.dart';
+import 'package:looper_player/features/settings/presentation/providers/settings_notifier.dart';
 import 'package:looper_player/core/providers/navigation_provider.dart';
 import 'package:looper_player/core/services/storage/db_service.dart';
 import 'package:isar_community/isar.dart';
@@ -157,6 +158,12 @@ class SongTile extends ConsumerWidget {
               return;
             }
             onPlay?.call();
+            // A search result, with Search Plays Only That Song on.
+            if ((searchQuery?.isNotEmpty ?? false) &&
+                ref.read(settingsProvider).searchPlaysOnlySong) {
+              ref.read(playbackProvider.notifier).playOnly(song);
+              return;
+            }
             final resolve = resolveQueue;
             if (resolve != null) {
               final notifier = ref.read(playbackProvider.notifier);

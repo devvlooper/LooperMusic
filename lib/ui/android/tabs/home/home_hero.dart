@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:looper_player/features/settings/presentation/screens/account_view.dart'
     show headerProfilePhoto;
+import 'package:looper_player/core/providers/navigation_provider.dart';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
@@ -807,6 +808,20 @@ class _HeaderRow extends ConsumerWidget {
             child: Center(child: SelectedAvatar(size: 38, maxWidth: 130)),
           ),
         const Spacer(),
+        // The classic navbar has no Search tab: Search opens from here.
+        if (ref.watch(settingsProvider.select((s) => s.classicNavbar))) ...[
+          HomeRoundButton(
+            size: 42,
+            color: _fill,
+            semanticLabel: l10n.search,
+            onTap: () {
+              AppHaptics.light();
+              ref.read(appNavigationProvider.notifier).setItem(NavItem.search);
+            },
+            child: HomeIcons.search(),
+          ),
+          const SizedBox(width: 6),
+        ],
         HomeRoundButton(
           size: 42,
           color: _fill,

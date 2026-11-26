@@ -90,6 +90,7 @@ class SettingsCategoryScreen extends ConsumerWidget {
             if (!dynamicTheming) const BlurMusicBarTile(),
             const PillMusicBarTile(),
             const FrostedMusicBarTile(),
+            const ClassicNavbarTile(),
             // Dynamic theming paints its own background.
             if (!dynamicTheming) ...[
               demo(
@@ -298,6 +299,7 @@ class SettingsCategoryScreen extends ConsumerWidget {
           tiles: [
             const ShuffleTile(),
             const PersistQueueTile(),
+            const SearchPlaysOnlySongTile(),
             const KeepSongProgressTile(),
           ],
         ),
