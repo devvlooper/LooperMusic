@@ -1,4 +1,8 @@
 {
+  "searchPlaysOnlySongTitle": "Zoeken speelt alleen dat nummer",
+  "searchPlaysOnlySongDesc": "Een nummer uit de zoekresultaten speelt alleen, zonder dat er een wachtrij omheen wordt gemaakt",
+  "classicNavbar": "Klassieke navigatiebalk",
+  "classicNavbarDesc": "De oude balk met drie pillen (Home, Nummers, Bibliotheek), met Zoeken in de bovenbalken",
   "headerProfilePhoto": "Foto in bovenbalken",
   "headerProfilePhotoDesc": "Toon je profielfoto op Start, Nummers en Bibliotheek in plaats van het persoonspictogram",
   "lyricsMenuSync": "Synchronisatie",

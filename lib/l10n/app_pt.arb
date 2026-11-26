@@ -1,4 +1,8 @@
 {
+  "searchPlaysOnlySongTitle": "A pesquisa toca só essa música",
+  "searchPlaysOnlySongDesc": "Uma música tocada pela pesquisa toca sozinha, sem criar uma fila ao redor dela",
+  "classicNavbar": "Barra de navegação clássica",
+  "classicNavbarDesc": "A antiga barra de três pílulas (Início, Músicas, Biblioteca), com a pesquisa nas barras superiores",
   "headerProfilePhoto": "Foto nas barras superiores",
   "headerProfilePhotoDesc": "Mostrar sua foto de perfil em Início, Músicas e Biblioteca no lugar do ícone de pessoa",
   "lyricsMenuSync": "Sincronização",

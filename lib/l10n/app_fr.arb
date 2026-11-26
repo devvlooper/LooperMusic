@@ -1,4 +1,8 @@
 {
+  "searchPlaysOnlySongTitle": "La recherche lit seulement ce titre",
+  "searchPlaysOnlySongDesc": "Un titre lancé depuis la recherche est lu seul, sans file d’attente autour",
+  "classicNavbar": "Barre de navigation classique",
+  "classicNavbarDesc": "L’ancienne barre à trois pilules (Accueil, Titres, Bibliothèque), avec la recherche dans les barres du haut",
   "headerProfilePhoto": "Photo dans les barres du haut",
   "headerProfilePhotoDesc": "Afficher votre photo de profil sur Accueil, Titres et Bibliothèque au lieu de l'icône de personne",
   "lyricsMenuSync": "Synchronisation",

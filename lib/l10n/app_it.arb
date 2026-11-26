@@ -1,4 +1,8 @@
 {
+  "searchPlaysOnlySongTitle": "La ricerca riproduce solo quel brano",
+  "searchPlaysOnlySongDesc": "Un brano avviato dalla ricerca viene riprodotto da solo, senza creare una coda intorno",
+  "classicNavbar": "Barra di navigazione classica",
+  "classicNavbarDesc": "La vecchia barra a tre pillole (Home, Brani, Libreria), con la ricerca nelle barre in alto",
   "headerProfilePhoto": "Foto nelle barre superiori",
   "headerProfilePhotoDesc": "Mostra la tua foto profilo in Home, Brani e Libreria al posto dell'icona della persona",
   "lyricsMenuSync": "Sincronizzazione",

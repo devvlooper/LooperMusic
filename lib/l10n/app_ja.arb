@@ -1,4 +1,8 @@
 {
+  "searchPlaysOnlySongTitle": "検索ではその曲だけを再生",
+  "searchPlaysOnlySongDesc": "検索から再生した曲は単独で再生され、キューは作られません",
+  "classicNavbar": "クラシックナビバー",
+  "classicNavbarDesc": "以前の3つのピル型ナビバー（ホーム、曲、ライブラリ）。検索は上部バーから",
   "headerProfilePhoto": "上部バーに写真",
   "headerProfilePhotoDesc": "ホーム、曲、ライブラリで人物アイコンの代わりにプロフィール写真を表示します",
   "lyricsMenuSync": "同期",

@@ -1,4 +1,8 @@
 {
+  "searchPlaysOnlySongTitle": "Suche spielt nur diesen Song",
+  "searchPlaysOnlySongDesc": "Ein Song aus der Suche läuft allein, ohne dass eine Warteschlange darum gebaut wird",
+  "classicNavbar": "Klassische Navigationsleiste",
+  "classicNavbarDesc": "Die alte Leiste mit drei Pillen (Start, Songs, Mediathek), Suche in den oberen Leisten",
   "headerProfilePhoto": "Foto in den oberen Leisten",
   "headerProfilePhotoDesc": "Dein Profilfoto auf Start, Songs und Bibliothek statt des Personensymbols zeigen",
   "lyricsMenuSync": "Synchronisierung",

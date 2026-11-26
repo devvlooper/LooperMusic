@@ -1,4 +1,8 @@
 {
+  "searchPlaysOnlySongTitle": "Arama Yalnızca O Şarkıyı Çalar",
+  "searchPlaysOnlySongDesc": "Aramadan çalınan şarkı, etrafında bir sıra oluşturulmadan tek başına çalar",
+  "classicNavbar": "Klasik Gezinme Çubuğu",
+  "classicNavbarDesc": "Eski üç hapçıklı gezinme çubuğu (Ana Sayfa, Şarkılar, Kitaplık), arama üst çubuklarda",
   "headerProfilePhoto": "Üst çubuklarda fotoğraf",
   "headerProfilePhotoDesc": "Ana sayfa, Şarkılar ve Kitaplık'ta kişi simgesi yerine profil fotoğrafını göster",
   "lyricsMenuSync": "Senkronizasyon",
