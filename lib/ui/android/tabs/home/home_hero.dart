@@ -698,17 +698,26 @@ class HomeTopBar extends StatelessWidget {
                       ),
                     DecoratedBox(
                       decoration: BoxDecoration(
+                        // Over the hero, the soft shade that keeps the
+                        // buttons readable; scrolled, the Frosted Music
+                        // Bar's light white frost over the blur.
                         gradient: blur
                             ? LinearGradient(
                                 begin: Alignment.topCenter,
                                 end: Alignment.bottomCenter,
+                                stops: const [0, 0.7, 1],
                                 colors: [
                                   Color.lerp(
                                     const Color(0x59000000),
-                                    const Color(0x80000000),
+                                    _frostTint,
                                     t,
                                   )!,
-                                  const Color(0x00000000),
+                                  Color.lerp(
+                                    const Color(0x1A000000),
+                                    _frostTint,
+                                    t,
+                                  )!,
+                                  const Color(0x00FFFFFF),
                                 ],
                               )
                             // No blur to hide the page behind the buttons:
@@ -750,7 +759,10 @@ class HomeTopBar extends StatelessWidget {
   // bands. Many thin ones keep each step in strength too small to see; as
   // a group they share one read of the page behind.
   static const _bands = 16;
-  static const _topSigma = 14.0;
+  // The Frosted Music Bar's frost (PremiumMusicBarState.frostBarColor and
+  // frostBlurSigma): an even, light blur instead of a heavy graded one.
+  static const _frostTint = Color(0x0DFFFFFF);
+  static const _frostSigma = 3.0;
 
   /// Where band [i] starts, on a whole device pixel: soft clip edges at
   /// fractional positions would show as faint lines between bands.
@@ -758,10 +770,10 @@ class HomeTopBar extends StatelessWidget {
       (height * dpr * i / _bands).roundToDouble() / dpr;
 
   static Widget _blurBand(int i, double bandHeight, double t) {
-    // 1 at the top band, falling to ~0 at the bottom, eased so most of the
-    // blur sits near the status bar; all of it scales in with the scroll.
-    final f = math.pow(1 - i / _bands, 1.6).toDouble();
-    final sigma = _topSigma * t * f;
+    // Even frost over the top 70%, then easing to none at the bottom edge so
+    // the blur has no hard line; all of it scales in with the scroll.
+    final f = (((_bands - i) / _bands) / 0.3).clamp(0.0, 1.0);
+    final sigma = _frostSigma * t * f;
     return SizedBox(
       height: bandHeight,
       width: double.infinity,
