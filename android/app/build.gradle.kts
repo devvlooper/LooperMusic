@@ -21,6 +21,13 @@ android {
         jvmToolchain(17)
     }
 
+    // Release lint crashes on CI (JDK 17) inside webview_flutter_android's
+    // generated Kotlin with AGP 9 - a lint bug, not a code problem. It only
+    // gates the build; it doesn't change the APK.
+    lint {
+        checkReleaseBuilds = false
+    }
+
     val keystorePropertiesFile = rootProject.file("key.properties")
     val keystoreProperties = Properties()
     var hasSigningConfig = false
